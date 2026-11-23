@@ -1,6 +1,16 @@
 import type { LeadSubmissionInput } from "./schema";
 import { isPlaceholderEnvValue } from "@/lib/env";
 
+const RESEND_TIMEOUT_MS = 4500;
+
+export function sanitizeEmailHeader(value: string, maxLength = 140): string {
+  return value
+    .replace(/[\r\n\u0000-\u001F\u007F]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function getResendConfig(): {
   apiKey: string;
   fromEmail: string;
@@ -24,7 +34,8 @@ function getResendConfig(): {
 
 /**
  * Optional free-tier transactional email notification via Resend REST API.
- * Never blocks or fails enquiry capture: lead persistence happens first in the database.
+ * Never blocks or fails enquiry capture: lead persistence happens first in the database,
+ * and strict 4.5s AbortSignal timeout prevents serverless function hangs.
  */
 export async function sendOptionalLeadNotification(
   lead: LeadSubmissionInput
@@ -34,9 +45,14 @@ export async function sendOptionalLeadNotification(
     return "skipped_unconfigured";
   }
 
+  const safeCompany = sanitizeEmailHeader(lead.company, 70);
+  const safeService = sanitizeEmailHeader(lead.interestedService, 70);
+  const safeReplyTo = sanitizeEmailHeader(lead.email, 160);
+
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${cfg.apiKey}`,
         "Content-Type": "application/json",
@@ -44,8 +60,8 @@ export async function sendOptionalLeadNotification(
       body: JSON.stringify({
         from: cfg.fromEmail,
         to: [cfg.toEmail],
-        reply_to: lead.email,
-        subject: `[OmniFlow Enquiry] ${lead.company} — ${lead.interestedService}`,
+        reply_to: safeReplyTo,
+        subject: `[OmniFlow Enquiry] ${safeCompany} — ${safeService}`,
         text: [
           `New OmniFlow Enquiry`,
           `--------------------`,
@@ -90,16 +106,17 @@ export async function sendPasswordRecoveryEmail(input: {
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         from: fromEmail,
-        to: [input.toEmail],
+        to: [sanitizeEmailHeader(input.toEmail, 160)],
         subject: "OmniFlow Staff Password Recovery Request",
         text: [
-          `Hello ${input.recipientName},`,
+          `Hello ${sanitizeEmailHeader(input.recipientName, 80)},`,
           ``,
           `A password reset was requested for your OmniFlow staff administration account.`,
           `Use the single-use link below within 30 minutes to set a new password:`,

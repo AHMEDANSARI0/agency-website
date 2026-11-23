@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       service: report.application.service,
       version: report.application.version,
       phase: 7,
+      securityProfile: "csp-csrf-ratelimit-idempotent-v8",
       environment: report.application.environment,
       databaseMode: report.database.driver,
       database: {

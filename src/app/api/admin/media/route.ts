@@ -14,7 +14,10 @@ import {
 import { requireAdminApiAuth } from "@/lib/auth/server";
 import { db } from "@/lib/database";
 import { DatabaseUnavailableError, StorageUnavailableError } from "@/lib/env";
-import { extractClientIp } from "@/lib/security/rate-limit";
+import {
+  checkDistributedRateLimit,
+  extractClientIp,
+} from "@/lib/security/rate-limit";
 import { sanitizePlainText } from "@/lib/validation/common";
 
 const patchMediaSchema = z.object({
@@ -70,6 +73,39 @@ export async function POST(request: Request) {
   try {
     const auth = await requireAdminApiAuth(request, "media:manage");
     if (!auth.ok) return auth.response;
+
+    const uploadRate = await checkDistributedRateLimit(
+      `admin_media_upload:${auth.user.id}`,
+      20,
+      5 * 60 * 1000
+    );
+    if (!uploadRate.allowed) {
+      return NextResponse.json(
+        {
+          error: `Upload rate limit reached. Please wait ${uploadRate.retryAfterSeconds} seconds before uploading more files.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(uploadRate.retryAfterSeconds) },
+        }
+      );
+    }
+
+    const maxSingleBytes = getMaxSingleUploadBytes();
+    const declaredLength = Number(request.headers.get("content-length") || "0");
+    if (
+      Number.isFinite(declaredLength) &&
+      declaredLength > maxSingleBytes + 64 * 1024
+    ) {
+      return NextResponse.json(
+        {
+          error: `Upload exceeds the maximum single-file limit (${Math.round(
+            maxSingleBytes / (1024 * 1024)
+          )} MB).`,
+        },
+        { status: 413 }
+      );
+    }
 
     let form: FormData;
     try {

@@ -64,6 +64,10 @@ export function ContactForm({
     [defaultContext]
   );
 
+  const idempotencyKeyRef = React.useRef<string>(
+    `idem_of_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+  );
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -91,7 +95,10 @@ export function ContactForm({
     try {
       const response = await fetch("/api/leads", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKeyRef.current,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -107,6 +114,9 @@ export function ContactForm({
       }
 
       form.reset();
+      idempotencyKeyRef.current = `idem_of_${Date.now().toString(36)}_${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
       trackAnalyticsEvent("lead_enquiry_submitted", {
         service: payload.interestedService || "general",
         industry: payload.industry || "unspecified",

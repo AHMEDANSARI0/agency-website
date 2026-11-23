@@ -5,6 +5,7 @@ interface RateWindow {
 }
 
 const buckets = new Map<string, RateWindow>();
+const SAFE_IP_REGEX = /^[0-9a-fA-F:.]{2,64}$/;
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -24,7 +25,10 @@ export function checkRateLimit(
 
   if (current.timestamps.length >= maxRequests) {
     const oldest = current.timestamps[0] ?? nowMs;
-    const retryAfterSeconds = Math.max(1, Math.ceil((oldest + windowMs - nowMs) / 1000));
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((oldest + windowMs - nowMs) / 1000)
+    );
     buckets.set(key, current);
     return {
       allowed: false,
@@ -62,22 +66,33 @@ export async function checkDistributedRateLimit(
   maxRequests: number,
   windowMs: number
 ): Promise<RateLimitResult> {
+  const safeKey = key.slice(0, 180);
   const distributed = await db.checkDistributedRateLimitBucket(
-    key,
+    safeKey,
     maxRequests,
     windowMs
   );
   if (distributed) {
     return distributed;
   }
-  return checkRateLimit(key, maxRequests, windowMs);
+  return checkRateLimit(safeKey, maxRequests, windowMs);
+}
+
+export function sanitizeIpCandidate(raw: string | null | undefined): string {
+  if (!raw) return "unknown";
+  const cleaned = raw.trim().slice(0, 64);
+  if (!SAFE_IP_REGEX.test(cleaned)) {
+    return "unknown";
+  }
+  return cleaned;
 }
 
 export function extractClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const valid = sanitizeIpCandidate(first);
+    if (valid !== "unknown") return valid;
   }
-  return headers.get("x-real-ip")?.trim() || "unknown";
+  return sanitizeIpCandidate(headers.get("x-real-ip"));
 }

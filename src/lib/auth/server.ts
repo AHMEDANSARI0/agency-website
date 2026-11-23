@@ -6,6 +6,7 @@ import type { SiteSettings } from "@/types/content";
 import { db, toSafeUser } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { checkDistributedRateLimit } from "@/lib/security/rate-limit";
 import { hasPermission } from "./rbac";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "./session";
 
@@ -134,6 +135,29 @@ export async function requireAdminApiAuth(
           { status: 403 }
         ),
       };
+    }
+
+    const method = request.method.toUpperCase();
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      const writeRate = await checkDistributedRateLimit(
+        `admin_write:${user.id}`,
+        90,
+        60 * 1000
+      );
+      if (!writeRate.allowed) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            {
+              error: `Administrative write rate limit exceeded. Please wait ${writeRate.retryAfterSeconds} seconds.`,
+            },
+            {
+              status: 429,
+              headers: { "Retry-After": String(writeRate.retryAfterSeconds) },
+            }
+          ),
+        };
+      }
     }
 
     const settings = await db.getSiteSettings();

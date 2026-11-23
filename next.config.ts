@@ -1,6 +1,32 @@
 import type { NextConfig } from "next";
 
 const strictFrameHeaders = process.env.ENABLE_STRICT_FRAME_HEADERS === "true";
+const isProd = process.env.NODE_ENV === "production";
+
+function buildContentSecurityPolicy(): string {
+  const scriptSrc = isProd
+    ? "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com";
+
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self' mailto:",
+    "object-src 'none'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://*.supabase.co",
+  ];
+
+  if (strictFrameHeaders) {
+    directives.push("frame-ancestors 'self'");
+    directives.push("upgrade-insecure-requests");
+  }
+
+  return directives.join("; ");
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -19,11 +45,16 @@ const nextConfig: NextConfig = {
     const baseHeaders = [
       { key: "X-DNS-Prefetch-Control", value: "on" },
       { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
         value:
           "camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()",
+      },
+      {
+        key: "Content-Security-Policy",
+        value: buildContentSecurityPolicy(),
       },
     ];
 

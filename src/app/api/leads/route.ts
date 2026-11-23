@@ -2,17 +2,36 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
-import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import {
+  checkDistributedRateLimit,
+  extractClientIp,
+} from "@/lib/security/rate-limit";
+import {
+  computeLeadIdempotencyFingerprint,
+  getRecentIdempotentLeadId,
+  normalizeIdempotencyKey,
+  readBoundedJsonBody,
+  rememberIdempotentLeadId,
+} from "@/lib/security/request-guards";
 import { leadSubmissionSchema } from "@/features/leads/schema";
 import { sendOptionalLeadNotification } from "@/features/leads/notify";
 
+const MAX_LEAD_PAYLOAD_BYTES = 24 * 1024;
+
 export async function POST(request: Request) {
   if (!verifySameOriginRequest(request)) {
-    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Invalid request origin." },
+      { status: 403 }
+    );
   }
 
   const clientIp = extractClientIp(request.headers);
-  const limit = await checkDistributedRateLimit(`lead_submit:${clientIp}`, 5, 10 * 60 * 1000);
+  const limit = await checkDistributedRateLimit(
+    `lead_submit:${clientIp}`,
+    5,
+    10 * 60 * 1000
+  );
   if (!limit.allowed) {
     return NextResponse.json(
       {
@@ -20,17 +39,22 @@ export async function POST(request: Request) {
       },
       {
         status: 429,
-        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+        headers: {
+          "Retry-After": String(limit.retryAfterSeconds),
+          "X-RateLimit-Remaining": "0",
+        },
       }
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_LEAD_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json(
+      { error: bounded.error },
+      { status: bounded.status }
+    );
   }
+  const body = bounded.data;
 
   // Silent spam honeypot rejection (returns 200 without storing spam bots)
   if (
@@ -60,6 +84,37 @@ export async function POST(request: Request) {
   }
 
   const data = parsed.data;
+  const idempotencyKey = normalizeIdempotencyKey(
+    request.headers.get("idempotency-key")
+  );
+  const fingerprint = idempotencyKey
+    ? computeLeadIdempotencyFingerprint({
+        idempotencyKey,
+        email: data.email,
+        company: data.company,
+      })
+    : null;
+
+  if (fingerprint) {
+    const existingRecentLeadId = getRecentIdempotentLeadId(fingerprint);
+    if (existingRecentLeadId) {
+      return NextResponse.json(
+        {
+          ok: true,
+          leadId: existingRecentLeadId,
+          deduplicated: true,
+          message:
+            "Thank you. Your enquiry has already been logged and we will respond within one business day.",
+        },
+        {
+          status: 200,
+          headers: {
+            "X-RateLimit-Remaining": String(limit.remaining),
+          },
+        }
+      );
+    }
+  }
 
   try {
     // 1. Persist lead in database FIRST so email delivery failures never drop enquiries
@@ -79,6 +134,10 @@ export async function POST(request: Request) {
       emailNotificationStatus: "skipped_unconfigured",
     });
 
+    if (fingerprint) {
+      rememberIdempotentLeadId(fingerprint, savedLead.id);
+    }
+
     // 2. Dispatch optional email alert and record accurate notification status
     const emailStatus = await sendOptionalLeadNotification(data);
     if (emailStatus !== "skipped_unconfigured") {
@@ -96,7 +155,12 @@ export async function POST(request: Request) {
         message:
           "Thank you. Your enquiry has been logged for review and we will respond within one business day.",
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: {
+          "X-RateLimit-Remaining": String(limit.remaining),
+        },
+      }
     );
   } catch (err) {
     if (err instanceof DatabaseUnavailableError) {
