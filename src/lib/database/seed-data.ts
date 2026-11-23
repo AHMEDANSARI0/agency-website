@@ -19,7 +19,7 @@ import { createDefaultThemeConfiguration } from "@/features/themes/presets";
 import { isProductionEnvironment } from "@/lib/env";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
-export const CURRENT_SEED_VERSION = 7;
+export const CURRENT_SEED_VERSION = 8;
 
 export interface StoredDatabaseBackup extends DatabaseBackupSummary {
   snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups">;
@@ -43,6 +43,10 @@ export interface OmniFlowDatabaseSnapshot {
   leads: LeadRecord[];
   mediaAssets: MediaAsset[];
   redirects: RedirectRule[];
+  leadIdempotencyKeys?: Record<
+    string,
+    { leadId: string; createdAt: string; expiresAt: string }
+  >;
   databaseBackups?: StoredDatabaseBackup[];
 }
 
@@ -126,17 +130,17 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
 
   const siteSettings: SiteSettings = {
     companyName: "OmniFlow",
-    positioning: "AI Automation & Business Solutions",
-    tagline: "Automate the work. Accelerate the business.",
+    positioning: "AI Automation & Business Operations Partner",
+    tagline: "Eliminate repetitive work. Respond faster. Scale connected operations.",
     founderName: "Ahmed Ansari",
     targetMarkets: ["United States", "United Kingdom", "Canada"],
     targetCustomers: ["Service Businesses", "Consultants & Advisory Firms", "Boutique & Small Agencies"],
     contactEmail: "hello@omniflow.example",
     supportHours: "Monday – Friday, aligned with EST / GMT overlapping business hours",
-    bookingUrl: "/contact",
-    primaryCtaLabel: "Request an Automation Audit",
-    primaryCtaHref: "/contact",
-    secondaryCtaLabel: "Try Interactive Demos",
+    bookingUrl: "/contact?intent=call",
+    primaryCtaLabel: "Book a Free Discovery Call",
+    primaryCtaHref: "/contact?intent=call",
+    secondaryCtaLabel: "Explore Live Demos",
     secondaryCtaHref: "/demos",
     navigation: [
       { id: "nav-home", label: "Home", href: "/", isVisible: true, order: 1 },

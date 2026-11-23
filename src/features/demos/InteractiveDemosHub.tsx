@@ -304,6 +304,8 @@ export function InteractiveDemosHub({
   const buildContactHref = (serviceSlugOrTitle: string, summaryContext: string) => {
     const params = new URLSearchParams({
       service: serviceSlugOrTitle,
+      intent: "call",
+      source: `demo_lab_${activeTab}`,
       context: summaryContext.slice(0, 420),
     });
     return `/contact?${params.toString()}`;
@@ -368,14 +370,14 @@ export function InteractiveDemosHub({
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
               className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all ${
                 selected
-                  ? "border-primary bg-primary text-primary-foreground shadow-glow"
+                  ? "border-primary bg-[var(--of-btn-primary-bg,var(--of-color-primary))] text-primary-foreground shadow-glow"
                   : "border-line bg-surface-card text-ink-body shadow-sm hover:border-primary/40 hover:text-ink-heading"
               }`}
             >
               <div className="flex w-full items-center justify-between">
                 <span
                   className={`font-mono text-[0.68rem] font-bold uppercase tracking-wider ${
-                    selected ? "text-indigo-100" : "text-primary"
+                    selected ? "text-primary-foreground/85" : "text-primary"
                   }`}
                 >
                   Tool {tab.step}
@@ -395,7 +397,7 @@ export function InteractiveDemosHub({
               </span>
               <span
                 className={`mt-0.5 line-clamp-1 text-[0.7rem] ${
-                  selected ? "text-indigo-100/90" : "text-ink-muted"
+                  selected ? "text-primary-foreground/85" : "text-ink-muted"
                 }`}
               >
                 {tab.summary}

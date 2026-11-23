@@ -28,6 +28,7 @@ export interface SemanticColorTokens {
 }
 
 export interface ComponentStateTokens {
+  primaryButtonBg?: string;
   navbarBg: string;
   navbarBorder: string;
   navbarText?: string;
@@ -35,6 +36,14 @@ export interface ComponentStateTokens {
   footerText: string;
   cardBg: string;
   cardBorder: string;
+  borderSecondary?: string;
+  tertiaryBg?: string;
+  glassBg?: string;
+  glassBorder?: string;
+  electricAccent?: string;
+  cyanAccent?: string;
+  cyanSubtle?: string;
+  glowOpacity?: number;
   inputBg: string;
   inputBorder: string;
   inputFocusRing: string;
@@ -80,33 +89,37 @@ export interface ThemePreset {
   };
 }
 
+export type TypographyScalePreset = "architectural" | "editorial" | "technical";
+export type ButtonShapeStyle = "pill" | "rounded" | "sharp";
+export type RadiusDensityPreset = "compact" | "balanced" | "generous";
+export type SpacingDensityPreset = "compact" | "comfortable" | "spacious";
+export type MotionIntensityPreset = "full" | "subtle" | "minimal";
+
+export interface ThemeDesignTokens {
+  typography: TypographyScalePreset;
+  buttonStyle: ButtonShapeStyle;
+  borderRadius: RadiusDensityPreset;
+  spacing: SpacingDensityPreset;
+  animationIntensity: MotionIntensityPreset;
+}
+
+export interface ThemeBundleState {
+  light: ThemeTokenSet;
+  dark: ThemeTokenSet;
+  overrides?: {
+    light?: ComponentTokenOverrides;
+    dark?: ComponentTokenOverrides;
+  };
+}
+
 export interface ThemeConfiguration {
   activePresetId: string;
   defaultMode: ThemeMode;
-  published: {
-    light: ThemeTokenSet;
-    dark: ThemeTokenSet;
-    overrides?: {
-      light?: ComponentTokenOverrides;
-      dark?: ComponentTokenOverrides;
-    };
-  };
-  draft: {
-    light: ThemeTokenSet;
-    dark: ThemeTokenSet;
-    overrides?: {
-      light?: ComponentTokenOverrides;
-      dark?: ComponentTokenOverrides;
-    };
-  };
-  previousPublished?: {
-    light: ThemeTokenSet;
-    dark: ThemeTokenSet;
-    overrides?: {
-      light?: ComponentTokenOverrides;
-      dark?: ComponentTokenOverrides;
-    };
-  } | null;
+  designSystem?: ThemeDesignTokens;
+  published: ThemeBundleState;
+  draft: ThemeBundleState;
+  previousPublished?: ThemeBundleState | null;
+  savedPresetStates?: Record<string, ThemeBundleState>;
   customPresets: ThemePreset[];
   updatedAt: string;
   updatedBy?: string;

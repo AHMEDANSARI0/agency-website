@@ -96,12 +96,15 @@ export async function POST(request: Request) {
     : null;
 
   if (fingerprint) {
-    const existingRecentLeadId = getRecentIdempotentLeadId(fingerprint);
-    if (existingRecentLeadId) {
+    const existingLeadId =
+      getRecentIdempotentLeadId(fingerprint) ??
+      (await db.getPersistedIdempotentLeadId(fingerprint));
+    if (existingLeadId) {
+      rememberIdempotentLeadId(fingerprint, existingLeadId);
       return NextResponse.json(
         {
           ok: true,
-          leadId: existingRecentLeadId,
+          leadId: existingLeadId,
           deduplicated: true,
           message:
             "Thank you. Your enquiry has already been logged and we will respond within one business day.",
@@ -117,6 +120,24 @@ export async function POST(request: Request) {
   }
 
   try {
+    const callSummaryParts: string[] = [];
+    if (data.enquiryType === "discovery_call") {
+      callSummaryParts.push("Requested: Free 25-Min Discovery Call");
+    }
+    if (data.preferredCallWindow) {
+      callSummaryParts.push(`Preferred Window: ${data.preferredCallWindow}`);
+    }
+    if (data.timezone) {
+      callSummaryParts.push(`Timezone: ${data.timezone}`);
+    }
+    const mergedAdditionalDetails = [
+      callSummaryParts.length > 0 ? `[${callSummaryParts.join(" · ")}]` : "",
+      data.additionalDetails || "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim() || undefined;
+
     // 1. Persist lead in database FIRST so email delivery failures never drop enquiries
     const savedLead = await db.createLead({
       name: data.name,
@@ -128,7 +149,7 @@ export async function POST(request: Request) {
       businessProblem: data.businessProblem,
       budgetRange: data.budgetRange,
       timeline: data.timeline,
-      additionalDetails: data.additionalDetails,
+      additionalDetails: mergedAdditionalDetails,
       privacyConsent: data.privacyConsent,
       source: data.source || "website_contact",
       emailNotificationStatus: "skipped_unconfigured",
@@ -136,10 +157,14 @@ export async function POST(request: Request) {
 
     if (fingerprint) {
       rememberIdempotentLeadId(fingerprint, savedLead.id);
+      await db.savePersistedIdempotentLeadId(fingerprint, savedLead.id);
     }
 
     // 2. Dispatch optional email alert and record accurate notification status
-    const emailStatus = await sendOptionalLeadNotification(data);
+    const emailStatus = await sendOptionalLeadNotification({
+      ...data,
+      additionalDetails: mergedAdditionalDetails,
+    });
     if (emailStatus !== "skipped_unconfigured") {
       await db.updateLead(savedLead.id, (current) => ({
         ...current,
@@ -151,9 +176,12 @@ export async function POST(request: Request) {
       {
         ok: true,
         leadId: savedLead.id,
+        enquiryType: data.enquiryType ?? "workflow_enquiry",
         notificationStatus: emailStatus,
         message:
-          "Thank you. Your enquiry has been logged for review and we will respond within one business day.",
+          data.enquiryType === "discovery_call"
+            ? "Thank you. Your Discovery Call request has been saved and we will confirm your time slot within one business day."
+            : "Thank you. Your enquiry has been logged for review and we will respond within one business day.",
       },
       {
         status: 201,

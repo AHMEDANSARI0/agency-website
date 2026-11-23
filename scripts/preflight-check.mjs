@@ -42,6 +42,8 @@ const REQUIRED_FILES = [
   "src/app/admin/(protected)/page.tsx",
   "supabase/migrations/0001_omniflow_schema.sql",
   "supabase/migrations/0002_production_upgrade.sql",
+  "supabase/migrations/0003_crm_and_operations.sql",
+  "supabase/migrations/0004_security_and_performance.sql",
 ];
 
 let passed = 0;
@@ -91,6 +93,8 @@ if (missingFiles.length === 0) {
 for (const sqlRel of [
   "supabase/migrations/0001_omniflow_schema.sql",
   "supabase/migrations/0002_production_upgrade.sql",
+  "supabase/migrations/0003_crm_and_operations.sql",
+  "supabase/migrations/0004_security_and_performance.sql",
 ]) {
   const fullPath = path.join(rootDir, sqlRel);
   if (fs.existsSync(fullPath)) {

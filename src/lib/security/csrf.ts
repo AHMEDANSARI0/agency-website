@@ -1,24 +1,47 @@
+function normalizeHostHeader(rawHost: string | null): string | null {
+  if (!rawHost) return null;
+  const primary = rawHost.split(",")[0]?.trim().toLowerCase() || "";
+  return primary || null;
+}
+
 export function verifySameOriginRequest(request: Request): boolean {
   const method = request.method.toUpperCase();
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     return true;
   }
 
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-
-  if (!origin) {
-    // Allow non-browser server-side tests only when explicitly no origin header is sent and sec-fetch-site isn't cross-site
-    const fetchSite = request.headers.get("sec-fetch-site");
-    return fetchSite !== "cross-site";
-  }
-
-  if (!host) return false;
-
-  try {
-    const originHost = new URL(origin).host;
-    return originHost === host;
-  } catch {
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (fetchSite === "cross-site") {
     return false;
   }
+
+  const host = normalizeHostHeader(
+    request.headers.get("x-forwarded-host") || request.headers.get("host")
+  );
+  const origin = request.headers.get("origin")?.trim();
+
+  if (origin) {
+    if (origin.toLowerCase() === "null" || !host) {
+      return false;
+    }
+    try {
+      const originHost = new URL(origin).host.toLowerCase();
+      return originHost === host;
+    } catch {
+      return false;
+    }
+  }
+
+  const referer = request.headers.get("referer")?.trim();
+  if (referer && host) {
+    try {
+      const refererHost = new URL(referer).host.toLowerCase();
+      return refererHost === host;
+    } catch {
+      return false;
+    }
+  }
+
+  // Non-browser server-side / automated test requests without Origin or Referer
+  return true;
 }

@@ -13,25 +13,24 @@ interface PageConversionBannerProps {
 }
 
 export function PageConversionBanner({
-  eyebrow = "Workflow & Bottleneck Review",
+  eyebrow = "Free 25-Minute Discovery Call",
   title,
   description,
   primaryLabel,
   primaryHref,
-  secondaryLabel = "Try Interactive Demos",
+  secondaryLabel = "Explore Live Demos",
   secondaryHref = "/demos",
 }: PageConversionBannerProps) {
   return (
     <section className="bg-surface px-3 pb-12 pt-6 sm:px-5 sm:pb-16">
       <div
-        className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-slate-800 px-6 py-14 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-18"
+        className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-white/10 px-6 py-14 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-18"
         style={{
-          background:
-            "radial-gradient(110% 95% at 50% 100%, #312E81 0%, #1E1B4B 42%, #0F172A 78%, #090D16 100%)",
+          background: "var(--of-gradient-cta-banner)",
         }}
       >
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-indigo-200">
-          <Sparkles className="h-3.5 w-3.5" />
+        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-white/90">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
           <span>{eyebrow}</span>
         </div>
 
@@ -44,7 +43,7 @@ export function PageConversionBanner({
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href={primaryHref}
-            className="group inline-flex items-center gap-2 rounded-control bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-glow transition-all hover:bg-indigo-500"
+            className="group inline-flex items-center gap-2 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover"
           >
             <span>{primaryLabel}</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

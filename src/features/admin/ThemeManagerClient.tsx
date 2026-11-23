@@ -7,20 +7,28 @@ import {
   Palette,
   RotateCcw,
   Save,
+  Sliders,
   Sparkles,
 } from "lucide-react";
 import type {
+  ButtonShapeStyle,
   ComponentTokenOverrides,
+  MotionIntensityPreset,
+  RadiusDensityPreset,
   ResolvedThemeMode,
   SemanticColorTokens,
+  SpacingDensityPreset,
   ThemeConfiguration,
+  ThemeDesignTokens,
   ThemeMode,
   ThemePreset,
+  TypographyScalePreset,
 } from "@/types/theme";
 import {
   evaluateThemeContrast,
   getContrastRatio,
   isValidCssColor,
+  sanitizeDesignSystemTokens,
 } from "@/features/themes/color-utils";
 
 interface ThemeManagerClientProps {
@@ -33,22 +41,22 @@ const COLOR_FIELDS: Array<{
   label: string;
   group: "Brand & CTA" | "Surfaces & Borders" | "Typography & Status";
 }> = [
-  { key: "primary", label: "Primary Accent (Indigo / Brand)", group: "Brand & CTA" },
+  { key: "primary", label: "Primary Accent (Brand)", group: "Brand & CTA" },
   { key: "primaryHover", label: "Primary Hover", group: "Brand & CTA" },
   { key: "primaryActive", label: "Primary Active", group: "Brand & CTA" },
   { key: "primaryForeground", label: "Primary Button Text", group: "Brand & CTA" },
-  { key: "secondary", label: "Secondary Pill Bg", group: "Brand & CTA" },
-  { key: "secondaryForeground", label: "Secondary Pill Text", group: "Brand & CTA" },
-  { key: "accent", label: "Highlight Accent (Violet / Blue)", group: "Brand & CTA" },
+  { key: "secondary", label: "Secondary Button Bg", group: "Brand & CTA" },
+  { key: "secondaryForeground", label: "Secondary Button Text", group: "Brand & CTA" },
+  { key: "accent", label: "Highlight Accent", group: "Brand & CTA" },
   { key: "link", label: "Link Color", group: "Brand & CTA" },
   { key: "background", label: "Page Canvas Background", group: "Surfaces & Borders" },
   { key: "surface", label: "Primary Surface", group: "Surfaces & Borders" },
   { key: "surfaceElevated", label: "Elevated Surface", group: "Surfaces & Borders" },
-  { key: "surfaceMuted", label: "Muted Section Surface", group: "Surfaces & Borders" },
-  { key: "border", label: "Subtle Hairline Border", group: "Surfaces & Borders" },
+  { key: "surfaceMuted", label: "Tertiary / Muted Surface", group: "Surfaces & Borders" },
+  { key: "border", label: "Primary Hairline Border", group: "Surfaces & Borders" },
   { key: "borderStrong", label: "Strong Control Border", group: "Surfaces & Borders" },
-  { key: "heading", label: "Heading Text (Charcoal / Alabaster)", group: "Typography & Status" },
-  { key: "body", label: "Body Copy Text", group: "Typography & Status" },
+  { key: "heading", label: "Heading Text (Primary)", group: "Typography & Status" },
+  { key: "body", label: "Body Copy Text (Secondary)", group: "Typography & Status" },
   { key: "muted", label: "Muted / Eyebrow Text", group: "Typography & Status" },
   { key: "success", label: "Success Status", group: "Typography & Status" },
   { key: "warning", label: "Warning Status", group: "Typography & Status" },
@@ -89,6 +97,18 @@ export function ThemeManagerClient({
     (editingMode === "dark"
       ? config.draft.overrides?.dark
       : config.draft.overrides?.light) ?? {};
+
+  const designSystem = sanitizeDesignSystemTokens(config.designSystem);
+
+  function updateDesignSystem(patch: Partial<ThemeDesignTokens>) {
+    setConfig((prev) => ({
+      ...prev,
+      designSystem: sanitizeDesignSystemTokens({
+        ...prev.designSystem,
+        ...patch,
+      }),
+    }));
+  }
 
   const allPresets = useMemo(
     () => [...builtInPresets, ...config.customPresets],
@@ -158,6 +178,7 @@ export function ThemeManagerClient({
         body: JSON.stringify({
           defaultMode: config.defaultMode,
           activePresetId: config.activePresetId,
+          designSystem,
           light: config.draft.light,
           dark: config.draft.dark,
           overrides: config.draft.overrides,
@@ -224,6 +245,41 @@ export function ThemeManagerClient({
         text: publishNow
           ? "Preset loaded and published live!"
           : "Preset loaded into draft editor.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRestoreBundleDefaults(presetId?: string) {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reset_preset_defaults",
+          presetId: presetId || config.activePresetId,
+          publish: false,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        themeConfig?: ThemeConfiguration;
+      };
+      if (!res.ok || !data.themeConfig) {
+        setFeedback({
+          type: "error",
+          text: data.error || "Unable to restore bundle default colors.",
+        });
+        setBusy(false);
+        return;
+      }
+      setConfig(data.themeConfig);
+      setFeedback({
+        type: "success",
+        text: "Restored bundle default Light & Dark colors in draft. Click Publish Theme Live to apply publicly.",
       });
     } finally {
       setBusy(false);
@@ -300,7 +356,10 @@ export function ThemeManagerClient({
     activeOverrides.primaryButtonBg &&
     isValidCssColor(activeOverrides.primaryButtonBg)
       ? activeOverrides.primaryButtonBg
-      : activeTokens.colors.primary;
+      : activeTokens.components.primaryButtonBg &&
+          isValidCssColor(activeTokens.components.primaryButtonBg)
+        ? activeTokens.components.primaryButtonBg
+        : activeTokens.colors.primary;
 
   return (
     <div className="space-y-8">
@@ -334,13 +393,23 @@ export function ThemeManagerClient({
             }
             className="rounded-control border border-line bg-surface-input px-3 py-1.5 text-xs font-semibold text-ink-heading"
           >
-            <option value="light">Light Mode First (#F8FAFC Clean Alabaster — Recommended)</option>
-            <option value="dark">Dark Mode First (#090D16 Midnight Charcoal-Navy)</option>
-            <option value="system">Match Visitor OS Preference</option>
+            <option value="light">Light Mode First (Clean Neutral — Recommended)</option>
+            <option value="dark">Dark Mode First (Sophisticated Charcoal)</option>
+            <option value="system">Automatic / Match Visitor OS Preference</option>
           </select>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => handleRestoreBundleDefaults()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-4 py-2 text-xs font-medium text-ink-heading hover:bg-surface-muted"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Restore Bundle Defaults</span>
+          </button>
+
           {config.previousPublished && (
             <button
               type="button"
@@ -439,7 +508,7 @@ export function ThemeManagerClient({
                   <p className="mt-2 text-xs text-ink-muted">{preset.description}</p>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={busy}
@@ -452,14 +521,142 @@ export function ThemeManagerClient({
                     type="button"
                     disabled={busy}
                     onClick={() => applyPreset(preset.id, true)}
-                    className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+                    className="rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     Apply &amp; Publish
                   </button>
+                  {isActive && preset.isBuiltIn && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleRestoreBundleDefaults(preset.id)}
+                      className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-ink-muted hover:text-ink-heading"
+                    >
+                      Reset Defaults
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Controlled Design System Architecture Tokens */}
+      <section className="rounded-card border border-line bg-surface-card p-6 shadow-card">
+        <div className="flex items-center gap-2 border-b border-line pb-4">
+          <Sliders className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-base font-semibold text-ink-heading">
+              Design System Architecture Tokens
+            </h2>
+            <p className="text-xs text-ink-muted">
+              Controlled typography tracking, button geometry, border-radius
+              density, section rhythm, and motion intensity.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Typography Preset
+            </label>
+            <select
+              aria-label="Typography preset"
+              value={designSystem.typography}
+              onChange={(e) =>
+                updateDesignSystem({
+                  typography: e.target.value as TypographyScalePreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="architectural">Architectural (-0.028em)</option>
+              <option value="editorial">Editorial (-0.018em)</option>
+              <option value="technical">Technical (-0.036em)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Button Geometry
+            </label>
+            <select
+              aria-label="Button geometry"
+              value={designSystem.buttonStyle}
+              onChange={(e) =>
+                updateDesignSystem({
+                  buttonStyle: e.target.value as ButtonShapeStyle,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="pill">Pill Capsule (Default)</option>
+              <option value="rounded">Rounded Control (10px)</option>
+              <option value="sharp">Architectural Sharp (6px)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Card Radius Scale
+            </label>
+            <select
+              aria-label="Card radius scale"
+              value={designSystem.borderRadius}
+              onChange={(e) =>
+                updateDesignSystem({
+                  borderRadius: e.target.value as RadiusDensityPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="compact">Compact (10px)</option>
+              <option value="balanced">Balanced (16px Default)</option>
+              <option value="generous">Generous (22px)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Section Spacing
+            </label>
+            <select
+              aria-label="Section spacing"
+              value={designSystem.spacing}
+              onChange={(e) =>
+                updateDesignSystem({
+                  spacing: e.target.value as SpacingDensityPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="compact">Compact Rhythm</option>
+              <option value="comfortable">Comfortable (Default)</option>
+              <option value="spacious">Spacious Executive</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Motion Intensity
+            </label>
+            <select
+              aria-label="Motion intensity"
+              value={designSystem.animationIntensity}
+              onChange={(e) =>
+                updateDesignSystem({
+                  animationIntensity: e.target.value as MotionIntensityPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="full">Full Hardware Motion</option>
+              <option value="subtle">Subtle Transitions</option>
+              <option value="minimal">Minimal (Static First)</option>
+            </select>
+          </div>
         </div>
       </section>
 
@@ -665,10 +862,16 @@ export function ThemeManagerClient({
 
               {/* Simulated Card */}
               <div
-                className="mt-5 rounded-2xl border p-4"
+                className="mt-5 border p-4 transition-all"
                 style={{
                   backgroundColor: previewCardBg,
                   borderColor: activeTokens.components.cardBorder,
+                  borderRadius:
+                    designSystem.borderRadius === "compact"
+                      ? "10px"
+                      : designSystem.borderRadius === "generous"
+                        ? "22px"
+                        : "16px",
                 }}
               >
                 <span
@@ -679,11 +882,19 @@ export function ThemeManagerClient({
                     color: activeTokens.components.badgeText,
                   }}
                 >
-                  Flagship System
+                  Flagship System · {designSystem.typography}
                 </span>
                 <p
                   className="mt-2 text-sm font-medium"
-                  style={{ color: activeTokens.colors.heading }}
+                  style={{
+                    color: activeTokens.colors.heading,
+                    letterSpacing:
+                      designSystem.typography === "editorial"
+                        ? "-0.018em"
+                        : designSystem.typography === "technical"
+                          ? "-0.036em"
+                          : "-0.028em",
+                  }}
                 >
                   Lead Qualification &amp; Routing
                 </p>
@@ -700,19 +911,31 @@ export function ThemeManagerClient({
                 />
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span
-                    className="inline-flex rounded-full px-4 py-1.5 text-xs font-medium"
+                    className="inline-flex px-4 py-1.5 text-xs font-medium transition-all"
                     style={{
                       backgroundColor: previewPrimaryBg,
                       color: activeTokens.colors.primaryForeground,
+                      borderRadius:
+                        designSystem.buttonStyle === "sharp"
+                          ? "6px"
+                          : designSystem.buttonStyle === "rounded"
+                            ? "10px"
+                            : "9999px",
                     }}
                   >
                     Primary CTA →
                   </span>
                   <span
-                    className="inline-flex rounded-full px-4 py-1.5 text-xs font-medium"
+                    className="inline-flex px-4 py-1.5 text-xs font-medium transition-all"
                     style={{
                       backgroundColor: activeTokens.colors.secondary,
                       color: activeTokens.colors.secondaryForeground,
+                      borderRadius:
+                        designSystem.buttonStyle === "sharp"
+                          ? "6px"
+                          : designSystem.buttonStyle === "rounded"
+                            ? "10px"
+                            : "9999px",
                     }}
                   >
                     Secondary Pill
@@ -734,10 +957,12 @@ export function ThemeManagerClient({
                       activeTokens.colors.heading,
                       activeTokens.colors.background
                     ),
+                    minTarget: 4.5,
                   },
                   {
                     label: "Body / Card",
                     ratio: getContrastRatio(activeTokens.colors.body, previewCardBg),
+                    minTarget: 4.5,
                   },
                   {
                     label: "Muted / Canvas",
@@ -745,6 +970,7 @@ export function ThemeManagerClient({
                       activeTokens.colors.muted,
                       activeTokens.colors.background
                     ),
+                    minTarget: 3.0,
                   },
                   {
                     label: "CTA Text / Primary",
@@ -752,9 +978,11 @@ export function ThemeManagerClient({
                       activeTokens.colors.primaryForeground,
                       previewPrimaryBg
                     ),
+                    minTarget: 3.0,
                   },
                 ].map((pair) => {
-                  const passAA = pair.ratio !== null && pair.ratio >= 4.5;
+                  const passNormalAA = pair.ratio !== null && pair.ratio >= 4.5;
+                  const passTarget = pair.ratio !== null && pair.ratio >= pair.minTarget;
                   const passAAA = pair.ratio !== null && pair.ratio >= 7;
                   return (
                     <div
@@ -766,11 +994,11 @@ export function ThemeManagerClient({
                       </span>
                       <span
                         className={`ml-2 shrink-0 font-mono text-[11px] font-bold ${
-                          passAA ? "text-status-success" : "text-status-warning"
+                          passTarget ? "text-status-success" : "text-status-warning"
                         }`}
                       >
                         {pair.ratio ? `${pair.ratio}:1` : "—"}{" "}
-                        {passAAA ? "AAA" : passAA ? "AA" : "LOW"}
+                        {passAAA ? "AAA" : passNormalAA ? "AA" : passTarget ? "UI AA" : "LOW"}
                       </span>
                     </div>
                   );

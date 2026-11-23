@@ -6,24 +6,51 @@ export type BoundedJsonResult =
 
 /**
  * Reads and parses a JSON request body while enforcing a strict maximum byte limit.
- * Prevents oversized payload memory exhaustion on serverless runtimes.
+ * Uses incremental stream-chunk byte counting so chunked requests without Content-Length
+ * are aborted immediately upon exceeding maxBytes without buffering oversized bodies.
  */
 export async function readBoundedJsonBody(
   request: Request,
   maxBytes = 24 * 1024
 ): Promise<BoundedJsonResult> {
+  const limitKb = Math.max(1, Math.round(maxBytes / 1024));
   const declaredLen = Number(request.headers.get("content-length") || "0");
   if (Number.isFinite(declaredLen) && declaredLen > maxBytes) {
     return {
       ok: false,
       status: 413,
-      error: `Request payload exceeds the ${Math.round(maxBytes / 1024)} KB size limit.`,
+      error: `Request payload exceeds the ${limitKb} KB size limit.`,
     };
   }
 
-  let rawText: string;
+  let rawText = "";
   try {
-    rawText = await request.text();
+    if (request.body && typeof request.body.getReader === "function") {
+      const reader = request.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          totalBytes += value.byteLength;
+          if (totalBytes > maxBytes) {
+            void reader.cancel().catch(() => undefined);
+            return {
+              ok: false,
+              status: 413,
+              error: `Request payload exceeds the ${limitKb} KB size limit.`,
+            };
+          }
+          chunks.push(value);
+        }
+      }
+
+      rawText = Buffer.concat(chunks, totalBytes).toString("utf8");
+    } else {
+      rawText = await request.text();
+    }
   } catch {
     return {
       ok: false,
@@ -36,7 +63,7 @@ export async function readBoundedJsonBody(
     return {
       ok: false,
       status: 413,
-      error: `Request payload exceeds the ${Math.round(maxBytes / 1024)} KB size limit.`,
+      error: `Request payload exceeds the ${limitKb} KB size limit.`,
     };
   }
 
@@ -114,4 +141,8 @@ export function rememberIdempotentLeadId(
     leadId,
     expiresAtMs: nowMs + ttlMs,
   });
+}
+
+export function clearInMemoryIdempotencyCache(): void {
+  recentSubmissionMap.clear();
 }

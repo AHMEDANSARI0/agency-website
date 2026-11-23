@@ -6,11 +6,11 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground shadow-glow hover:bg-primary-hover active:bg-primary-active",
+    "bg-[var(--of-btn-primary-bg,var(--of-color-primary))] text-primary-foreground shadow-glow hover:-translate-y-[1px] hover:bg-primary-hover active:translate-y-0 active:bg-primary-active",
   secondary:
-    "bg-secondary text-secondary-foreground shadow-sm hover:opacity-92 active:opacity-85",
+    "bg-secondary text-secondary-foreground shadow-sm hover:-translate-y-[1px] hover:opacity-92 active:translate-y-0 active:opacity-85",
   outline:
-    "border border-line-strong bg-surface text-ink-heading shadow-sm hover:border-primary/40 hover:bg-surface-muted active:bg-surface-muted",
+    "border border-line-strong bg-surface text-ink-heading shadow-sm hover:-translate-y-[1px] hover:border-primary/40 hover:bg-surface-muted active:translate-y-0 active:bg-surface-muted",
   subtle:
     "border border-primary/15 bg-accent-subtle text-primary hover:border-primary/30 hover:bg-primary/15",
   ghost:

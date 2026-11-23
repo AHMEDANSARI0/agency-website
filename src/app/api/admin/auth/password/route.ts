@@ -13,6 +13,9 @@ import {
   verifyPassword,
 } from "@/lib/security/password";
 import { extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
+
+const MAX_AUTH_PAYLOAD_BYTES = 16 * 1024;
 
 const changePasswordSchema = z
   .object({
@@ -27,14 +30,12 @@ export async function POST(request: Request) {
   });
   if (!auth.ok) return auth.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_AUTH_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json({ error: bounded.error }, { status: bounded.status });
   }
 
-  const parsed = changePasswordSchema.safeParse(body);
+  const parsed = changePasswordSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid password payload." },

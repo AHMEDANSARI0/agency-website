@@ -17,7 +17,7 @@ const TONE_CLASSES: Record<SectionTone, string> = {
   canvas: "bg-canvas text-ink-body",
   surface: "bg-surface text-ink-body",
   muted: "bg-surface-muted text-ink-body",
-  dark: "on-dark bg-[#090D16] text-[#CBD5E1]",
+  dark: "on-dark bg-[var(--of-dark-island-bg,#090D16)] text-[var(--of-dark-island-body,#CBD5E1)]",
 };
 
 const ATMOSPHERE_CLASSES: Record<SectionAtmosphere, string> = {

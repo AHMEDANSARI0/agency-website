@@ -5,6 +5,7 @@ export type CardVariant = "default" | "elevated" | "muted" | "glass";
 interface CardProps extends React.HTMLAttributes<HTMLElement> {
   variant?: CardVariant;
   interactive?: boolean;
+  depth3d?: boolean;
   spotlight?: boolean;
   padding?: "none" | "sm" | "md" | "lg";
   as?: "div" | "article" | "section";
@@ -27,6 +28,7 @@ const PADDING_CLASSES = {
 export function Card({
   variant = "default",
   interactive = false,
+  depth3d = false,
   spotlight = false,
   padding = "md",
   as: Tag = "div",
@@ -37,7 +39,7 @@ export function Card({
   return (
     <Tag
       className={`rounded-card ${VARIANT_CLASSES[variant]} ${PADDING_CLASSES[padding]} ${
-        interactive ? "card-interactive" : ""
+        depth3d ? "card-3d" : interactive ? "card-interactive" : ""
       } ${spotlight ? "spot" : ""} ${className}`}
       {...rest}
     >

@@ -458,7 +458,7 @@ export function Navbar({ brand, settings }: NavbarProps) {
 
           <Link
             href={settings.primaryCtaHref}
-            className="hidden items-center gap-2 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-[0.84rem] font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover active:bg-primary-active sm:inline-flex"
+            className="hidden items-center gap-2 whitespace-nowrap rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-4 py-2 text-[0.84rem] font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover active:bg-primary-active sm:inline-flex"
           >
             <span>{settings.primaryCtaLabel}</span>
             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -858,7 +858,7 @@ export function Navbar({ brand, settings }: NavbarProps) {
             <Link
               href={settings.primaryCtaHref}
               onClick={() => setMobileOpen(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-control bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-glow hover:bg-primary-hover"
+              className="inline-flex items-center justify-center gap-2 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-glow hover:bg-primary-hover"
             >
               <span>{settings.primaryCtaLabel}</span>
               <ArrowRight className="h-3.5 w-3.5" />

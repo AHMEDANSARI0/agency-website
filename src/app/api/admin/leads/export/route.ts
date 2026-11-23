@@ -10,12 +10,20 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const statusFilter = url.searchParams.get("status")?.trim() || "ALL";
+  const sourceFilter = url.searchParams.get("source")?.trim() || "ALL";
+  const priorityFilter = url.searchParams.get("priority")?.trim() || "ALL";
 
   const allLeads = await db.listLeads();
-  const filtered =
-    statusFilter === "ALL"
-      ? allLeads
-      : allLeads.filter((l) => l.status === statusFilter);
+  const filtered = allLeads.filter((l) => {
+    if (statusFilter !== "ALL" && l.status !== statusFilter) return false;
+    if (sourceFilter !== "ALL" && (l.source || "website_contact_form") !== sourceFilter) {
+      return false;
+    }
+    if (priorityFilter !== "ALL" && (l.priority || "Medium") !== priorityFilter) {
+      return false;
+    }
+    return true;
+  });
 
   const csvContent = serializeLeadsToCsv(filtered);
 

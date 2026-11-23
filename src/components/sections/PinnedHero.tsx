@@ -1,7 +1,21 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  BellRing,
+  Bot,
+  CheckCircle2,
+  Database,
+  Filter,
+  Inbox,
+  Pause,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
 
 interface PinnedHeroProps {
   companyName: string;
@@ -12,9 +26,110 @@ interface PinnedHeroProps {
   secondaryCtaHref: string;
 }
 
-function clamp01(val: number): number {
-  return Math.min(1, Math.max(0, val));
+interface CommandStep {
+  id: string;
+  stepNumber: string;
+  label: string;
+  shortStatus: string;
+  latency: string;
+  businessOutcome: string;
+  systemTrace: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
+
+const COMMAND_SEQUENCE: CommandStep[] = [
+  {
+    id: "incoming-enquiry",
+    stepNumber: "01",
+    label: "Incoming customer enquiry",
+    shortStatus: "Captured 24/7",
+    latency: "0.12s",
+    businessOutcome:
+      "Every web form, booking request, or inbound email is captured immediately—even after hours or on weekends.",
+    systemTrace:
+      'POST /intake -> Verified business contact · Region: UK/US · Spam check: Passed',
+    icon: Inbox,
+  },
+  {
+    id: "ai-analysis",
+    stepNumber: "02",
+    label: "AI analysis",
+    shortStatus: "Intent extracted",
+    latency: "0.48s",
+    businessOutcome:
+      "Service need, urgency, and bottleneck details are summarized in plain English without anyone reading raw inbox threads.",
+    systemTrace:
+      "Policy-grounded classifier -> Need: Lead & CRM Automation · Urgency: Within 30 days",
+    icon: Bot,
+  },
+  {
+    id: "lead-qualification",
+    stepNumber: "03",
+    label: "Lead qualification",
+    shortStatus: "High-Fit (92/100)",
+    latency: "0.64s",
+    businessOutcome:
+      "High-intent buyers are prioritized automatically while repeat contacts and low-fit requests are flagged cleanly.",
+    systemTrace:
+      "Deterministic fit rules -> Tier: Fast-Track Discovery · Duplicate CRM match: None",
+    icon: Filter,
+  },
+  {
+    id: "crm-update",
+    stepNumber: "04",
+    label: "CRM update",
+    shortStatus: "Pipeline synced",
+    latency: "0.85s",
+    businessOutcome:
+      "Contact details, source attribution, and a pre-call briefing note land in your CRM with zero copy-pasting.",
+    systemTrace:
+      "Atomic SQL / CRM commit -> Stage: Qualified · Source: Website Discovery Funnel",
+    icon: Database,
+  },
+  {
+    id: "whatsapp-email-alert",
+    stepNumber: "05",
+    label: "WhatsApp / email notification",
+    shortStatus: "Alert dispatched",
+    latency: "1.10s",
+    businessOutcome:
+      "The right team owner receives an instant WhatsApp or email brief, and the prospect gets a fast, personal confirmation.",
+    systemTrace:
+      "Dispatched owner brief (WhatsApp + Email) · Prospect SLA confirmation delivered",
+    icon: BellRing,
+  },
+  {
+    id: "human-approval",
+    stepNumber: "06",
+    label: "Optional human approval",
+    shortStatus: "1-click sign-off",
+    latency: "Guardrailed",
+    businessOutcome:
+      "Custom quotes, sensitive replies, or contract exceptions pause safely for your team's one-click approval.",
+    systemTrace:
+      "Human-in-the-loop gate -> Routine steps auto-run · Custom scope held for owner approval",
+    icon: UserCheck,
+  },
+  {
+    id: "completed-workflow",
+    stepNumber: "07",
+    label: "Completed workflow",
+    shortStatus: "Verified & logged",
+    latency: "1.35s total",
+    businessOutcome:
+      "Follow-up reminders are scheduled, every system is connected, and a complete audit log is saved.",
+    systemTrace:
+      "Workflow complete -> Zero manual re-entry · Follow-up reminder queued · Audit trail saved",
+    icon: CheckCircle2,
+  },
+];
+
+const OUTCOME_PILLS = [
+  "Faster customer responses",
+  "Reduced repetitive work",
+  "Connected CRM & operations",
+  "100% client-owned systems",
+];
 
 export function PinnedHero({
   companyName,
@@ -24,318 +139,347 @@ export function PinnedHero({
   secondaryCtaLabel,
   secondaryCtaHref,
 }: PinnedHeroProps) {
-  const trackRef = useRef<HTMLElement>(null);
-  const [progress, setProgress] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mq.matches) {
       setReducedMotion(true);
-      return;
+      setIsPlaying(false);
     }
-
-    let targetP = 0;
-    let currentP = 0;
-    let rafId = 0;
-
-    const computeTarget = () => {
-      const el = trackRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const scrollable = Math.max(1, rect.height - window.innerHeight);
-      targetP = clamp01(-rect.top / scrollable);
+    const onChange = (e: MediaQueryListEvent) => {
+      setReducedMotion(e.matches);
+      if (e.matches) setIsPlaying(false);
     };
-
-    const onScrollOrResize = () => {
-      computeTarget();
-      if (!rafId) {
-        rafId = window.requestAnimationFrame(step);
-      }
-    };
-
-    const step = () => {
-      const diff = targetP - currentP;
-      if (Math.abs(diff) > 0.001) {
-        currentP += diff * 0.18;
-        setProgress(currentP);
-        rafId = window.requestAnimationFrame(step);
-      } else {
-        currentP = targetP;
-        setProgress(currentP);
-        rafId = 0;
-      }
-    };
-
-    computeTarget();
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize, { passive: true });
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const converge = clamp01(progress / 0.52);
-  const firstCopyFade = 1 - clamp01(progress / 0.36);
-  const secondCopyFade = clamp01((progress - 0.54) / 0.24);
-  const ringOpacity = clamp01((progress - 0.44) / 0.2);
+  useEffect(() => {
+    if (!isPlaying || reducedMotion) return;
 
-  const arcOffset = (1 - converge) * 72;
-  const arcRotate = (1 - converge) * -24;
-  const glowScale = 1 + converge * 0.32;
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      setActiveStep((prev) => (prev + 1) % COMMAND_SEQUENCE.length);
+    };
+
+    const timer = window.setInterval(tick, 2800);
+    return () => window.clearInterval(timer);
+  }, [isPlaying, reducedMotion]);
+
+  const currentStep = COMMAND_SEQUENCE[activeStep] ?? COMMAND_SEQUENCE[0];
+  const progressRatio = (activeStep + 1) / COMMAND_SEQUENCE.length;
+
+  const effectivePrimaryLabel =
+    primaryCtaLabel?.trim() || "Book a Free Discovery Call";
+  const effectivePrimaryHref = primaryCtaHref?.trim() || "/contact?intent=call";
+  const effectiveSecondaryLabel =
+    secondaryCtaLabel?.trim() || "Explore Live Demos";
+  const effectiveSecondaryHref = secondaryCtaHref?.trim() || "/demos";
 
   return (
     <section
-      ref={trackRef}
-      aria-label="Introduction"
-      className={reducedMotion ? "relative px-3 pt-20 sm:px-5 sm:pt-24" : "relative h-[195svh]"}
+      aria-label="AI Automation Command Center"
+      className="relative px-2.5 pb-6 pt-20 sm:px-4 sm:pb-10 sm:pt-24"
     >
-      <div
-        className={
-          reducedMotion
-            ? "min-h-[620px] py-8"
-            : "sticky top-0 flex h-[100svh] min-h-[640px] flex-col pt-16 sm:pt-20 p-2.5 sm:p-4"
-        }
-      >
-        <div className="relative flex h-full w-full flex-1 flex-col items-center justify-center overflow-hidden rounded-[24px] border border-line bg-surface bg-hero-glow shadow-card sm:rounded-[30px]">
-          {/* Subtle Architectural Grid Backdrop */}
-          <div
-            aria-hidden="true"
-            className="bg-grid-subtle pointer-events-none absolute inset-0 opacity-75 [mask-image:radial-gradient(ellipse_at_center,black_38%,transparent_80%)]"
-          />
+      <div className="surface-3d relative mx-auto max-w-[1380px] overflow-hidden rounded-[24px] border border-line bg-surface bg-hero-glow sm:rounded-[30px]">
+        {/* Architectural Grid Backdrop */}
+        <div
+          aria-hidden="true"
+          className="architectural-grid-perspective pointer-events-none absolute inset-0 opacity-85"
+        />
 
-          {/* Ambient Indigo / Violet / Electric Blue Radial Aura */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute left-1/2 top-[44%] h-[72vmin] w-[72vmin] -translate-x-1/2 -translate-y-1/2 rounded-full will-change-transform"
-            style={{
-              opacity: 0.55 + converge * 0.25,
-              transform: `translate(-50%, -50%) scale(${glowScale})`,
-              background:
-                "radial-gradient(circle, var(--of-spotlight-color, rgba(79, 70, 229, 0.14)), transparent 65%)",
-            }}
-          />
+        {/* Controlled Indigo / Electric-Blue / Subtle-Cyan Radial Depth */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 -top-24 h-[520px] w-[520px] rounded-full opacity-75"
+          style={{
+            background:
+              "radial-gradient(circle, var(--of-spotlight-color, rgba(79, 70, 229, 0.16)) 0%, var(--of-color-cyan-subtle, rgba(2, 132, 199, 0.08)) 46%, transparent 70%)",
+          }}
+        />
 
-          {/* Original OmniFlow Architectural Flow Geometry */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 160 160"
-            className="pointer-events-none absolute left-1/2 top-[44%] h-[min(56vmin,480px)] w-[min(56vmin,480px)] -translate-x-1/2 -translate-y-1/2 overflow-visible will-change-transform"
-          >
-            <defs>
-              <linearGradient id="of-hero-rim" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.48" />
-                <stop offset="50%" stopColor="#6366F1" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#2563EB" stopOpacity="0.44" />
-              </linearGradient>
-            </defs>
-
-            <g
-              style={{
-                transform: `translate(${-arcOffset}px, ${-arcOffset * 0.5}px) rotate(${arcRotate}deg)`,
-                transformOrigin: "80px 80px",
-              }}
-            >
-              <circle
-                cx="80"
-                cy="80"
-                r="52"
-                fill="none"
-                stroke="url(#of-hero-rim)"
-                strokeWidth="0.9"
-                strokeDasharray="180 150"
-              />
-              <rect
-                x="48"
-                y="48"
-                width="64"
-                height="64"
-                rx="18"
-                fill="none"
-                stroke="url(#of-hero-rim)"
-                strokeWidth="0.8"
-              />
-              <circle cx="80" cy="48" r="4" fill="#4F46E5" fillOpacity="0.85" />
-            </g>
-
-            <g
-              style={{
-                transform: `translate(${arcOffset}px, ${arcOffset * 0.5}px) rotate(${-arcRotate}deg)`,
-                transformOrigin: "80px 80px",
-              }}
-            >
-              <circle
-                cx="80"
-                cy="80"
-                r="52"
-                fill="none"
-                stroke="url(#of-hero-rim)"
-                strokeWidth="0.9"
-                strokeDasharray="150 180"
-                strokeDashoffset="95"
-              />
-              <rect
-                x="52"
-                y="52"
-                width="56"
-                height="56"
-                rx="16"
-                fill="none"
-                stroke="#2563EB"
-                strokeOpacity="0.35"
-                strokeWidth="0.8"
-                transform="rotate(45 80 80)"
-              />
-              <circle cx="80" cy="112" r="4" fill="#2563EB" fillOpacity="0.85" />
-            </g>
-
-            <g style={{ opacity: reducedMotion ? 0.32 : ringOpacity }}>
-              <circle
-                cx="80"
-                cy="80"
-                r="62"
-                fill="none"
-                stroke="#4F46E5"
-                strokeOpacity="0.45"
-                strokeWidth="1.1"
-              />
-              {[22, 34, 46].map((r) => (
-                <circle
-                  key={r}
-                  cx="80"
-                  cy="80"
-                  r={r}
-                  fill="none"
-                  stroke="#6366F1"
-                  strokeOpacity="0.2"
-                  strokeWidth="0.6"
-                />
-              ))}
-              <circle
-                cx="80"
-                cy="80"
-                r={reducedMotion ? 5.5 : 5.5 * ringOpacity}
-                fill="#4F46E5"
-              />
-            </g>
-          </svg>
-
-          {/* Stage 1 Hero Copy */}
-          <div
-            className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 text-center will-change-transform"
-            style={
-              reducedMotion
-                ? undefined
-                : {
-                    opacity: firstCopyFade,
-                    transform: `translateY(${(1 - firstCopyFade) * -42}px)`,
-                    pointerEvents: firstCopyFade < 0.15 ? "none" : "auto",
-                  }
-            }
-          >
+        <div className="relative z-10 grid grid-cols-1 items-center gap-10 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-12 lg:gap-10 lg:px-12 lg:py-16">
+          {/* Left Column — Business-Outcome Positioning & Conversion CTAs */}
+          <div className="lg:col-span-6">
             <Link
               href="/demos"
-              className="group mb-7 inline-flex items-center gap-2.5 rounded-full border border-line-strong bg-surface/90 py-1.5 pl-1.5 pr-4 text-[0.8rem] font-medium text-ink-body shadow-sm backdrop-blur transition-colors hover:border-primary/40 hover:text-ink-heading"
+              className="group mb-6 inline-flex items-center gap-2.5 rounded-full border border-line-strong bg-surface/90 py-1.5 pl-1.5 pr-4 text-[0.78rem] font-medium text-ink-body shadow-sm backdrop-blur transition-colors hover:border-primary/40 hover:text-ink-heading"
             >
-              <span className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wider text-primary-foreground">
+              <span className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-primary-foreground">
                 <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                  <span
+                    className={` inline-flex h-full w-full rounded-full bg-white opacity-75 ${
+                      reducedMotion ? "" : "absolute animate-ping"
+                    }`}
+                  />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
                 </span>
-                Live
+                Live Lab
               </span>
-              <span>Interactive AI workflow demos — test with your own inputs</span>
-              <span
-                aria-hidden="true"
-                className="text-primary transition-transform group-hover:translate-x-0.5"
-              >
-                →
-              </span>
+              <span>Test real AI &amp; workflow simulations before hiring us</span>
+              <ArrowRight className="h-3.5 w-3.5 text-primary transition-transform group-hover:translate-x-0.5" />
             </Link>
 
-            <h1 className="t-hero text-ink-heading">
-              Automate the work.
-              <br />
-              <span className="shine-adaptive dark:shine">Accelerate the business.</span>
+            <h1 className="font-display text-[clamp(2.15rem,4.4vw,3.75rem)] font-bold leading-[1.07] tracking-tight text-ink-heading">
+              Eliminate repetitive work.{" "}
+              <span className="shine-adaptive dark:shine">
+                Respond faster &amp; scale cleanly.
+              </span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-[clamp(1rem,1.3vw,1.16rem)] leading-relaxed text-ink-body">
-              {companyName} connects deterministic automation and policy-grounded AI to your
-              everyday operations — so repetitive handoffs run themselves while your team
-              focuses on clients and growth.
+            <p className="mt-5 max-w-xl text-[clamp(1rem,1.2vw,1.12rem)] leading-relaxed text-ink-body">
+              {companyName} designs reliable AI and workflow automation for service
+              businesses, consultants, and agencies — connecting your enquiries, CRM,
+              customer support, and back-office operations so nothing slips through
+              the cracks.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {/* Primary & Secondary Conversion CTAs */}
+            <div className="mt-7 flex flex-wrap items-center gap-3.5">
               <Link
-                href={primaryCtaHref}
-                className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-[0.94rem] font-medium text-primary-foreground shadow-glow transition-all duration-200 hover:bg-primary-hover active:scale-[0.98]"
+                href={effectivePrimaryHref}
+                className="group inline-flex items-center gap-2 rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-6 py-3.5 text-[0.94rem] font-semibold text-primary-foreground shadow-glow transition-all duration-200 hover:bg-primary-hover active:scale-[0.98]"
               >
-                <span>{primaryCtaLabel}</span>
-                <span
+                <span>{effectivePrimaryLabel}</span>
+                <ArrowRight
                   aria-hidden="true"
-                  className="transition-transform duration-200 group-hover:translate-x-1"
-                >
-                  →
-                </span>
+                  className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+                />
               </Link>
 
               <Link
-                href={secondaryCtaHref}
-                className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-6 py-3.5 text-[0.94rem] font-medium text-ink-heading shadow-sm transition-colors hover:border-primary/40 hover:bg-surface-muted active:scale-[0.98]"
+                href={effectiveSecondaryHref}
+                className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-6 py-3.5 text-[0.94rem] font-semibold text-ink-heading shadow-sm transition-colors hover:border-primary/40 hover:bg-surface-muted active:scale-[0.98]"
               >
-                <span>{secondaryCtaLabel}</span>
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>{effectiveSecondaryLabel}</span>
               </Link>
             </div>
 
-            <ul className="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[0.68rem] uppercase tracking-[0.15em] text-ink-muted">
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-status-success" aria-hidden="true" />
-                <span>Guardrailed execution</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-                <span>Human approval</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-                <span>USA · UK · Canada</span>
-              </li>
+            <p className="mt-3.5 text-xs text-ink-muted">
+              Free 25-minute workflow review · Clear scope &amp; honest advice · Zero obligation
+            </p>
+
+            {/* Concrete Business Outcomes Strip */}
+            <ul
+              aria-label="Key business outcomes"
+              className="mt-7 grid grid-cols-1 gap-2.5 border-t border-line pt-6 sm:grid-cols-2"
+            >
+              {OUTCOME_PILLS.map((outcome) => (
+                <li
+                  key={outcome}
+                  className="flex items-center gap-2 text-xs font-medium text-ink-heading sm:text-[0.82rem]"
+                >
+                  <ShieldCheck
+                    className="h-4 w-4 shrink-0 text-primary"
+                    aria-hidden="true"
+                  />
+                  <span>{outcome}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Stage 2 Scroll-Scrubbed Convergence Statement */}
-          {!reducedMotion && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-[11%] z-10 px-5 text-center will-change-transform"
-              style={{
-                opacity: secondCopyFade,
-                transform: `translateY(${(1 - secondCopyFade) * 24}px)`,
-              }}
-            >
-              <p className="font-display text-[clamp(1.9rem,4.2vw,3.4rem)] font-semibold leading-tight tracking-tight text-ink-heading">
-                Your judgment. <span className="text-primary">Its precision.</span>
-              </p>
-              <p className="mx-auto mt-3 max-w-xl text-[clamp(0.95rem,1.25vw,1.08rem)] text-ink-body">
-                You set the operational rules. {companyName} carries out the repetitive triage,
-                drafting, and routing.{" "}
-                <span className="font-medium text-ink-heading">
-                  Your team approves what matters.
-                </span>
-              </p>
-            </div>
-          )}
+          {/* Right Column — Live 7-Step AI Automation Command Center */}
+          <div
+            className="lg:col-span-6"
+            onMouseEnter={() => {
+              if (!reducedMotion) setIsPlaying(false);
+            }}
+            onMouseLeave={() => {
+              if (!reducedMotion) setIsPlaying(true);
+            }}
+          >
+            <div className="rounded-2xl border border-[var(--of-border-card)] bg-surface-card/95 p-4 shadow-elevated backdrop-blur sm:p-6">
+              {/* Command Center Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                    <span
+                      className={`inline-flex h-full w-full rounded-full bg-status-success ${
+                        isPlaying && !reducedMotion
+                          ? "absolute animate-ping opacity-75"
+                          : ""
+                      }`}
+                    />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-status-success" />
+                  </span>
+                  <div>
+                    <p className="font-mono text-[0.7rem] font-bold uppercase tracking-[0.14em] text-ink-heading">
+                      AI Automation Command Center
+                    </p>
+                    <p className="text-[0.72rem] text-ink-muted">
+                      Real-world client intake-to-delivery sequence (click any step)
+                    </p>
+                  </div>
+                </div>
 
-          {/* Bottom Telemetry Rail */}
-          <div className="absolute inset-x-0 bottom-0 hidden items-center justify-between px-8 pb-5 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-ink-muted sm:flex">
-            <span className="normal-case">{companyName} · 2026</span>
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-4 w-px animate-pulse bg-primary/60" />
-              <span>Scroll to explore</span>
-            </span>
-            <span className="hidden lg:inline">{tagline}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPlaying((prev) => !prev)}
+                  aria-label={
+                    isPlaying
+                      ? "Pause workflow animation"
+                      : "Play workflow animation"
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 font-mono text-[0.68rem] font-semibold text-ink-heading transition-colors hover:border-primary/40"
+                >
+                  {isPlaying ? (
+                    <>
+                      <Pause className="h-3 w-3 text-primary" />
+                      <span>Live</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3 w-3 text-primary" />
+                      <span>Paused</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* GPU Transform Progress Rail + Signal Packet */}
+              <div
+                aria-hidden="true"
+                className="relative mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted"
+              >
+                <div
+                  className="h-full origin-left rounded-full bg-gradient-to-r from-primary via-electric to-electric-cyan transition-transform duration-300 ease-out"
+                  style={{ transform: `scaleX(${progressRatio})` }}
+                />
+                {isPlaying && !reducedMotion && (
+                  <div className="animate-signal-flow pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-gradient-to-r from-transparent via-white/75 to-transparent" />
+                )}
+              </div>
+
+              {/* 7-Step Connected Automation Sequence */}
+              <ol
+                aria-label="7-step automated business workflow"
+                className="mt-4 space-y-1.5"
+              >
+                {COMMAND_SEQUENCE.map((step, idx) => {
+                  const Icon = step.icon;
+                  const isCurrent = idx === activeStep;
+                  const isCompleted = idx < activeStep;
+
+                  return (
+                    <li key={step.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveStep(idx);
+                          setIsPlaying(false);
+                        }}
+                        aria-current={isCurrent ? "step" : undefined}
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 ${
+                          isCurrent
+                            ? "border-primary bg-accent-subtle/65 shadow-sm"
+                            : isCompleted
+                              ? "border-line bg-surface/80 hover:border-line-strong"
+                              : "border-transparent bg-surface-muted/45 opacity-85 hover:border-line hover:opacity-100"
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-[0.7rem] font-bold transition-colors ${
+                              isCurrent
+                                ? "bg-primary text-primary-foreground"
+                                : isCompleted
+                                  ? "bg-status-success/15 text-status-success"
+                                  : "bg-surface text-ink-muted"
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <Icon className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-ink-heading sm:text-[0.82rem]">
+                              <span className="mr-1.5 font-mono text-[0.68rem] text-ink-muted">
+                                {step.stepNumber}.
+                              </span>
+                              {step.label}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-mono text-[0.65rem] font-semibold ${
+                              isCurrent
+                                ? "bg-primary text-primary-foreground"
+                                : isCompleted
+                                  ? "bg-surface-muted text-ink-heading"
+                                  : "text-ink-muted"
+                            }`}
+                          >
+                            {step.shortStatus}
+                          </span>
+                          <span className="hidden font-mono text-[0.65rem] text-ink-muted sm:inline">
+                            {step.latency}
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {/* Active Step Inspector — Business Outcome + Technical Trace */}
+              <div
+                aria-live="polite"
+                className="mt-4 rounded-xl border border-primary/20 bg-surface p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
+                    Step {currentStep.stepNumber} Outcome · {currentStep.label}
+                  </span>
+                  <span className="font-mono text-[0.68rem] text-ink-muted">
+                    {currentStep.latency}
+                  </span>
+                </div>
+
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-body sm:text-[0.82rem]">
+                  {currentStep.businessOutcome}
+                </p>
+
+                <p className="mt-2.5 truncate rounded-lg border border-line bg-surface-muted px-3 py-1.5 font-mono text-[0.68rem] text-ink-heading">
+                  {currentStep.systemTrace}
+                </p>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                  <Link
+                    href="/contact?intent=call&source=hero_command_center"
+                    className="inline-flex items-center gap-1 font-semibold text-primary hover:text-primary-hover"
+                  >
+                    <span>Automate this in your business</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                  <Link
+                    href="/demos"
+                    className="font-mono text-[0.7rem] text-ink-muted hover:text-ink-heading"
+                  >
+                    Test live sandbox →
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Bottom Architectural Status Rail */}
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-muted/40 px-6 py-3 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-ink-muted sm:px-10">
+          <span className="normal-case font-medium text-ink-heading">
+            {companyName} · {tagline}
+          </span>
+          <span>US · UK · Canada (EST &amp; GMT Overlap)</span>
         </div>
       </div>
     </section>

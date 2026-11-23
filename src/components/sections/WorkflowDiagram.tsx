@@ -133,7 +133,7 @@ export function WorkflowDiagram() {
   }
 
   return (
-    <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8">
+    <div className="surface-3d rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
         <div>
           <Badge>Architecture Demonstration · Sample Payload</Badge>

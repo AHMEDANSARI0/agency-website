@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { WorkflowDiagram } from "@/components/sections/WorkflowDiagram";
+import { BeforeAfterWorkflowCompare } from "@/components/sections/BeforeAfterWorkflowCompare";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
 export const metadata: Metadata = {
@@ -117,6 +118,20 @@ export default async function HowItWorksPage() {
             </div>
             <WorkflowDiagram />
           </div>
+
+          {/* Interactive Before vs. After Process Comparison */}
+          <div>
+            <div className="mb-6 max-w-2xl">
+              <Badge variant="accent">Before vs. After Process Comparison</Badge>
+              <h2 className="mt-2.5 text-2xl font-bold text-ink-heading">
+                Compare Manual Busywork Against Automated Execution
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-body">
+                Switch between manual and automated views across lead intake, support triage, and client onboarding.
+              </p>
+            </div>
+            <BeforeAfterWorkflowCompare />
+          </div>
         </Container>
       </section>
 
@@ -168,6 +183,39 @@ export default async function HowItWorksPage() {
                 <span>Test our guardrail escalation behavior in the Live Support Demo</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
+            </div>
+          </div>
+
+          {/* Client Communication, Ownership & Post-Launch Support Options */}
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card">
+              <Badge variant="accent">Communication</Badge>
+              <h3 className="mt-3 text-lg font-bold text-ink-heading">
+                How We Communicate During Projects
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-body">
+                You work directly with the Principal Architect via structured milestone check-ins, concise async video demos, and overlapping US/UK/Canada business hours.
+              </p>
+            </div>
+
+            <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card">
+              <Badge variant="accent">100% Ownership</Badge>
+              <h3 className="mt-3 text-lg font-bold text-ink-heading">
+                You Own Every Workflow &amp; Credential
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-body">
+                Zero proprietary black boxes or hostage retainers. All accounts, code, database schemas, and plain-English runbooks belong completely to your company.
+              </p>
+            </div>
+
+            <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card">
+              <Badge variant="accent">Maintenance &amp; Support</Badge>
+              <h3 className="mt-3 text-lg font-bold text-ink-heading">
+                Flexible Post-Launch Care
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-body">
+                Every build includes post-launch stabilization monitoring. Afterward, your team can self-manage with our runbooks or opt into lightweight ongoing optimization.
+              </p>
             </div>
           </div>
         </Container>

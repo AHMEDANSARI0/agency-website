@@ -24,11 +24,17 @@ const config: Config = {
           DEFAULT: "var(--of-color-accent)",
           subtle: "var(--of-color-accent-subtle)",
         },
+        electric: {
+          DEFAULT: "var(--of-color-electric)",
+          cyan: "var(--of-color-cyan)",
+          subtle: "var(--of-color-cyan-subtle)",
+        },
         canvas: "var(--of-color-bg)",
         surface: {
           DEFAULT: "var(--of-color-surface)",
           elevated: "var(--of-color-surface-elevated)",
           muted: "var(--of-color-surface-muted)",
+          tertiary: "var(--of-color-bg-tertiary, var(--of-color-surface-muted))",
           navbar: "var(--of-surface-navbar)",
           footer: "var(--of-surface-footer)",
           card: "var(--of-surface-card)",
@@ -44,6 +50,7 @@ const config: Config = {
         },
         line: {
           DEFAULT: "var(--of-color-border)",
+          subtle: "var(--of-color-border-subtle, var(--of-color-border))",
           strong: "var(--of-color-border-strong)",
           glass: "var(--of-border-glass)",
         },

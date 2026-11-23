@@ -14,6 +14,8 @@ import type {
   BlogPost,
   CaseStudyItem,
   FaqItem,
+  LeadDashboardMetrics,
+  LeadPriority,
   LeadRecord,
   MediaAsset,
   PageDocument,
@@ -228,7 +230,7 @@ function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
   if (code === "42P01" || code === "42703" || code === "3D000") {
     return new DatabaseUnavailableError(
       "DB_SCHEMA_MISSING",
-      "Database schema is missing required tables or columns. Run 0001_omniflow_schema.sql and 0002_production_upgrade.sql in Supabase SQL Editor."
+      "Database schema is missing required tables or columns. Run migrations 0001 through 0004 in Supabase SQL Editor."
     );
   }
 
@@ -597,7 +599,14 @@ function upgradeSnapshotIfNeeded(
     (n) => n.href === "/demos"
   );
 
-  const nextSettings: SiteSettings = hadPhase1AnchorNav
+  const legacyDefaultPrimary =
+    snap.siteSettings?.primaryCtaLabel === "Request an Automation Audit" ||
+    snap.siteSettings?.primaryCtaLabel === "Request Workflow Review";
+  const legacyDefaultSecondary =
+    snap.siteSettings?.secondaryCtaLabel === "Try Interactive Demos" ||
+    snap.siteSettings?.secondaryCtaLabel === "Explore Interactive Demos";
+
+  const baseSettings: SiteSettings = hadPhase1AnchorNav
     ? {
         ...snap.siteSettings,
         bookingUrl: fresh.siteSettings.bookingUrl,
@@ -620,6 +629,20 @@ function upgradeSnapshotIfNeeded(
           ).map((item, idx) => ({ ...item, order: idx + 1 })),
         }
       : snap.siteSettings;
+
+  const nextSettings: SiteSettings = {
+    ...baseSettings,
+    primaryCtaLabel: legacyDefaultPrimary
+      ? fresh.siteSettings.primaryCtaLabel
+      : baseSettings.primaryCtaLabel,
+    primaryCtaHref:
+      legacyDefaultPrimary && baseSettings.primaryCtaHref === "/contact"
+        ? fresh.siteSettings.primaryCtaHref
+        : baseSettings.primaryCtaHref,
+    secondaryCtaLabel: legacyDefaultSecondary
+      ? fresh.siteSettings.secondaryCtaLabel
+      : baseSettings.secondaryCtaLabel,
+  };
 
   const normalizedTheme = normalizeStoredThemeConfig(snap.themeConfig);
 
@@ -728,6 +751,194 @@ export function toSafeUser(user: UserRecord): SafeUser {
     passwordChangedAt: user.passwordChangedAt ?? null,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt ?? null,
+  };
+}
+
+const atomicOperationQueues = new Map<string, Promise<unknown>>();
+
+/**
+ * Serializes critical read-check-write sections within a Node process so concurrent
+ * requests in local/dev/test mode execute strictly one-at-a-time without TOCTOU races.
+ * PostgreSQL mode additionally enforces database-level transactional advisory locks.
+ */
+async function withAtomicKeyLock<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
+  const previous = atomicOperationQueues.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const currentGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.then(() => currentGate);
+  atomicOperationQueues.set(key, chained);
+
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (atomicOperationQueues.get(key) === chained) {
+      atomicOperationQueues.delete(key);
+    }
+  }
+}
+
+interface PostgresLeadRow {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  website: string | null;
+  industry: string;
+  interested_service: string;
+  business_problem: string;
+  budget_range: string | null;
+  timeline: string | null;
+  additional_details: string | null;
+  privacy_consent: boolean;
+  status: LeadRecord["status"];
+  priority?: LeadPriority | null;
+  proposal_value?: string | number | null;
+  expected_closing_date?: string | Date | null;
+  lost_reason?: string | null;
+  source: string;
+  is_duplicate_flag: boolean;
+  follow_up_date: string | null;
+  email_notification_status: LeadRecord["emailNotificationStatus"];
+  notes: LeadRecord["notes"];
+  status_history: LeadRecord["statusHistory"];
+  created_at: string;
+  updated_at: string;
+}
+
+function normalizeLeadRecord(lead: LeadRecord): LeadRecord {
+  return {
+    ...lead,
+    priority: lead.priority || "Medium",
+    proposalValue:
+      typeof lead.proposalValue === "number" && Number.isFinite(lead.proposalValue)
+        ? lead.proposalValue
+        : null,
+    expectedClosingDate: lead.expectedClosingDate || null,
+    lostReason: lead.lostReason || null,
+    notes: Array.isArray(lead.notes) ? lead.notes : [],
+    statusHistory: Array.isArray(lead.statusHistory) ? lead.statusHistory : [],
+  };
+}
+
+function mapPostgresLeadRow(r: PostgresLeadRow): LeadRecord {
+  const rawClosing = r.expected_closing_date;
+  const closingStr =
+    rawClosing instanceof Date
+      ? rawClosing.toISOString().slice(0, 10)
+      : typeof rawClosing === "string" && rawClosing.trim()
+        ? rawClosing.slice(0, 10)
+        : null;
+  const parsedProposal =
+    r.proposal_value !== null && r.proposal_value !== undefined
+      ? Number(r.proposal_value)
+      : null;
+
+  return normalizeLeadRecord({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    company: r.company,
+    website: r.website ?? undefined,
+    industry: r.industry,
+    interestedService: r.interested_service,
+    businessProblem: r.business_problem,
+    budgetRange: r.budget_range ?? undefined,
+    timeline: r.timeline ?? undefined,
+    additionalDetails: r.additional_details ?? undefined,
+    privacyConsent: r.privacy_consent,
+    status: r.status,
+    priority: r.priority || "Medium",
+    proposalValue:
+      parsedProposal !== null && Number.isFinite(parsedProposal)
+        ? parsedProposal
+        : null,
+    expectedClosingDate: closingStr,
+    lostReason: r.lost_reason ?? null,
+    source: r.source,
+    isDuplicateFlag: r.is_duplicate_flag,
+    followUpDate: r.follow_up_date,
+    emailNotificationStatus: r.email_notification_status,
+    notes: r.notes || [],
+    statusHistory: r.status_history || [],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  });
+}
+
+export function computeLeadDashboardMetrics(
+  leads: LeadRecord[],
+  now: Date = new Date()
+): LeadDashboardMetrics {
+  const totalLeads = leads.length;
+  const newLeads = leads.filter((l) => l.status === "New").length;
+  const qualifiedLeads = leads.filter((l) =>
+    ["Qualified", "Proposal Sent", "Won"].includes(l.status)
+  ).length;
+  const activePipelineLeads = leads.filter((l) =>
+    ["New", "Contacted", "Qualified", "Proposal Sent"].includes(l.status)
+  ).length;
+  const wonLeads = leads.filter((l) => l.status === "Won").length;
+  const lostLeads = leads.filter((l) => l.status === "Lost").length;
+
+  const monthPrefix = `${now.getUTCFullYear()}-${String(
+    now.getUTCMonth() + 1
+  ).padStart(2, "0")}`;
+  const monthlyEnquiries = leads.filter((l) =>
+    l.createdAt.startsWith(monthPrefix)
+  ).length;
+
+  const todayIso = now.toISOString().slice(0, 10);
+  const dueFollowUps = leads.filter(
+    (l) =>
+      Boolean(l.followUpDate) &&
+      (l.followUpDate as string) <= todayIso &&
+      !["Won", "Lost"].includes(l.status)
+  ).length;
+
+  const totalPipelineValue = leads
+    .filter((l) => l.status !== "Lost")
+    .reduce((sum, l) => sum + (typeof l.proposalValue === "number" ? l.proposalValue : 0), 0);
+
+  const wonRevenueValue = leads
+    .filter((l) => l.status === "Won")
+    .reduce((sum, l) => sum + (typeof l.proposalValue === "number" ? l.proposalValue : 0), 0);
+
+  const conversionRatePercent =
+    totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 1000) / 10 : 0;
+  const qualificationRatePercent =
+    totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 1000) / 10 : 0;
+
+  const sourceCounts = new Map<string, number>();
+  for (const lead of leads) {
+    const src = (lead.source || "website_contact_form").trim() || "website_contact_form";
+    sourceCounts.set(src, (sourceCounts.get(src) || 0) + 1);
+  }
+  const sourcesBreakdown = Array.from(sourceCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([source, count]) => ({
+      source,
+      count,
+      percent: totalLeads > 0 ? Math.round((count / totalLeads) * 1000) / 10 : 0,
+    }));
+
+  return {
+    totalLeads,
+    newLeads,
+    qualifiedLeads,
+    activePipelineLeads,
+    wonLeads,
+    lostLeads,
+    monthlyEnquiries,
+    conversionRatePercent,
+    qualificationRatePercent,
+    dueFollowUps,
+    totalPipelineValue,
+    wonRevenueValue,
+    sourcesBreakdown,
   };
 }
 
@@ -883,8 +1094,15 @@ export const db = {
   },
 
   async getServiceBySlug(slug: string): Promise<ServiceItem | null> {
-    const all = await this.listServices(false);
-    return all.find((s) => s.slug === slug) ?? null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ payload: ServiceItem }[]>`
+          SELECT payload FROM services WHERE slug = ${slug} LIMIT 1
+        `;
+        return rows[0]?.payload ?? null;
+      },
+      () => readLocalSnapshot().services.find((s) => s.slug === slug) ?? null
+    );
   },
 
   async upsertService(service: ServiceItem): Promise<ServiceItem> {
@@ -972,8 +1190,30 @@ export const db = {
     slug: string,
     onlyPublished = false
   ): Promise<CaseStudyItem | null> {
-    const all = await this.listCaseStudies(onlyPublished);
-    return all.find((c) => c.slug === slug) ?? null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = onlyPublished
+          ? await sql<{ payload: CaseStudyItem }[]>`
+              SELECT payload FROM case_studies
+              WHERE slug = ${slug} AND status = 'published'
+              LIMIT 1
+            `
+          : await sql<{ payload: CaseStudyItem }[]>`
+              SELECT payload FROM case_studies
+              WHERE slug = ${slug}
+              LIMIT 1
+            `;
+        return rows[0]?.payload ?? null;
+      },
+      () => {
+        const match = readLocalSnapshot().caseStudies.find(
+          (c) => c.slug === slug
+        );
+        if (!match) return null;
+        if (onlyPublished && match.status !== "published") return null;
+        return match;
+      }
+    );
   },
 
   async upsertCaseStudy(item: CaseStudyItem): Promise<CaseStudyItem> {
@@ -1057,13 +1297,40 @@ export const db = {
     slug: string,
     onlyPublished = false
   ): Promise<BlogPost | null> {
-    const all = await this.listBlogPosts(onlyPublished);
-    return all.find((p) => p.slug === slug) ?? null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = onlyPublished
+          ? await sql<{ payload: BlogPost }[]>`
+              SELECT payload FROM blog_posts
+              WHERE slug = ${slug} AND status = 'published'
+              LIMIT 1
+            `
+          : await sql<{ payload: BlogPost }[]>`
+              SELECT payload FROM blog_posts
+              WHERE slug = ${slug}
+              LIMIT 1
+            `;
+        return rows[0]?.payload ?? null;
+      },
+      () => {
+        const match = readLocalSnapshot().blogPosts.find((p) => p.slug === slug);
+        if (!match) return null;
+        if (onlyPublished && match.status !== "published") return null;
+        return match;
+      }
+    );
   },
 
   async getBlogPostById(id: string): Promise<BlogPost | null> {
-    const all = await this.listBlogPosts(false);
-    return all.find((p) => p.id === id) ?? null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ payload: BlogPost }[]>`
+          SELECT payload FROM blog_posts WHERE id = ${id} LIMIT 1
+        `;
+        return rows[0]?.payload ?? null;
+      },
+      () => readLocalSnapshot().blogPosts.find((p) => p.id === id) ?? null
+    );
   },
 
   async upsertBlogPost(post: BlogPost): Promise<BlogPost> {
@@ -1668,6 +1935,187 @@ export const db = {
     );
   },
 
+  /**
+   * Atomically creates the very first SUPER_ADMIN account when and only when zero
+   * staff users exist. Eliminates TOCTOU race conditions under concurrent requests
+   * via PostgreSQL transactional advisory locks + in-process mutex serialization.
+   */
+  async createInitialSuperAdminAtomically(input: {
+    email: string;
+    name: string;
+    passwordHash: string;
+  }): Promise<
+    { status: "created"; user: SafeUser } | { status: "already_initialized" }
+  > {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const now = new Date().toISOString();
+    const candidate: UserRecord = {
+      id: `usr_${randomBytes(8).toString("hex")}`,
+      email: normalizedEmail,
+      name: input.name.trim(),
+      role: "SUPER_ADMIN",
+      passwordHash: input.passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+      sessionVersion: 1,
+      passwordChangedAt: now,
+      recoveryTokenHash: null,
+      recoveryExpiresAt: null,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+
+    return withAtomicKeyLock("initial_setup_super_admin", () =>
+      runWithDbFallback(
+        async (sql) => {
+          return sql.begin(async (txRaw) => {
+            const tx = txRaw as unknown as ReturnType<typeof postgres>;
+            await tx`SELECT pg_advisory_xact_lock(7946001)`;
+            await ensurePostgresBootstrapAdmin(tx);
+
+            const countRows = await tx<{ cnt: number }[]>`
+              SELECT count(*)::int AS cnt FROM users
+            `;
+            if ((countRows[0]?.cnt ?? 0) > 0) {
+              return { status: "already_initialized" as const };
+            }
+
+            await tx`
+              INSERT INTO users (
+                id, email, name, role, password_hash, is_active,
+                must_change_password, session_version, password_changed_at,
+                recovery_token_hash, recovery_expires_at,
+                created_at, updated_at, last_login_at
+              )
+              VALUES (
+                ${candidate.id},
+                ${candidate.email},
+                ${candidate.name},
+                ${candidate.role},
+                ${candidate.passwordHash},
+                ${candidate.isActive},
+                ${false},
+                ${1},
+                ${candidate.passwordChangedAt ?? null},
+                ${null},
+                ${null},
+                ${candidate.createdAt},
+                ${candidate.updatedAt},
+                ${candidate.lastLoginAt ?? null}
+              )
+            `;
+            return { status: "created" as const, user: toSafeUser(candidate) };
+          });
+        },
+        () => {
+          const snap = readLocalSnapshot();
+          if (snap.users.length > 0) {
+            return { status: "already_initialized" as const };
+          }
+          snap.users.push(candidate);
+          writeLocalSnapshot(snap);
+          return { status: "created" as const, user: toSafeUser(candidate) };
+        }
+      )
+    );
+  },
+
+  /**
+   * Atomically verifies and consumes a single-use password recovery token hash,
+   * rotating the password, clearing recovery columns, and bumping sessionVersion
+   * in a single conditional UPDATE ... RETURNING so concurrent replay attempts fail.
+   */
+  async consumeRecoveryTokenAtomically(input: {
+    tokenHash: string;
+    newPasswordHash: string;
+    nowIso?: string;
+  }): Promise<SafeUser | null> {
+    const nowIso = input.nowIso ?? new Date().toISOString();
+    const nowMs = Date.parse(nowIso);
+
+    return withAtomicKeyLock(`recovery_token:${input.tokenHash}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          await ensurePostgresBootstrapAdmin(sql);
+          const rows = await sql<
+            {
+              id: string;
+              email: string;
+              name: string;
+              role: UserRecord["role"];
+              is_active: boolean;
+              must_change_password?: boolean;
+              session_version?: number;
+              password_changed_at?: string | null;
+              created_at: string;
+              last_login_at: string | null;
+            }[]
+          >`
+            UPDATE users
+            SET
+              password_hash = ${input.newPasswordHash},
+              must_change_password = FALSE,
+              session_version = COALESCE(session_version, 1) + 1,
+              password_changed_at = ${nowIso},
+              recovery_token_hash = NULL,
+              recovery_expires_at = NULL,
+              updated_at = ${nowIso}
+            WHERE recovery_token_hash = ${input.tokenHash}
+              AND is_active = TRUE
+              AND recovery_expires_at IS NOT NULL
+              AND recovery_expires_at > ${nowIso}
+            RETURNING
+              id, email, name, role, is_active,
+              must_change_password, session_version, password_changed_at,
+              created_at, last_login_at
+          `;
+
+          const r = rows[0];
+          if (!r) return null;
+          return {
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            role: r.role,
+            isActive: r.is_active,
+            mustChangePassword: Boolean(r.must_change_password),
+            sessionVersion: r.session_version ?? 1,
+            passwordChangedAt: r.password_changed_at ?? null,
+            createdAt: r.created_at,
+            lastLoginAt: r.last_login_at,
+          };
+        },
+        () => {
+          const snap = readLocalSnapshot();
+          const idx = snap.users.findIndex(
+            (u) =>
+              u.recoveryTokenHash === input.tokenHash &&
+              u.isActive &&
+              Boolean(u.recoveryExpiresAt) &&
+              Date.parse(u.recoveryExpiresAt as string) > nowMs
+          );
+          if (idx === -1) return null;
+
+          const current = snap.users[idx];
+          const updated: UserRecord = {
+            ...current,
+            passwordHash: input.newPasswordHash,
+            mustChangePassword: false,
+            sessionVersion: (current.sessionVersion ?? 1) + 1,
+            passwordChangedAt: nowIso,
+            recoveryTokenHash: null,
+            recoveryExpiresAt: null,
+            updatedAt: nowIso,
+          };
+          snap.users[idx] = updated;
+          writeLocalSnapshot(snap);
+          return toSafeUser(updated);
+        }
+      )
+    );
+  },
+
   async updateUser(
     id: string,
     patch: {
@@ -1762,60 +2210,109 @@ export const db = {
   async listLeads(): Promise<LeadRecord[]> {
     return runWithDbFallback(
       async (sql) => {
-        const rows = await sql<
-          {
-            id: string;
-            name: string;
-            email: string;
-            company: string;
-            website: string | null;
-            industry: string;
-            interested_service: string;
-            business_problem: string;
-            budget_range: string | null;
-            timeline: string | null;
-            additional_details: string | null;
-            privacy_consent: boolean;
-            status: LeadRecord["status"];
-            source: string;
-            is_duplicate_flag: boolean;
-            follow_up_date: string | null;
-            email_notification_status: LeadRecord["emailNotificationStatus"];
-            notes: LeadRecord["notes"];
-            status_history: LeadRecord["statusHistory"];
-            created_at: string;
-            updated_at: string;
-          }[]
-        >`SELECT * FROM leads ORDER BY created_at DESC`;
-        return rows.map((r) => ({
-          id: r.id,
-          name: r.name,
-          email: r.email,
-          company: r.company,
-          website: r.website ?? undefined,
-          industry: r.industry,
-          interestedService: r.interested_service,
-          businessProblem: r.business_problem,
-          budgetRange: r.budget_range ?? undefined,
-          timeline: r.timeline ?? undefined,
-          additionalDetails: r.additional_details ?? undefined,
-          privacyConsent: r.privacy_consent,
-          status: r.status,
-          source: r.source,
-          isDuplicateFlag: r.is_duplicate_flag,
-          followUpDate: r.follow_up_date,
-          emailNotificationStatus: r.email_notification_status,
-          notes: r.notes || [],
-          statusHistory: r.status_history || [],
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-        }));
+        const rows = await sql<PostgresLeadRow[]>`
+          SELECT * FROM leads ORDER BY created_at DESC
+        `;
+        return rows.map(mapPostgresLeadRow);
       },
       () =>
-        readLocalSnapshot().leads.sort((a, b) =>
-          b.createdAt.localeCompare(a.createdAt)
-        )
+        readLocalSnapshot()
+          .leads.map(normalizeLeadRecord)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     );
+  },
+
+  async getPersistedIdempotentLeadId(
+    fingerprint: string,
+    nowIso = new Date().toISOString()
+  ): Promise<string | null> {
+    const nowMs = Date.parse(nowIso);
+    return runWithDbFallback(
+      async (sql) => {
+        try {
+          const rows = await sql<{ lead_id: string }[]>`
+            SELECT lead_id
+            FROM lead_idempotency_keys
+            WHERE fingerprint = ${fingerprint}
+              AND expires_at > ${nowIso}
+            LIMIT 1
+          `;
+          return rows[0]?.lead_id ?? null;
+        } catch (err) {
+          const pgCode = (err as { code?: string })?.code;
+          if (pgCode === "42P01") return null;
+          throw err;
+        }
+      },
+      () => {
+        const snap = readLocalSnapshot();
+        const store = snap.leadIdempotencyKeys;
+        if (!store) return null;
+        const entry = store[fingerprint];
+        if (!entry) return null;
+        if (Date.parse(entry.expiresAt) <= nowMs) {
+          delete store[fingerprint];
+          writeLocalSnapshot(snap);
+          return null;
+        }
+        return entry.leadId;
+      }
+    );
+  },
+
+  async savePersistedIdempotentLeadId(
+    fingerprint: string,
+    leadId: string,
+    ttlMs = 15 * 60_000,
+    nowMs = Date.now()
+  ): Promise<void> {
+    const createdAtIso = new Date(nowMs).toISOString();
+    const expiresAtIso = new Date(nowMs + ttlMs).toISOString();
+
+    await runWithDbFallback(
+      async (sql) => {
+        try {
+          if (Math.random() < 0.08) {
+            await sql`
+              DELETE FROM lead_idempotency_keys WHERE expires_at <= ${createdAtIso}
+            `;
+          }
+          await sql`
+            INSERT INTO lead_idempotency_keys (fingerprint, lead_id, created_at, expires_at)
+            VALUES (${fingerprint}, ${leadId}, ${createdAtIso}, ${expiresAtIso})
+            ON CONFLICT (fingerprint) DO NOTHING
+          `;
+        } catch (err) {
+          const pgCode = (err as { code?: string })?.code;
+          if (pgCode !== "42P01") throw err;
+        }
+        return true;
+      },
+      () => {
+        const snap = readLocalSnapshot();
+        const store = { ...(snap.leadIdempotencyKeys || {}) };
+        for (const [key, entry] of Object.entries(store)) {
+          if (Date.parse(entry.expiresAt) <= nowMs) {
+            delete store[key];
+          }
+        }
+        if (!store[fingerprint]) {
+          store[fingerprint] = {
+            leadId,
+            createdAt: createdAtIso,
+            expiresAt: expiresAtIso,
+          };
+        }
+        snap.leadIdempotencyKeys = store;
+        writeLocalSnapshot(snap);
+        return true;
+      }
+    );
+  },
+
+  async getLeadDashboardMetrics(): Promise<LeadDashboardMetrics> {
+    const leads = await this.listLeads();
+    return computeLeadDashboardMetrics(leads);
   },
 
   async createLead(
@@ -1829,58 +2326,110 @@ export const db = {
       | "statusHistory"
       | "createdAt"
       | "updatedAt"
-    >
+    > & {
+      status?: LeadRecord["status"];
+      followUpDate?: string | null;
+      notes?: LeadRecord["notes"];
+    }
   ): Promise<LeadRecord> {
     const now = new Date().toISOString();
     const normalizedEmail = input.email.trim().toLowerCase();
-    const existingLeads = await this.listLeads();
-    const isDuplicateFlag = existingLeads.some(
-      (l) => l.email.toLowerCase() === normalizedEmail
+    const isDuplicateFlag = await runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ exists: boolean }[]>`
+          SELECT EXISTS(
+            SELECT 1 FROM leads WHERE LOWER(email) = ${normalizedEmail}
+          ) AS exists
+        `;
+        return Boolean(rows[0]?.exists);
+      },
+      () =>
+        readLocalSnapshot().leads.some(
+          (l) => l.email.toLowerCase() === normalizedEmail
+        )
     );
+    const initialStatus = input.status || "New";
 
-    const lead: LeadRecord = {
+    const lead: LeadRecord = normalizeLeadRecord({
       ...input,
       email: normalizedEmail,
       id: `lead_${randomBytes(8).toString("hex")}`,
-      status: "New",
+      status: initialStatus,
+      priority: input.priority || "Medium",
+      proposalValue:
+        typeof input.proposalValue === "number" && Number.isFinite(input.proposalValue)
+          ? input.proposalValue
+          : null,
+      expectedClosingDate: input.expectedClosingDate || null,
+      lostReason: input.lostReason || null,
       isDuplicateFlag,
-      followUpDate: null,
-      notes: [],
+      followUpDate: input.followUpDate ?? null,
+      notes: input.notes || [],
       statusHistory: [
         {
           from: null,
-          to: "New",
+          to: initialStatus,
           changedAt: now,
-          changedBy: "public_submission",
+          changedBy:
+            input.source === "csv_import" ? "csv_import" : "public_submission",
           note: isDuplicateFlag
             ? "Enquiry received (existing contact email flagged for unified follow-up)."
-            : "Initial enquiry received via website.",
+            : input.source === "csv_import"
+              ? "Lead imported via Admin CRM CSV batch."
+              : "Initial enquiry received via website.",
         },
       ],
       createdAt: now,
       updatedAt: now,
-    };
+    });
 
     return runWithDbFallback(
       async (sql) => {
-        await sql`
-          INSERT INTO leads (
-            id, name, email, company, website, industry, interested_service,
-            business_problem, budget_range, timeline, additional_details,
-            privacy_consent, status, source, is_duplicate_flag, follow_up_date,
-            email_notification_status, notes, status_history, created_at, updated_at
-          ) VALUES (
-            ${lead.id}, ${lead.name}, ${lead.email}, ${lead.company},
-            ${lead.website ?? null}, ${lead.industry}, ${lead.interestedService},
-            ${lead.businessProblem}, ${lead.budgetRange ?? null}, ${lead.timeline ?? null},
-            ${lead.additionalDetails ?? null}, ${lead.privacyConsent}, ${lead.status},
-            ${lead.source}, ${lead.isDuplicateFlag}, ${lead.followUpDate},
-            ${lead.emailNotificationStatus},
-            ${sql.json(lead.notes as unknown as postgres.JSONValue)},
-            ${sql.json(lead.statusHistory as unknown as postgres.JSONValue)},
-            ${lead.createdAt}, ${lead.updatedAt}
-          )
-        `;
+        try {
+          await sql`
+            INSERT INTO leads (
+              id, name, email, company, website, industry, interested_service,
+              business_problem, budget_range, timeline, additional_details,
+              privacy_consent, status, priority, proposal_value,
+              expected_closing_date, lost_reason, source, is_duplicate_flag,
+              follow_up_date, email_notification_status, notes, status_history,
+              created_at, updated_at
+            ) VALUES (
+              ${lead.id}, ${lead.name}, ${lead.email}, ${lead.company},
+              ${lead.website ?? null}, ${lead.industry}, ${lead.interestedService},
+              ${lead.businessProblem}, ${lead.budgetRange ?? null}, ${lead.timeline ?? null},
+              ${lead.additionalDetails ?? null}, ${lead.privacyConsent}, ${lead.status},
+              ${lead.priority ?? "Medium"}, ${lead.proposalValue ?? null},
+              ${lead.expectedClosingDate ?? null}, ${lead.lostReason ?? null},
+              ${lead.source}, ${lead.isDuplicateFlag}, ${lead.followUpDate},
+              ${lead.emailNotificationStatus},
+              ${sql.json(lead.notes as unknown as postgres.JSONValue)},
+              ${sql.json(lead.statusHistory as unknown as postgres.JSONValue)},
+              ${lead.createdAt}, ${lead.updatedAt}
+            )
+          `;
+        } catch (err) {
+          const pgCode = (err as { code?: string })?.code;
+          if (pgCode !== "42703") throw err;
+          await sql`
+            INSERT INTO leads (
+              id, name, email, company, website, industry, interested_service,
+              business_problem, budget_range, timeline, additional_details,
+              privacy_consent, status, source, is_duplicate_flag, follow_up_date,
+              email_notification_status, notes, status_history, created_at, updated_at
+            ) VALUES (
+              ${lead.id}, ${lead.name}, ${lead.email}, ${lead.company},
+              ${lead.website ?? null}, ${lead.industry}, ${lead.interestedService},
+              ${lead.businessProblem}, ${lead.budgetRange ?? null}, ${lead.timeline ?? null},
+              ${lead.additionalDetails ?? null}, ${lead.privacyConsent}, ${lead.status},
+              ${lead.source}, ${lead.isDuplicateFlag}, ${lead.followUpDate},
+              ${lead.emailNotificationStatus},
+              ${sql.json(lead.notes as unknown as postgres.JSONValue)},
+              ${sql.json(lead.statusHistory as unknown as postgres.JSONValue)},
+              ${lead.createdAt}, ${lead.updatedAt}
+            )
+          `;
+        }
         return lead;
       },
       () => {
@@ -1893,8 +2442,18 @@ export const db = {
   },
 
   async getLeadById(id: string): Promise<LeadRecord | null> {
-    const all = await this.listLeads();
-    return all.find((l) => l.id === id) ?? null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<PostgresLeadRow[]>`
+          SELECT * FROM leads WHERE id = ${id} LIMIT 1
+        `;
+        return rows[0] ? mapPostgresLeadRow(rows[0]) : null;
+      },
+      () => {
+        const match = readLocalSnapshot().leads.find((l) => l.id === id);
+        return match ? normalizeLeadRecord(match) : null;
+      }
+    );
   },
 
   async updateLead(
@@ -1904,25 +2463,45 @@ export const db = {
     const current = await this.getLeadById(id);
     if (!current) return null;
 
-    const updated: LeadRecord = {
+    const updated: LeadRecord = normalizeLeadRecord({
       ...updater(current),
       id: current.id,
       updatedAt: new Date().toISOString(),
-    };
+    });
 
     return runWithDbFallback(
       async (sql) => {
-        await sql`
-          UPDATE leads
-          SET
-            status = ${updated.status},
-            is_duplicate_flag = ${updated.isDuplicateFlag},
-            follow_up_date = ${updated.followUpDate},
-            notes = ${sql.json(updated.notes as unknown as postgres.JSONValue)},
-            status_history = ${sql.json(updated.statusHistory as unknown as postgres.JSONValue)},
-            updated_at = ${updated.updatedAt}
-          WHERE id = ${id}
-        `;
+        try {
+          await sql`
+            UPDATE leads
+            SET
+              status = ${updated.status},
+              priority = ${updated.priority ?? "Medium"},
+              proposal_value = ${updated.proposalValue ?? null},
+              expected_closing_date = ${updated.expectedClosingDate ?? null},
+              lost_reason = ${updated.lostReason ?? null},
+              is_duplicate_flag = ${updated.isDuplicateFlag},
+              follow_up_date = ${updated.followUpDate},
+              notes = ${sql.json(updated.notes as unknown as postgres.JSONValue)},
+              status_history = ${sql.json(updated.statusHistory as unknown as postgres.JSONValue)},
+              updated_at = ${updated.updatedAt}
+            WHERE id = ${id}
+          `;
+        } catch (err) {
+          const pgCode = (err as { code?: string })?.code;
+          if (pgCode !== "42703") throw err;
+          await sql`
+            UPDATE leads
+            SET
+              status = ${updated.status},
+              is_duplicate_flag = ${updated.isDuplicateFlag},
+              follow_up_date = ${updated.followUpDate},
+              notes = ${sql.json(updated.notes as unknown as postgres.JSONValue)},
+              status_history = ${sql.json(updated.statusHistory as unknown as postgres.JSONValue)},
+              updated_at = ${updated.updatedAt}
+            WHERE id = ${id}
+          `;
+        }
         return updated;
       },
       () => {
@@ -1947,6 +2526,10 @@ export const db = {
       () => readLocalSnapshot().mediaAssets
     );
 
+    if (assets.length === 0) {
+      return [];
+    }
+
     const [brand, posts, members, pages, services, caseStudies] =
       await Promise.all([
         this.getBrandAssets(),
@@ -1956,6 +2539,20 @@ export const db = {
         this.listServices(false),
         this.listCaseStudies(false),
       ]);
+
+    // Pre-serialize structured payloads once instead of O(assets * entities) JSON.stringify calls
+    const serializedPages = pages.map((pg) => ({
+      label: `Page: /${pg.slug === "home" ? "" : pg.slug}`,
+      raw: JSON.stringify(pg),
+    }));
+    const serializedServices = services.map((s) => ({
+      label: `Service: ${s.slug}`,
+      raw: JSON.stringify(s),
+    }));
+    const serializedCaseStudies = caseStudies.map((cs) => ({
+      label: `Case Study: ${cs.slug}`,
+      raw: JSON.stringify(cs),
+    }));
 
     return assets.map((asset) => {
       const usedIn: string[] = [];
@@ -1978,19 +2575,19 @@ export const db = {
           usedIn.push(`Team: ${m.name}`);
         }
       }
-      for (const pg of pages) {
-        if (JSON.stringify(pg).includes(asset.url)) {
-          usedIn.push(`Page: /${pg.slug === "home" ? "" : pg.slug}`);
+      for (const pg of serializedPages) {
+        if (pg.raw.includes(asset.url)) {
+          usedIn.push(pg.label);
         }
       }
-      for (const s of services) {
-        if (JSON.stringify(s).includes(asset.url)) {
-          usedIn.push(`Service: ${s.slug}`);
+      for (const s of serializedServices) {
+        if (s.raw.includes(asset.url)) {
+          usedIn.push(s.label);
         }
       }
-      for (const cs of caseStudies) {
-        if (JSON.stringify(cs).includes(asset.url)) {
-          usedIn.push(`Case Study: ${cs.slug}`);
+      for (const cs of serializedCaseStudies) {
+        if (cs.raw.includes(asset.url)) {
+          usedIn.push(cs.label);
         }
       }
       return { ...asset, usedIn };
@@ -2112,11 +2709,37 @@ export const db = {
     if (/\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|woff2?|ttf|txt|xml)$/i.test(clean)) {
       return null;
     }
-    const all = await this.listRedirects();
-    return (
-      all.find(
-        (r) => r.isActive && r.sourcePath === clean && r.destinationPath !== clean
-      ) ?? null
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<
+          {
+            id: string;
+            source_path: string;
+            destination_path: string;
+            permanent: boolean;
+            is_active: boolean;
+            created_at: string;
+          }[]
+        >`
+          SELECT * FROM redirects
+          WHERE source_path = ${clean} AND is_active = TRUE
+          LIMIT 1
+        `;
+        const r = rows[0];
+        if (!r || r.destination_path === clean) return null;
+        return {
+          id: r.id,
+          sourcePath: r.source_path,
+          destinationPath: r.destination_path,
+          permanent: r.permanent,
+          isActive: r.is_active,
+          createdAt: r.created_at,
+        };
+      },
+      () =>
+        readLocalSnapshot().redirects.find(
+          (r) => r.isActive && r.sourcePath === clean && r.destinationPath !== clean
+        ) ?? null
     );
   },
 
@@ -2282,6 +2905,8 @@ export const db = {
         appliedMigrations: [
           "0001_omniflow_schema",
           "0002_production_upgrade",
+          "0003_crm_and_operations",
+          "0004_security_and_performance",
         ],
         missingTables: [],
         missingColumns: [],
@@ -2301,7 +2926,12 @@ export const db = {
         schemaReady: !strictProd,
         appliedMigrations: strictProd
           ? []
-          : ["0001_omniflow_schema", "0002_production_upgrade"],
+          : [
+              "0001_omniflow_schema",
+              "0002_production_upgrade",
+              "0003_crm_and_operations",
+              "0004_security_and_performance",
+            ],
         missingTables: strictProd ? [...REQUIRED_POSTGRES_TABLES] : [],
         missingColumns: strictProd ? [...REQUIRED_USER_COLUMNS] : [],
         latencyMs: Date.now() - startMs,

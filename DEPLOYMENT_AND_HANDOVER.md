@@ -7,19 +7,16 @@
 
 ---
 
-## 1. Completed 9-Phase Production Architecture Summary
+## 1. Completed Transformation & Production Architecture Summary
 
 | Phase | Scope | Git Tag | Status |
 | :---: | :--- | :--- | :---: |
-| **Phase 1** | Production Persistence, Bootstrap Auth, Recovery & Storage Guards | `upgrade-phase-1` | Verified |
-| **Phase 2** | Light-First Indigo Signature + Midnight-Navy Dark Mode Foundation | `upgrade-phase-2` | Verified |
-| **Phase 3** | Sticky Mega-Menu, 16-Section Homepage & 18 Truthful Public Routes | `upgrade-phase-3` | Verified |
-| **Phase 4** | 5-Tool Deterministic Interactive Lab, Multi-Currency & Contact Handoff | `upgrade-phase-4` | Verified |
-| **Phase 5** | Executive Admin Console (`⌘K`), Kanban CRM, CMS Preview & WCAG Studio | `upgrade-phase-5` | Verified |
-| **Phase 6** | Zero-LCP Motion Choreography, GPU Scroll Bar & Core Web Vitals Polish | `upgrade-phase-6` | Verified |
-| **Phase 7** | Dynamic `1200×630` OpenGraph, RSS 2.0 (`/feed.xml`), Schema & Consent v2 | `upgrade-phase-7` | Verified |
-| **Phase 8** | CSP Hardening, Bounded Payloads, `Idempotency-Key` & Fault Isolation | `upgrade-phase-8` | Verified |
-| **Phase 9** | Pre-Flight Readiness CLI (`npm run preflight`) & Master Handover | `upgrade-phase-9` | Verified |
+| **Baseline v1.0** | 9-Phase Foundation (Auth, Light/Dark Tokens, 18 Routes, 5 Demos, SEO, Backups) | `v1.0.0` | Verified |
+| **Transformation Phase 1** | Outcome-Driven Positioning, Hero Signal Simulator, ROI Calculator & Discovery Call Flow | `transformation-phase-1` | Verified |
+| **Transformation Phase 2** | Futuristic Glass/Grid UI, Ecosystem Network, GPU Motion & `Cyber-Architect` Preset | `transformation-phase-2` | Verified |
+| **Transformation Phase 3** | Executive KPI Dashboard, CSV Lead Import/Export, Modular CMS, Undo/Redo Builder & Design Tokens | `transformation-phase-3` | Verified |
+| **Transformation Phase 4** | Atomic Setup & Single-Use Recovery Locks, Persistent `Idempotency-Key`, Streaming `413` & Indexed SQL | `transformation-phase-4` | Verified |
+| **Transformation Phase 5** | Edge `/admin` HMAC Gate, E2E RBAC/Honesty/Funnel Verification (`106` Tests) & Handover Runbook | `transformation-phase-5` | Verified |
 
 ---
 
@@ -43,8 +40,10 @@ OmniFlow runs completely on serverless/managed free tiers — **zero Linux VM, V
 Open **Supabase Dashboard -> SQL Editor** and execute in order:
 1. **`supabase/migrations/0001_omniflow_schema.sql`** — Core 13 relational tables + Row-Level Security (RLS).
 2. **`supabase/migrations/0002_production_upgrade.sql`** — Session revocation (`session_version`), hashed recovery tokens, distributed serverless `rate_limits`, `schema_migrations`, and SHA-256 `database_backups`.
+3. **`supabase/migrations/0003_crm_and_operations.sql`** — CRM deal pipeline columns (`priority`, `proposal_value`, `expected_closing_date`, `lost_reason`) + `lead_idempotency_keys` table & RLS.
+4. **`supabase/migrations/0004_security_and_performance.sql`** — Persistent idempotency expiry index, `LOWER(email)` duplicate-lead index, and single-row lookup performance indexes.
 
-Both scripts use `IF NOT EXISTS` guards and contain zero `DROP TABLE` or `TRUNCATE` statements.
+All four scripts use `IF NOT EXISTS` guards and contain zero `DROP TABLE` or `TRUNCATE` statements. Application code also includes graceful column/table fallback (`42703` / `42P01`) so zero downtime occurs if code deploys moments before `0003`/`0004` are executed.
 
 ### 3.2 Selecting the Supabase Transaction Pooler (`:6543`)
 In **Supabase Dashboard -> Connect -> Pooler**, copy the **Transaction Pooler** URI:
@@ -102,27 +101,36 @@ Configure in **Vercel Dashboard -> Project -> Settings -> Environment Variables*
 
 ## 6. Daily Admin Console Operations Guide (`/admin`)
 
+- **Edge + Server Dual Authentication:** Unauthenticated requests to `/admin/*` are redirected immediately at the Edge (`307 -> /admin/login` with `Cache-Control: no-store`), while server layouts verify live PostgreSQL `session_version`, `is_active`, and RBAC role policies (`SUPER_ADMIN`, `EDITOR`, `AUTHOR`).
 - **Quick Jump Command Palette (`Ctrl+K` / `⌘K`):** Press `Ctrl+K` or `⌘K` anywhere inside `/admin` to jump to any permitted workspace module or open public routes.
-- **Lead & Enquiry CRM (`/admin/leads`):** Switch between **Split List** and **6-Column Kanban Board**, advance stages with 1 click, schedule follow-up dates, copy prospect emails, launch pre-filled discovery replies, or export formula-safe CSVs.
-- **Page Section Builder (`/admin/pages`):** Reorder or toggle visibility across the 16 homepage narrative blocks, save drafts safely, and publish live when ready.
-- **CMS Content Studio (`/admin/cms`):** Write Blog Insights with live side-by-side Markdown preview & revision history, publish Services, FAQs, Team profiles, and Case Studies (`Concept Blueprint` / `Prototype` / `Client Case Study` honesty badges), and manage Verified Testimonials (which remain hidden publicly unless *Published*, *Authorized*, AND *Verified* are all checked).
-- **Brand & Theme Studio (`/admin/brand`, `/admin/theme`):** Upload custom Light/Dark SVG logos, favicon, and OpenGraph social banners anytime without code edits; customize Light & Dark color tokens with live WCAG 2.1 AA/AAA contrast ratios and 1-click rollback.
+- **Executive Overview (`/admin`):** Monitor live DB-calculated KPIs (Total Leads, Monthly Enquiries, Qualified Leads, Won/Lost Revenue, Conversion Rate, Source Attribution, and Due Follow-Ups).
+- **Lead & Enquiry CRM (`/admin/leads`):** Switch between **Split List** and **6-Column Kanban Board**, filter by status/priority/source, record deal valuation (`proposalValue`), expected closing dates, lost reasons, and chronological notes, or batch **Import / Export formula-safe CSVs**.
+- **Page Section Builder (`/admin/pages`):** Reorder or toggle visibility across homepage narrative blocks with **30-step Undo/Redo (`Ctrl/Cmd+Z`)**, **Desktop / Tablet / Mobile** preview widths, and per-section Eyebrow/Subtitle/CTA overrides.
+- **CMS Content Studio (`/admin/cms`):** Edit Blog Insights, Services, Case Studies (`Concept Blueprint` / `Prototype` / `Client Case Study` honesty badges), FAQs, Team profiles, and Verified Testimonials with `localStorage` draft autosave, unsaved-changes guard, live **0–100% SEO Readiness Score + SERP preview**, and Media Library picker.
+- **Brand & Theme Studio (`/admin/brand`, `/admin/theme`):** Upload custom Light/Dark SVG logos, favicon, and OpenGraph social banners; customize Light & Dark palettes, built-in presets (including `Cyber-Architect`), and **Controlled Design System Tokens** (`typography`, `buttonStyle`, `borderRadius`, `spacing`, `animationIntensity`) with live WCAG 2.1 AA/AAA contrast validation and 1-click rollback.
 - **SEO, Redirects & Consent Analytics (`/admin/seo`):** Preview Google SERP snippets, manage loop-protected `301`/`307` redirects, inspect `/sitemap.xml`, `/robots.txt`, and `/feed.xml`, and toggle Consent Mode v2 GA4 tracking.
 
 ---
 
-## 7. Custom Domain, DNS & Final Go-Live Checklist
+## 7. Custom Domain, DNS & Honest Manual Go-Live Checklist
+
+> **Honest Scope Note:** All application code, SQL migrations (`0001`–`0004`), security headers, automated tests, and build artifacts are 100% verified inside the repository. External cloud credentials, DNS records, and third-party accounts below require your manual configuration in your own Supabase, Vercel, Domain Registrar, and Resend dashboards:
 
 1. **Run Local Pre-Flight & Full Verification:**
    ```bash
    npm run verify
+   npm run preflight -- --mode=production
    ```
-   *(Executes `preflight-check.mjs`, `tsc --noEmit`, `next lint`, `vitest run`, and `next build`).*
-2. **Attach Custom Domain in Vercel:**
-   - Add `yourdomain.com` + `www.yourdomain.com` in **Vercel -> Settings -> Domains**.
-   - Configure root `A` (`@`) and `www` `CNAME` records at your DNS provider matching Vercel's live instructions.
-3. **Authenticate Transactional Email in Resend (Optional):**
-   - Add `DKIM` (`resend._domainkey`), `SPF`, and `_dmarc` `TXT` records in DNS, verify in Resend, and set `NOTIFICATION_FROM_EMAIL`.
-4. **Verify Production Readiness Endpoints:**
-   - `GET https://yourdomain.com/api/health` -> `status: "ok"`, `version: "1.0.0"`, `database.driver: "supabase_postgres"`, `storage.provider: "supabase_storage"`, `domain.https: true`.
-   - Complete `/admin/setup` (using `ADMIN_SETUP_TOKEN`), verify `/sitemap.xml`, `/robots.txt`, `/feed.xml`, and `/opengraph-image`, and submit `https://yourdomain.com/sitemap.xml` to Google Search Console.
+2. **Execute Supabase Setup (Manual in Supabase Dashboard):**
+   - Run `0001`, `0002`, `0003`, and `0004` in **Supabase SQL Editor**.
+   - Create public Storage bucket `omniflow-media`.
+   - Copy Transaction Pooler `DATABASE_URL` (`:6543`), `NEXT_PUBLIC_SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`.
+3. **Configure Vercel & Attach Custom Domain (Manual in Vercel + DNS Provider):**
+   - Add required environment variables from Section 5 (`AUTH_SECRET`, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SETUP_TOKEN`, `ENABLE_STRICT_FRAME_HEADERS="true"`).
+   - Add `yourdomain.com` + `www.yourdomain.com` in **Vercel -> Settings -> Domains** and configure root `A` (`@`) + `www` `CNAME` records in DNS.
+4. **Authenticate Transactional Email in Resend (Optional Manual Step):**
+   - Add `DKIM` (`resend._domainkey`), `SPF`, and `_dmarc` `TXT` records in DNS, verify in Resend, and set `RESEND_API_KEY`, `NOTIFICATION_FROM_EMAIL`, and `NOTIFICATION_TO_EMAIL`.
+5. **Claim Initial Super Admin & Verify Live Endpoints:**
+   - Visit `https://yourdomain.com/api/health` -> verify `status: "ok"`, `database.driver: "supabase_postgres"`, `storage.provider: "supabase_storage"`, `domain.https: true`.
+   - Complete one-time setup at `https://yourdomain.com/admin/setup` using `ADMIN_SETUP_TOKEN` (atomic lock prevents duplicate setup), then rotate or remove `ADMIN_SETUP_TOKEN` if desired.
+   - Verify `/sitemap.xml`, `/robots.txt`, `/feed.xml`, and `/opengraph-image`, and submit `https://yourdomain.com/sitemap.xml` to Google Search Console.

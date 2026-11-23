@@ -7,9 +7,11 @@ import {
   hashPassword,
   hashRecoveryToken,
   validatePasswordStrength,
-  verifyRecoveryTokenHash,
 } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
+
+const MAX_AUTH_PAYLOAD_BYTES = 16 * 1024;
 
 const resetSchema = z
   .object({
@@ -40,14 +42,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_AUTH_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json({ error: bounded.error }, { status: bounded.status });
   }
 
-  const parsed = resetSchema.safeParse(body);
+  const parsed = resetSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid reset payload." },
@@ -64,35 +64,15 @@ export async function POST(request: Request) {
 
   try {
     const tokenHash = hashRecoveryToken(parsed.data.token);
-    const user = await db.findUserByRecoveryTokenHash(tokenHash);
-
-    if (
-      !user ||
-      !user.isActive ||
-      !verifyRecoveryTokenHash(
-        parsed.data.token,
-        user.recoveryTokenHash,
-        user.recoveryExpiresAt
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Recovery token is invalid or has expired." },
-        { status: 400 }
-      );
-    }
-
-    const updated = await db.updateUser(user.id, {
-      passwordHash: hashPassword(parsed.data.newPassword),
-      mustChangePassword: false,
-      bumpSessionVersion: true,
-      recoveryTokenHash: null,
-      recoveryExpiresAt: null,
+    const updated = await db.consumeRecoveryTokenAtomically({
+      tokenHash,
+      newPasswordHash: hashPassword(parsed.data.newPassword),
     });
 
     if (!updated) {
       return NextResponse.json(
-        { error: "Unable to complete password reset." },
-        { status: 500 }
+        { error: "Recovery token is invalid or has expired." },
+        { status: 400 }
       );
     }
 

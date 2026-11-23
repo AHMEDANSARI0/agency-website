@@ -110,10 +110,10 @@ export default async function ServicesIndexPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
-                    href={`/contact?service=${encodeURIComponent(service.title)}`}
+                    href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=services_flagship_${encodeURIComponent(service.slug)}`}
                     className="font-mono text-xs text-ink-muted hover:text-ink-heading"
                   >
-                    Scope →
+                    Book call →
                   </Link>
                 </div>
               </article>
@@ -160,13 +160,19 @@ export default async function ServicesIndexPage() {
                     </p>
                   </div>
 
-                  <div className="mt-5 border-t border-line pt-4">
+                  <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
                     <Link
                       href={`/services/${service.slug}`}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
                     >
                       Explore capability details
                       <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                    <Link
+                      href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=services_pillar_${encodeURIComponent(service.slug)}`}
+                      className="font-mono text-xs text-ink-muted hover:text-ink-heading"
+                    >
+                      Book call →
                     </Link>
                   </div>
                 </article>

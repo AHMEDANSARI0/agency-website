@@ -5,6 +5,7 @@ import type { ComponentTokenOverrides, ThemeMode, ThemePreset } from "@/types/th
 import {
   evaluateThemeContrast,
   isValidCssColor,
+  sanitizeDesignSystemTokens,
   sanitizeTokenSet,
 } from "@/features/themes/color-utils";
 import {
@@ -15,7 +16,10 @@ import {
 import { requireAdminApiAuth } from "@/lib/auth/server";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
 import { sanitizePlainText } from "@/lib/validation/common";
+
+const MAX_THEME_PAYLOAD_BYTES = 64 * 1024;
 
 function sanitizeOverrides(
   raw?: ComponentTokenOverrides
@@ -38,9 +42,20 @@ function sanitizeOverrides(
   return clean;
 }
 
+const designSystemSchema = z
+  .object({
+    typography: z.enum(["architectural", "editorial", "technical"]).optional(),
+    buttonStyle: z.enum(["pill", "rounded", "sharp"]).optional(),
+    borderRadius: z.enum(["compact", "balanced", "generous"]).optional(),
+    spacing: z.enum(["compact", "comfortable", "spacious"]).optional(),
+    animationIntensity: z.enum(["full", "subtle", "minimal"]).optional(),
+  })
+  .strict();
+
 const putThemeSchema = z.object({
   defaultMode: z.enum(["light", "dark", "system"]),
   activePresetId: z.string().min(1).max(80),
+  designSystem: designSystemSchema.optional(),
   light: z.record(z.unknown()),
   dark: z.record(z.unknown()),
   overrides: z
@@ -57,6 +72,11 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("apply_preset"),
     presetId: z.string().min(1).max(80),
+    publish: z.boolean().optional(),
+  }),
+  z.object({
+    action: z.literal("reset_preset_defaults"),
+    presetId: z.string().min(1).max(80).optional(),
     publish: z.boolean().optional(),
   }),
   z.object({
@@ -87,14 +107,12 @@ export async function PUT(request: Request) {
   const auth = await requireAdminApiAuth(request, "theme:manage");
   if (!auth.ok) return auth.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_THEME_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json({ error: bounded.error }, { status: bounded.status });
   }
 
-  const parsed = putThemeSchema.safeParse(body);
+  const parsed = putThemeSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid theme payload." },
@@ -103,13 +121,20 @@ export async function PUT(request: Request) {
   }
 
   const current = await db.getThemeConfig();
+  const cleanActivePresetId = sanitizePlainText(parsed.data.activePresetId, 80);
+  const allPresets: ThemePreset[] = [
+    ...BUILT_IN_THEME_PRESETS,
+    ...current.customPresets,
+  ];
+  const matchedPreset = allPresets.find((p) => p.id === cleanActivePresetId);
+
   const safeLight = sanitizeTokenSet(
     parsed.data.light as Partial<typeof OMNIFLOW_LIGHT_TOKENS>,
-    OMNIFLOW_LIGHT_TOKENS
+    matchedPreset?.light ?? OMNIFLOW_LIGHT_TOKENS
   );
   const safeDark = sanitizeTokenSet(
     parsed.data.dark as Partial<typeof OMNIFLOW_DARK_TOKENS>,
-    OMNIFLOW_DARK_TOKENS
+    matchedPreset?.dark ?? OMNIFLOW_DARK_TOKENS
   );
   const safeOverrides = {
     light: sanitizeOverrides(parsed.data.overrides?.light),
@@ -123,11 +148,21 @@ export async function PUT(request: Request) {
   };
 
   const shouldPublish = Boolean(parsed.data.publish);
+  const nextDesignSystem = sanitizeDesignSystemTokens(
+    parsed.data.designSystem ?? current.designSystem
+  );
+  const nextSavedPresetStates = {
+    ...(current.savedPresetStates ?? {}),
+    [cleanActivePresetId]: structuredClone(nextDraft),
+  };
+
   const nextConfig = await db.saveThemeConfig({
     ...current,
     defaultMode: parsed.data.defaultMode as ThemeMode,
-    activePresetId: sanitizePlainText(parsed.data.activePresetId, 80),
+    activePresetId: cleanActivePresetId,
+    designSystem: nextDesignSystem,
     draft: nextDraft,
+    savedPresetStates: nextSavedPresetStates,
     previousPublished: shouldPublish
       ? structuredClone(current.published)
       : current.previousPublished,
@@ -159,14 +194,12 @@ export async function POST(request: Request) {
   const auth = await requireAdminApiAuth(request, "theme:manage");
   if (!auth.ok) return auth.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_THEME_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json({ error: bounded.error }, { status: bounded.status });
   }
 
-  const parsed = actionSchema.safeParse(body);
+  const parsed = actionSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid theme action request." },
@@ -213,16 +246,28 @@ export async function POST(request: Request) {
     if (!preset) {
       return NextResponse.json({ error: "Theme preset not found." }, { status: 404 });
     }
-    const nextBundle = {
-      light: structuredClone(preset.light),
-      dark: structuredClone(preset.dark),
-      overrides: {},
+
+    // Preserve current preset's configuration so switching away never loses saved work
+    const nextSavedPresetStates = {
+      ...(current.savedPresetStates ?? {}),
+      [current.activePresetId]: structuredClone(current.draft),
     };
+
+    const rememberedBundle = nextSavedPresetStates[preset.id];
+    const nextBundle = rememberedBundle
+      ? structuredClone(rememberedBundle)
+      : {
+          light: structuredClone(preset.light),
+          dark: structuredClone(preset.dark),
+          overrides: structuredClone(preset.overrides ?? {}),
+        };
+
     const publishNow = Boolean(data.publish);
     const updated = await db.saveThemeConfig({
       ...current,
       activePresetId: preset.id,
       draft: nextBundle,
+      savedPresetStates: nextSavedPresetStates,
       previousPublished: publishNow
         ? structuredClone(current.published)
         : current.previousPublished,
@@ -238,6 +283,53 @@ export async function POST(request: Request) {
       entityType: "theme",
       entityId: preset.id,
       summary: `${publishNow ? "Published" : "Loaded"} theme preset "${preset.name}".`,
+      ipAddress: extractClientIp(request.headers),
+    });
+
+    return NextResponse.json({ ok: true, themeConfig: updated });
+  }
+
+  if (data.action === "reset_preset_defaults") {
+    const targetPresetId = data.presetId || current.activePresetId;
+    const allPresets: ThemePreset[] = [
+      ...BUILT_IN_THEME_PRESETS,
+      ...current.customPresets,
+    ];
+    const preset = allPresets.find((p) => p.id === targetPresetId);
+    if (!preset) {
+      return NextResponse.json({ error: "Theme preset not found." }, { status: 404 });
+    }
+
+    const factoryBundle = {
+      light: structuredClone(preset.light),
+      dark: structuredClone(preset.dark),
+      overrides: structuredClone(preset.overrides ?? {}),
+    };
+
+    const nextSavedPresetStates = { ...(current.savedPresetStates ?? {}) };
+    delete nextSavedPresetStates[preset.id];
+
+    const publishNow = Boolean(data.publish);
+    const updated = await db.saveThemeConfig({
+      ...current,
+      activePresetId: preset.id,
+      draft: factoryBundle,
+      savedPresetStates: nextSavedPresetStates,
+      previousPublished: publishNow
+        ? structuredClone(current.published)
+        : current.previousPublished,
+      published: publishNow ? structuredClone(factoryBundle) : current.published,
+      updatedBy: auth.user.email,
+    });
+
+    await db.recordAuditLog({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email,
+      actorRole: auth.user.role,
+      action: "theme.preset_defaults_restored",
+      entityType: "theme",
+      entityId: preset.id,
+      summary: `Restored factory default Light & Dark tokens for "${preset.name}".`,
       ipAddress: extractClientIp(request.headers),
     });
 

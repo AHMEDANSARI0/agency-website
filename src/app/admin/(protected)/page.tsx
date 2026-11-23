@@ -16,12 +16,13 @@ import {
   Mail,
   Palette,
   ShieldCheck,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { getSystemHealthReport } from "@/features/system/health";
 import { hasPermission } from "@/lib/auth/rbac";
 import { requireAdminPageAuth } from "@/lib/auth/server";
-import { db } from "@/lib/database";
+import { computeLeadDashboardMetrics, db } from "@/lib/database";
 import type { LeadStatus } from "@/types/content";
 
 const FUNNEL_STAGES: LeadStatus[] = [
@@ -94,21 +95,18 @@ export default async function AdminDashboardPage() {
   ]);
 
   const todayIso = new Date().toISOString().slice(0, 10);
-  const newLeads = leads.filter((l) => l.status === "New").length;
-  const activePipelineLeads = leads.filter(
-    (l) =>
-      l.status === "Contacted" ||
-      l.status === "Qualified" ||
-      l.status === "Proposal Sent"
-  ).length;
-  const wonLeads = leads.filter((l) => l.status === "Won").length;
-  const dueFollowUps = leads.filter(
-    (l) =>
-      l.followUpDate &&
-      l.followUpDate <= todayIso &&
-      l.status !== "Won" &&
-      l.status !== "Lost"
-  ).length;
+  const metrics = computeLeadDashboardMetrics(leads);
+  const followUpQueue = leads
+    .filter(
+      (l) =>
+        Boolean(l.followUpDate) &&
+        l.status !== "Won" &&
+        l.status !== "Lost"
+    )
+    .sort((a, b) =>
+      (a.followUpDate || "").localeCompare(b.followUpDate || "")
+    )
+    .slice(0, 5);
 
   const publishedServices = services.filter(
     (s) => s.status === "published"
@@ -219,20 +217,20 @@ export default async function AdminDashboardPage() {
       {/* Lead Pipeline KPI Cards & 6-Stage Funnel Breakdown */}
       {canViewLeads && (
         <section aria-label="Lead pipeline metrics" className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Link
               href="/admin/leads"
               className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card transition-all hover:border-primary/40"
             >
               <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                <span>New Enquiries</span>
+                <span>Total Leads</span>
                 <Inbox className="h-4 w-4 text-primary" />
               </div>
               <p className="mt-3 text-3xl font-extrabold text-ink-heading">
-                {newLeads}
+                {metrics.totalLeads}
               </p>
               <p className="mt-1 text-xs text-ink-muted group-hover:text-primary">
-                Awaiting initial triage ({leads.length} total) →
+                {metrics.newLeads} new awaiting triage →
               </p>
             </Link>
 
@@ -241,14 +239,30 @@ export default async function AdminDashboardPage() {
               className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card transition-all hover:border-primary/40"
             >
               <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                <span>Active Pipeline</span>
+                <span>Monthly Enquiries</span>
+                <Layers className="h-4 w-4 text-primary" />
+              </div>
+              <p className="mt-3 text-3xl font-extrabold text-ink-heading">
+                {metrics.monthlyEnquiries}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                Captured in {todayIso.slice(0, 7)} (UTC)
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/leads"
+              className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card transition-all hover:border-primary/40"
+            >
+              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                <span>Qualified Leads</span>
                 <ArrowRight className="h-4 w-4 text-primary" />
               </div>
               <p className="mt-3 text-3xl font-extrabold text-ink-heading">
-                {activePipelineLeads}
+                {metrics.qualifiedLeads}
               </p>
               <p className="mt-1 text-xs text-ink-muted">
-                Contacted, Qualified, or Proposal Sent
+                {metrics.qualificationRatePercent}% qualification rate
               </p>
             </Link>
 
@@ -257,14 +271,37 @@ export default async function AdminDashboardPage() {
               className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card transition-all hover:border-primary/40"
             >
               <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                <span>Won Engagements</span>
+                <span>Won / Lost</span>
                 <CheckCircle2 className="h-4 w-4 text-status-success" />
               </div>
               <p className="mt-3 text-3xl font-extrabold text-ink-heading">
-                {wonLeads}
+                {metrics.wonLeads}{" "}
+                <span className="text-lg font-semibold text-ink-muted">
+                  / {metrics.lostLeads}
+                </span>
               </p>
               <p className="mt-1 text-xs text-ink-muted">
-                Confirmed client automation projects
+                {metrics.wonRevenueValue > 0
+                  ? `$${metrics.wonRevenueValue.toLocaleString()} closed value`
+                  : "Confirmed client outcomes"}
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/leads"
+              className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card transition-all hover:border-primary/40"
+            >
+              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                <span>Conversion Rate</span>
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+              <p className="mt-3 text-3xl font-extrabold text-ink-heading">
+                {metrics.conversionRatePercent}%
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                {metrics.totalPipelineValue > 0
+                  ? `$${metrics.totalPipelineValue.toLocaleString()} active proposals`
+                  : "Real DB Won ÷ Total ratio"}
               </p>
             </Link>
 
@@ -277,7 +314,7 @@ export default async function AdminDashboardPage() {
                 <CalendarClock className="h-4 w-4 text-status-warning" />
               </div>
               <p className="mt-3 text-3xl font-extrabold text-ink-heading">
-                {dueFollowUps}
+                {metrics.dueFollowUps}
               </p>
               <p className="mt-1 text-xs text-ink-muted">
                 Scheduled on or before {todayIso}
@@ -285,36 +322,131 @@ export default async function AdminDashboardPage() {
             </Link>
           </div>
 
-          {/* 6-Stage CRM Funnel Distribution Strip */}
-          <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink-heading">
-                Pipeline Stage Distribution
-              </span>
-              <Link
-                href="/admin/leads"
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                Open Kanban &amp; List CRM →
-              </Link>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-              {FUNNEL_STAGES.map((stage) => {
-                const count = leads.filter((l) => l.status === stage).length;
-                const pct = leads.length > 0 ? Math.round((count / leads.length) * 100) : 0;
-                return (
-                  <div
-                    key={stage}
-                    className="rounded-xl border border-line bg-surface-muted/60 p-3"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-ink-heading">{stage}</span>
-                      <span className="font-mono text-[11px] text-primary">{pct}%</span>
+          {/* 6-Stage CRM Funnel Distribution Strip + Source Attribution & Follow-Up Queue */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink-heading">
+                  Pipeline Stage Distribution
+                </span>
+                <Link
+                  href="/admin/leads"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Open Kanban &amp; List CRM →
+                </Link>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+                {FUNNEL_STAGES.map((stage) => {
+                  const count = leads.filter((l) => l.status === stage).length;
+                  const pct =
+                    leads.length > 0 ? Math.round((count / leads.length) * 100) : 0;
+                  return (
+                    <div
+                      key={stage}
+                      className="rounded-xl border border-line bg-surface-muted/60 p-3"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-ink-heading">
+                          {stage}
+                        </span>
+                        <span className="font-mono text-[11px] text-primary">
+                          {pct}%
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xl font-bold text-ink-heading">
+                        {count}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xl font-bold text-ink-heading">{count}</p>
+                  );
+                })}
+              </div>
+
+              {/* Lead Source Attribution Bar */}
+              <div className="mt-5 border-t border-line pt-4">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold uppercase tracking-wider text-ink-heading">
+                    Lead Source Attribution
+                  </span>
+                  <span className="text-ink-muted">
+                    {metrics.sourcesBreakdown.length} active channel(s)
+                  </span>
+                </div>
+                {metrics.sourcesBreakdown.length === 0 ? (
+                  <p className="mt-2 text-xs text-ink-muted">
+                    No lead attribution channels recorded yet. Captures `website_contact_form`, UTM sources, and CSV imports automatically.
+                  </p>
+                ) : (
+                  <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    {metrics.sourcesBreakdown.slice(0, 4).map((item) => (
+                      <div
+                        key={item.source}
+                        className="rounded-lg border border-line bg-surface-muted/40 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="truncate font-mono font-medium text-ink-heading">
+                            {item.source}
+                          </span>
+                          <span className="font-semibold text-primary">
+                            {item.count} ({item.percent}%)
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${Math.max(4, item.percent)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                )}
+              </div>
+            </div>
+
+            {/* Follow-up Reminders Queue */}
+            <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink-heading">
+                  Follow-Up Reminders
+                </span>
+                <CalendarClock className="h-4 w-4 text-primary" />
+              </div>
+              {followUpQueue.length === 0 ? (
+                <p className="mt-4 text-xs leading-relaxed text-ink-muted">
+                  No open follow-up reminders scheduled. Assign a follow-up date inside the Leads CRM drawer to surface reminders here.
+                </p>
+              ) : (
+                <ul className="mt-3 divide-y divide-line text-xs">
+                  {followUpQueue.map((lead) => {
+                    const isOverdue = (lead.followUpDate || "") <= todayIso;
+                    return (
+                      <li key={lead.id} className="py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <Link
+                            href="/admin/leads"
+                            className="truncate font-semibold text-ink-heading hover:text-primary"
+                          >
+                            {lead.name} · {lead.company}
+                          </Link>
+                          <span
+                            className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
+                              isOverdue
+                                ? "bg-status-warning/15 text-status-warning"
+                                : "bg-accent-subtle text-primary"
+                            }`}
+                          >
+                            {lead.followUpDate}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] text-ink-muted">
+                          {lead.status} · {lead.priority || "Medium"} priority
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         </section>

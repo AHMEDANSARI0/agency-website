@@ -7,6 +7,9 @@ import { DatabaseUnavailableError } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
 import { generateSecureRecoveryToken } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
+
+const MAX_AUTH_PAYLOAD_BYTES = 16 * 1024;
 
 const recoverSchema = z
   .object({
@@ -36,14 +39,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_AUTH_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json({ error: bounded.error }, { status: bounded.status });
   }
 
-  const parsed = recoverSchema.safeParse(body);
+  const parsed = recoverSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid email address." },

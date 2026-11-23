@@ -10,8 +10,11 @@ import {
 import { verifySameOriginRequest } from "@/lib/security/csrf";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
 
 const DUMMY_PASSWORD_HASH = hashPassword("DummyConstantTimeFallback_2026!");
+const MAX_AUTH_PAYLOAD_BYTES = 16 * 1024;
+const NO_STORE_HEADERS = { "Cache-Control": "no-store, max-age=0" };
 
 const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid staff email address.").max(160),
@@ -28,21 +31,19 @@ export async function POST(request: Request) {
 
   const ip = extractClientIp(request.headers);
 
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
+  const bounded = await readBoundedJsonBody(request, MAX_AUTH_PAYLOAD_BYTES);
+  if (!bounded.ok) {
     return NextResponse.json(
-      { error: "Invalid JSON request body." },
-      { status: 400 }
+      { error: bounded.error },
+      { status: bounded.status, headers: NO_STORE_HEADERS }
     );
   }
 
-  const parsed = loginSchema.safeParse(rawBody);
+  const parsed = loginSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid credentials format." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 

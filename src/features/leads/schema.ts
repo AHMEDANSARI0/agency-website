@@ -9,8 +9,11 @@ export const leadSubmissionSchema = z.object({
   email: emailSchema,
   company: z
     .string()
-    .transform((v) => sanitizePlainText(v, 140))
-    .pipe(z.string().min(2, "Please provide your company or practice name.")),
+    .optional()
+    .transform((v) => {
+      const cleaned = v ? sanitizePlainText(v, 140) : "";
+      return cleaned.length >= 2 ? cleaned : "Independent / Not Specified";
+    }),
   website: z
     .string()
     .optional()
@@ -22,20 +25,35 @@ export const leadSubmissionSchema = z.object({
     }),
   industry: z
     .string()
-    .transform((v) => sanitizePlainText(v, 100))
-    .pipe(z.string().min(2, "Please select or enter your industry.")),
+    .optional()
+    .transform((v) => {
+      const cleaned = v ? sanitizePlainText(v, 100) : "";
+      return cleaned.length >= 2 ? cleaned : "Service Business (General)";
+    }),
   interestedService: z
     .string()
-    .transform((v) => sanitizePlainText(v, 100))
-    .pipe(z.string().min(2, "Please select the primary service of interest.")),
+    .optional()
+    .transform((v) => {
+      const cleaned = v ? sanitizePlainText(v, 100) : "";
+      return cleaned.length >= 2 ? cleaned : "Discovery Call & Workflow Review";
+    }),
   businessProblem: z
     .string()
     .transform((v) => sanitizePlainText(v, 2000))
     .pipe(
       z
         .string()
-        .min(20, "Please describe the operational bottleneck briefly (at least 20 characters).")
+        .min(12, "Please briefly describe what you want to automate (at least 12 characters).")
     ),
+  enquiryType: z.enum(["discovery_call", "workflow_enquiry"]).optional(),
+  preferredCallWindow: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizePlainText(v, 120) : undefined)),
+  timezone: z
+    .string()
+    .optional()
+    .transform((v) => (v ? sanitizePlainText(v, 80) : undefined)),
   budgetRange: z
     .string()
     .optional()
@@ -56,7 +74,10 @@ export const leadSubmissionSchema = z.object({
   source: z
     .string()
     .optional()
-    .transform((v) => (v ? sanitizePlainText(v, 80) : "website_contact")),
+    .transform((v) => {
+      const cleaned = v ? sanitizePlainText(v, 120) : "";
+      return cleaned || "website_contact";
+    }),
   honeypot: z.string().optional(),
 });
 

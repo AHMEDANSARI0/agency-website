@@ -11,7 +11,11 @@ import { DatabaseUnavailableError, isProductionEnvironment } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import { readBoundedJsonBody } from "@/lib/security/request-guards";
 import { sanitizePlainText } from "@/lib/validation/common";
+
+const MAX_AUTH_PAYLOAD_BYTES = 16 * 1024;
+const NO_STORE_HEADERS = { "Cache-Control": "no-store, max-age=0" };
 
 const setupSchema = z
   .object({
@@ -41,20 +45,23 @@ function verifyProductionSetupAuthorization(providedToken: string | undefined): 
 export async function GET() {
   try {
     const count = await db.countUsers();
-    return NextResponse.json({
-      setupRequired: count === 0,
-      requiresSetupToken: isProductionEnvironment(),
-    });
+    return NextResponse.json(
+      {
+        setupRequired: count === 0,
+        requiresSetupToken: isProductionEnvironment(),
+      },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (err) {
     if (err instanceof DatabaseUnavailableError) {
       return NextResponse.json(
         { error: err.publicMessage, code: err.code },
-        { status: 503 }
+        { status: 503, headers: NO_STORE_HEADERS }
       );
     }
     return NextResponse.json(
       { error: "Unable to check setup state." },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }
@@ -63,7 +70,7 @@ export async function POST(request: Request) {
   if (!verifySameOriginRequest(request)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
-      { status: 403 }
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -76,23 +83,55 @@ export async function POST(request: Request) {
       },
       {
         status: 429,
-        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+        headers: {
+          ...NO_STORE_HEADERS,
+          "Retry-After": String(rate.retryAfterSeconds),
+        },
       }
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  const bounded = await readBoundedJsonBody(request, MAX_AUTH_PAYLOAD_BYTES);
+  if (!bounded.ok) {
+    return NextResponse.json(
+      { error: bounded.error },
+      { status: bounded.status, headers: NO_STORE_HEADERS }
+    );
   }
 
-  const parsed = setupSchema.safeParse(body);
+  const parsed = setupSchema.safeParse(bounded.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid setup payload." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!verifyProductionSetupAuthorization(parsed.data.setupToken)) {
+    return NextResponse.json(
+      {
+        error:
+          "Invalid setup authorization token. Provide ADMIN_SETUP_TOKEN (or AUTH_SECRET if ADMIN_SETUP_TOKEN is unset).",
+      },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const strength = validatePasswordStrength(parsed.data.password, {
+    rejectKnownDefaults: true,
+  });
+  if (!strength.valid) {
+    return NextResponse.json(
+      { error: strength.reason },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const cleanName = sanitizePlainText(parsed.data.name, 100);
+  if (cleanName.length < 2) {
+    return NextResponse.json(
+      { error: "Administrator name is invalid." },
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -104,42 +143,27 @@ export async function POST(request: Request) {
           error:
             "Initial administrator setup has already been completed. Sign in at /admin/login.",
         },
-        { status: 409 }
+        { status: 409, headers: NO_STORE_HEADERS }
       );
     }
 
-    if (!verifyProductionSetupAuthorization(parsed.data.setupToken)) {
+    const atomicResult = await db.createInitialSuperAdminAtomically({
+      name: cleanName,
+      email: parsed.data.email.toLowerCase(),
+      passwordHash: hashPassword(parsed.data.password),
+    });
+
+    if (atomicResult.status === "already_initialized") {
       return NextResponse.json(
         {
           error:
-            "Invalid setup authorization token. Provide ADMIN_SETUP_TOKEN (or AUTH_SECRET if ADMIN_SETUP_TOKEN is unset).",
+            "Initial administrator setup has already been completed. Sign in at /admin/login.",
         },
-        { status: 403 }
+        { status: 409, headers: NO_STORE_HEADERS }
       );
     }
 
-    const strength = validatePasswordStrength(parsed.data.password, {
-      rejectKnownDefaults: true,
-    });
-    if (!strength.valid) {
-      return NextResponse.json({ error: strength.reason }, { status: 400 });
-    }
-
-    const cleanName = sanitizePlainText(parsed.data.name, 100);
-    if (cleanName.length < 2) {
-      return NextResponse.json(
-        { error: "Administrator name is invalid." },
-        { status: 400 }
-      );
-    }
-
-    const created = await db.createUser({
-      name: cleanName,
-      email: parsed.data.email.toLowerCase(),
-      role: "SUPER_ADMIN",
-      passwordHash: hashPassword(parsed.data.password),
-      mustChangePassword: false,
-    });
+    const created = atomicResult.user;
 
     await db.recordAuditLog({
       actorId: created.id,

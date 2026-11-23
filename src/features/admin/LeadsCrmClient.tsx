@@ -7,16 +7,20 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  Clock,
   Columns3,
   Copy,
+  DollarSign,
   Download,
   ExternalLink,
   List,
   Mail,
   MessageSquarePlus,
   Search,
+  Upload,
+  X,
 } from "lucide-react";
-import type { LeadRecord, LeadStatus } from "@/types/content";
+import type { LeadPriority, LeadRecord, LeadStatus } from "@/types/content";
 
 const PIPELINE_STATUSES: LeadStatus[] = [
   "New",
@@ -27,12 +31,27 @@ const PIPELINE_STATUSES: LeadStatus[] = [
   "Lost",
 ];
 
+const LEAD_PRIORITIES: LeadPriority[] = ["Low", "Medium", "High", "Urgent"];
+
+const PRIORITY_BADGE_CLASSES: Record<LeadPriority, string> = {
+  Low: "border-line bg-surface-muted text-ink-muted",
+  Medium: "border-line bg-surface text-ink-heading",
+  High: "border-status-warning/40 bg-status-warning/15 text-status-warning",
+  Urgent: "border-status-error/40 bg-status-error/15 text-status-error",
+};
+
 const NEXT_STAGE_MAP: Partial<Record<LeadStatus, LeadStatus>> = {
   New: "Contacted",
   Contacted: "Qualified",
   Qualified: "Proposal Sent",
   "Proposal Sent": "Won",
 };
+
+function addDaysIso(days: number): string {
+  const dt = new Date();
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
 
 interface LeadsCrmClientProps {
   initialLeads: LeadRecord[];
@@ -47,13 +66,22 @@ export function LeadsCrmClient({
   const [viewMode, setViewMode] = useState<"split" | "kanban">("split");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | LeadStatus>("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<"ALL" | LeadPriority>(
+    "ALL"
+  );
+  const [sourceFilter, setSourceFilter] = useState<string>("ALL");
   const [duplicatesOnly, setDuplicatesOnly] = useState(false);
   const [followUpOnly, setFollowUpOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
     initialLeads[0]?.id ?? null
   );
 
+  // Inspector edit states
   const [statusDraft, setStatusDraft] = useState<LeadStatus>("New");
+  const [priorityDraft, setPriorityDraft] = useState<LeadPriority>("Medium");
+  const [proposalValueDraft, setProposalValueDraft] = useState<string>("");
+  const [expectedCloseDraft, setExpectedCloseDraft] = useState<string>("");
+  const [lostReasonDraft, setLostReasonDraft] = useState<string>("");
   const [statusNote, setStatusNote] = useState("");
   const [followUpDraft, setFollowUpDraft] = useState("");
   const [noteInput, setNoteInput] = useState("");
@@ -64,12 +92,37 @@ export function LeadsCrmClient({
     text: string;
   } | null>(null);
 
+  // CSV Import Modal states
+  const [importOpen, setImportOpen] = useState(false);
+  const [importCsvText, setImportCsvText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importFeedback, setImportFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const todayIso = new Date().toISOString().slice(0, 10);
+
+  const availableSources = useMemo(() => {
+    const set = new Set<string>();
+    for (const lead of leads) {
+      set.add((lead.source || "website_contact_form").trim() || "website_contact_form");
+    }
+    return Array.from(set).sort();
+  }, [leads]);
 
   const filteredLeads = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return leads.filter((lead) => {
+      const leadPriority = lead.priority || "Medium";
+      const leadSource =
+        (lead.source || "website_contact_form").trim() || "website_contact_form";
+
       if (statusFilter !== "ALL" && lead.status !== statusFilter) return false;
+      if (priorityFilter !== "ALL" && leadPriority !== priorityFilter) {
+        return false;
+      }
+      if (sourceFilter !== "ALL" && leadSource !== sourceFilter) return false;
       if (duplicatesOnly && !lead.isDuplicateFlag) return false;
       if (followUpOnly && !lead.followUpDate) return false;
       if (!q) return true;
@@ -79,34 +132,90 @@ export function LeadsCrmClient({
         lead.company.toLowerCase().includes(q) ||
         lead.industry.toLowerCase().includes(q) ||
         lead.interestedService.toLowerCase().includes(q) ||
-        lead.businessProblem.toLowerCase().includes(q)
+        lead.businessProblem.toLowerCase().includes(q) ||
+        leadSource.toLowerCase().includes(q)
       );
     });
-  }, [leads, searchQuery, statusFilter, duplicatesOnly, followUpOnly]);
+  }, [
+    leads,
+    searchQuery,
+    statusFilter,
+    priorityFilter,
+    sourceFilter,
+    duplicatesOnly,
+    followUpOnly,
+  ]);
 
   const selectedLead = useMemo(() => {
     if (!selectedId) return filteredLeads[0] ?? null;
-    return (
-      leads.find((l) => l.id === selectedId) ?? filteredLeads[0] ?? null
-    );
+    return leads.find((l) => l.id === selectedId) ?? filteredLeads[0] ?? null;
   }, [leads, selectedId, filteredLeads]);
+
+  function syncDraftsFromLead(lead: LeadRecord) {
+    setStatusDraft(lead.status);
+    setPriorityDraft(lead.priority || "Medium");
+    setProposalValueDraft(
+      lead.proposalValue !== null && lead.proposalValue !== undefined
+        ? String(lead.proposalValue)
+        : ""
+    );
+    setExpectedCloseDraft(
+      lead.expectedClosingDate ? lead.expectedClosingDate.slice(0, 10) : ""
+    );
+    setLostReasonDraft(lead.lostReason || "");
+    setStatusNote("");
+    setFollowUpDraft(lead.followUpDate ? lead.followUpDate.slice(0, 10) : "");
+  }
 
   function handleSelectLead(lead: LeadRecord) {
     setSelectedId(lead.id);
-    setStatusDraft(lead.status);
-    setStatusNote("");
-    setFollowUpDraft(lead.followUpDate ? lead.followUpDate.slice(0, 10) : "");
+    syncDraftsFromLead(lead);
     setFeedback(null);
   }
 
   React.useEffect(() => {
     if (selectedLead) {
-      setStatusDraft(selectedLead.status);
-      setFollowUpDraft(
-        selectedLead.followUpDate ? selectedLead.followUpDate.slice(0, 10) : ""
-      );
+      syncDraftsFromLead(selectedLead);
     }
   }, [selectedLead?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unifiedTimeline = useMemo(() => {
+    if (!selectedLead) return [];
+    const items: Array<{
+      id: string;
+      kind: "note" | "status";
+      timestamp: string;
+      actor: string;
+      title: string;
+      body?: string;
+    }> = [];
+
+    for (const note of selectedLead.notes) {
+      items.push({
+        id: note.id,
+        kind: "note",
+        timestamp: note.createdAt,
+        actor: note.authorName,
+        title: "Internal Qualification Note",
+        body: note.text,
+      });
+    }
+
+    selectedLead.statusHistory.forEach((hist, idx) => {
+      items.push({
+        id: `hist-${hist.changedAt}-${idx}`,
+        kind: "status",
+        timestamp: hist.changedAt,
+        actor: hist.changedBy,
+        title: hist.from
+          ? `Stage moved: ${hist.from} → ${hist.to}`
+          : `Created in stage: ${hist.to}`,
+        body: hist.note,
+      });
+    });
+
+    return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [selectedLead]);
 
   async function patchLead(
     leadId: string,
@@ -152,14 +261,36 @@ export function LeadsCrmClient({
   async function handleSavePipeline(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedLead) return;
+
+    const cleanProposalStr = proposalValueDraft.replace(/[$,\s]/g, "");
+    const parsedProposal = cleanProposalStr ? Number(cleanProposalStr) : null;
+    if (
+      cleanProposalStr &&
+      (parsedProposal === null ||
+        !Number.isFinite(parsedProposal) ||
+        parsedProposal < 0)
+    ) {
+      setFeedback({
+        type: "error",
+        text: "Proposal value must be a valid non-negative number.",
+      });
+      return;
+    }
+
     const ok = await patchLead(
       selectedLead.id,
       {
         status: statusDraft,
+        priority: priorityDraft,
+        proposalValue: parsedProposal,
+        expectedClosingDate: expectedCloseDraft.trim()
+          ? expectedCloseDraft.trim()
+          : null,
+        lostReason: lostReasonDraft.trim() ? lostReasonDraft.trim() : null,
         statusNote: statusNote.trim() || undefined,
         followUpDate: followUpDraft.trim() ? followUpDraft.trim() : null,
       },
-      "Pipeline status & follow-up schedule saved."
+      "Pipeline stage, commercial terms, and follow-up schedule saved."
     );
     if (ok) setStatusNote("");
   }
@@ -207,6 +338,59 @@ export function LeadsCrmClient({
     }
   }
 
+  async function handleCsvFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setImportCsvText(text);
+    setImportFeedback(null);
+  }
+
+  async function handleRunCsvImport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importCsvText.trim()) return;
+    setImporting(true);
+    setImportFeedback(null);
+    try {
+      const res = await fetch("/api/admin/leads/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csvText: importCsvText }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        importedCount?: number;
+        skippedCount?: number;
+        leads?: LeadRecord[];
+      };
+      if (!res.ok || !data.leads) {
+        setImportFeedback({
+          type: "error",
+          text: data.error || "CSV import failed.",
+        });
+        setImporting(false);
+        return;
+      }
+
+      setLeads((prev) => [...data.leads!, ...prev]);
+      if (data.leads[0]) {
+        setSelectedId(data.leads[0].id);
+      }
+      setImportFeedback({
+        type: "success",
+        text: `Imported ${data.importedCount} lead(s) (${data.skippedCount || 0} row(s) skipped).`,
+      });
+      setImportCsvText("");
+      setImporting(false);
+    } catch {
+      setImportFeedback({
+        type: "error",
+        text: "Network error while uploading CSV batch.",
+      });
+      setImporting(false);
+    }
+  }
+
   const countsByStatus = useMemo(() => {
     const map: Record<string, number> = { ALL: leads.length };
     for (const s of PIPELINE_STATUSES) {
@@ -227,8 +411,22 @@ export function LeadsCrmClient({
     [leads, todayIso]
   );
 
+  const activePipelineValue = useMemo(
+    () =>
+      leads
+        .filter((l) => l.status !== "Lost")
+        .reduce(
+          (sum, l) =>
+            sum + (typeof l.proposalValue === "number" ? l.proposalValue : 0),
+          0
+        ),
+    [leads]
+  );
+
   const exportUrl = `/api/admin/leads/export?status=${encodeURIComponent(
     statusFilter
+  )}&source=${encodeURIComponent(sourceFilter)}&priority=${encodeURIComponent(
+    priorityFilter
   )}`;
 
   const inspectorPanel = selectedLead && (
@@ -242,6 +440,19 @@ export function LeadsCrmClient({
             <span className="rounded-full bg-accent-subtle px-2.5 py-0.5 text-xs font-semibold text-primary">
               {selectedLead.status}
             </span>
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                PRIORITY_BADGE_CLASSES[selectedLead.priority || "Medium"]
+              }`}
+            >
+              {selectedLead.priority || "Medium"} Priority
+            </span>
+            {typeof selectedLead.proposalValue === "number" && (
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-status-success/40 bg-status-success/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-status-success">
+                <DollarSign className="h-3 w-3" />
+                {selectedLead.proposalValue.toLocaleString()}
+              </span>
+            )}
             {selectedLead.isDuplicateFlag && (
               <span className="inline-flex items-center gap-1 rounded bg-status-warning/15 px-2 py-0.5 text-xs font-semibold text-status-warning">
                 <AlertTriangle className="h-3.5 w-3.5" />
@@ -250,8 +461,11 @@ export function LeadsCrmClient({
             )}
           </div>
           <p className="mt-1 text-sm text-ink-muted">
-            {selectedLead.company} · Submitted{" "}
-            {selectedLead.createdAt.replace("T", " ").slice(0, 16)} UTC
+            {selectedLead.company} · Source:{" "}
+            <span className="font-mono text-xs text-ink-heading">
+              {selectedLead.source || "website_contact_form"}
+            </span>{" "}
+            · Submitted {selectedLead.createdAt.replace("T", " ").slice(0, 16)} UTC
           </p>
         </div>
 
@@ -354,6 +568,20 @@ export function LeadsCrmClient({
             {selectedLead.timeline || "Not specified"}
           </span>
         </div>
+        {selectedLead.expectedClosingDate && (
+          <div>
+            <span className="font-semibold text-ink-muted">Expected Close:</span>{" "}
+            <span className="font-mono text-ink-heading">
+              {selectedLead.expectedClosingDate}
+            </span>
+          </div>
+        )}
+        {selectedLead.lostReason && (
+          <div className="sm:col-span-2">
+            <span className="font-semibold text-status-error">Lost Reason:</span>{" "}
+            <span className="text-ink-heading">{selectedLead.lostReason}</span>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <span className="font-semibold text-ink-muted">Email Alert Delivery:</span>{" "}
           <span className="text-ink-heading">
@@ -389,16 +617,16 @@ export function LeadsCrmClient({
         )}
       </div>
 
-      {/* Pipeline Status & Follow-Up Controls */}
+      {/* Pipeline Status, Commercials & Follow-Up Controls */}
       {canManageLeads && (
         <form
           onSubmit={handleSavePipeline}
           className="space-y-4 rounded-control border border-line bg-surface-muted/40 p-4"
         >
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink-heading">
-            Pipeline Stage &amp; Follow-Up Schedule
+            Pipeline Stage, Deal Valuation &amp; Follow-Up Schedule
           </h3>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label
                 htmlFor="lead-status-select"
@@ -422,11 +650,96 @@ export function LeadsCrmClient({
 
             <div>
               <label
-                htmlFor="lead-followup-date"
+                htmlFor="lead-priority-select"
                 className="mb-1 block text-xs font-medium text-ink-muted"
               >
-                Follow-Up Date (Optional)
+                Priority
               </label>
+              <select
+                id="lead-priority-select"
+                value={priorityDraft}
+                onChange={(e) =>
+                  setPriorityDraft(e.target.value as LeadPriority)
+                }
+                className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading focus:border-primary focus:outline-none"
+              >
+                {LEAD_PRIORITIES.map((pr) => (
+                  <option key={pr} value={pr}>
+                    {pr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="lead-proposal-value"
+                className="mb-1 block text-xs font-medium text-ink-muted"
+              >
+                Proposal Value (USD)
+              </label>
+              <input
+                id="lead-proposal-value"
+                type="number"
+                min="0"
+                step="100"
+                value={proposalValueDraft}
+                onChange={(e) => setProposalValueDraft(e.target.value)}
+                placeholder="e.g. 4500"
+                className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="lead-expected-close"
+                className="mb-1 block text-xs font-medium text-ink-muted"
+              >
+                Expected Closing Date
+              </label>
+              <input
+                id="lead-expected-close"
+                type="date"
+                value={expectedCloseDraft}
+                onChange={(e) => setExpectedCloseDraft(e.target.value)}
+                className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading focus:border-primary focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label
+                  htmlFor="lead-followup-date"
+                  className="block text-xs font-medium text-ink-muted"
+                >
+                  Follow-Up Reminder Date
+                </label>
+                <div className="flex items-center gap-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setFollowUpDraft(addDaysIso(1))}
+                    className="rounded border border-line bg-surface px-1.5 py-0.5 text-ink-muted hover:text-primary"
+                  >
+                    +1d
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFollowUpDraft(addDaysIso(3))}
+                    className="rounded border border-line bg-surface px-1.5 py-0.5 text-ink-muted hover:text-primary"
+                  >
+                    +3d
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFollowUpDraft(addDaysIso(7))}
+                    className="rounded border border-line bg-surface px-1.5 py-0.5 text-ink-muted hover:text-primary"
+                  >
+                    +7d
+                  </button>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <input
                   id="lead-followup-date"
@@ -446,24 +759,43 @@ export function LeadsCrmClient({
                 )}
               </div>
             </div>
+
+            <div>
+              <label
+                htmlFor="lead-status-note"
+                className="mb-1 block text-xs font-medium text-ink-muted"
+              >
+                Optional Stage Transition Note
+              </label>
+              <input
+                id="lead-status-note"
+                type="text"
+                value={statusNote}
+                onChange={(e) => setStatusNote(e.target.value)}
+                placeholder="e.g., Discovery call booked for Thursday"
+                className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none"
+              />
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="lead-status-note"
-              className="mb-1 block text-xs font-medium text-ink-muted"
-            >
-              Optional Stage Transition Note
-            </label>
-            <input
-              id="lead-status-note"
-              type="text"
-              value={statusNote}
-              onChange={(e) => setStatusNote(e.target.value)}
-              placeholder="e.g., Discovery call booked for Thursday 10am EST"
-              className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none"
-            />
-          </div>
+          {(statusDraft === "Lost" || lostReasonDraft) && (
+            <div>
+              <label
+                htmlFor="lead-lost-reason"
+                className="mb-1 block text-xs font-medium text-ink-muted"
+              >
+                Lost / Disqualification Reason
+              </label>
+              <input
+                id="lead-lost-reason"
+                type="text"
+                value={lostReasonDraft}
+                onChange={(e) => setLostReasonDraft(e.target.value)}
+                placeholder="e.g., Budget deferred to Q3, internal engineering build, out of scope"
+                className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none"
+              />
+            </div>
+          )}
 
           <button
             type="submit"
@@ -475,11 +807,16 @@ export function LeadsCrmClient({
         </form>
       )}
 
-      {/* Internal Notes */}
+      {/* Unified Chronological Lead Activity Timeline + Quick Note Entry */}
       <div className="space-y-3 border-t border-line pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-ink-heading">
-          Internal Qualification Notes ({selectedLead.notes.length})
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-heading">
+            Unified Lead Activity Timeline ({unifiedTimeline.length})
+          </h3>
+          <span className="font-mono text-[11px] text-ink-muted">
+            {selectedLead.notes.length} note(s) · {selectedLead.statusHistory.length} stage event(s)
+          </span>
+        </div>
 
         {canManageLeads && (
           <form onSubmit={handleAddNote} className="flex gap-2">
@@ -487,7 +824,7 @@ export function LeadsCrmClient({
               type="text"
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="Add internal discovery or scoping note..."
+              placeholder="Add internal discovery, budget, or scoping note..."
               aria-label="Add internal note"
               className="flex-1 rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none"
             />
@@ -502,53 +839,37 @@ export function LeadsCrmClient({
           </form>
         )}
 
-        {selectedLead.notes.length === 0 ? (
-          <p className="text-xs text-ink-muted">No internal notes added yet.</p>
+        {unifiedTimeline.length === 0 ? (
+          <p className="text-xs text-ink-muted">No activity recorded yet.</p>
         ) : (
-          <ul className="space-y-2">
-            {selectedLead.notes.map((n) => (
+          <ol className="space-y-2">
+            {unifiedTimeline.map((item) => (
               <li
-                key={n.id}
-                className="rounded-control border border-line bg-surface p-3 text-xs"
+                key={item.id}
+                className={`rounded-control border p-3 text-xs ${
+                  item.kind === "note"
+                    ? "border-line bg-surface"
+                    : "border-line/70 bg-surface-muted/35"
+                }`}
               >
-                <div className="flex items-center justify-between text-[11px] text-ink-muted">
-                  <span className="font-semibold text-ink-heading">
-                    {n.authorName}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-ink-heading">
+                    <Clock className="h-3 w-3 text-primary" />
+                    <span>{item.title}</span>
                   </span>
-                  <span>{n.createdAt.replace("T", " ").slice(0, 16)} UTC</span>
+                  <span className="font-mono text-ink-muted">
+                    {item.actor} · {item.timestamp.replace("T", " ").slice(0, 16)} UTC
+                  </span>
                 </div>
-                <p className="mt-1 text-ink-body">{n.text}</p>
+                {item.body && (
+                  <p className="mt-1.5 whitespace-pre-line text-ink-body">
+                    {item.body}
+                  </p>
+                )}
               </li>
             ))}
-          </ul>
+          </ol>
         )}
-      </div>
-
-      {/* Status History */}
-      <div className="space-y-2 border-t border-line pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-          Status Audit History
-        </h3>
-        <ul className="space-y-1.5 text-xs">
-          {selectedLead.statusHistory.map((h, idx) => (
-            <li
-              key={`${h.changedAt}-${idx}`}
-              className="flex flex-wrap items-baseline justify-between gap-2 rounded border border-line/70 bg-surface-muted/30 px-3 py-2"
-            >
-              <div>
-                <span className="font-semibold text-ink-heading">
-                  {h.from ? `${h.from} → ${h.to}` : `Created as ${h.to}`}
-                </span>
-                {h.note && (
-                  <span className="ml-2 text-ink-body">— {h.note}</span>
-                )}
-              </div>
-              <span className="text-[11px] text-ink-muted">
-                {h.changedBy} · {h.changedAt.replace("T", " ").slice(0, 16)} UTC
-              </span>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );
@@ -556,7 +877,7 @@ export function LeadsCrmClient({
   return (
     <div className="space-y-6">
       {/* Executive Pipeline KPI Strip */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-4 shadow-card">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
             Total Enquiries
@@ -585,60 +906,133 @@ export function LeadsCrmClient({
             {countsByStatus["Won"] ?? 0}
           </p>
         </div>
+        <div className="col-span-2 rounded-card border border-[var(--of-border-card)] bg-surface-card p-4 shadow-card lg:col-span-1">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+            Pipeline Value
+          </span>
+          <p className="mt-1 text-2xl font-bold text-ink-heading">
+            {activePipelineValue > 0
+              ? `$${activePipelineValue.toLocaleString()}`
+              : "$0"}
+          </p>
+        </div>
       </div>
 
-      {/* Toolbar + View Mode Switcher */}
-      <div className="flex flex-col justify-between gap-4 rounded-card border border-[var(--of-border-card)] bg-surface-card p-4 shadow-card lg:flex-row lg:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, email, company, industry, or problem..."
-            aria-label="Search leads"
-            className="w-full rounded-control border border-line bg-surface-input py-2 pl-9 pr-3.5 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-[var(--of-ring-focus)]"
-          />
+      {/* Toolbar + View Mode Switcher + Attribution Filters */}
+      <div className="space-y-3 rounded-card border border-[var(--of-border-card)] bg-surface-card p-4 shadow-card">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email, company, source, industry, or problem..."
+              aria-label="Search leads"
+              className="w-full rounded-control border border-line bg-surface-input py-2 pl-9 pr-3.5 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-[var(--of-ring-focus)]"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Split vs Kanban Switcher */}
+            <div
+              role="group"
+              aria-label="CRM display mode"
+              className="inline-flex rounded-control border border-line bg-surface-muted p-0.5"
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode("split")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === "split"
+                    ? "bg-surface text-primary shadow-xs"
+                    : "text-ink-muted hover:text-ink-heading"
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>Split List</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("kanban")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === "kanban"
+                    ? "bg-surface text-primary shadow-xs"
+                    : "text-ink-muted hover:text-ink-heading"
+                }`}
+              >
+                <Columns3 className="h-3.5 w-3.5" />
+                <span>Kanban Board</span>
+              </button>
+            </div>
+
+            {canManageLeads && (
+              <button
+                type="button"
+                onClick={() => {
+                  setImportOpen((v) => !v);
+                  setImportFeedback(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
+              >
+                <Upload className="h-3.5 w-3.5 text-primary" />
+                <span>Import CSV</span>
+              </button>
+            )}
+
+            <a
+              href={exportUrl}
+              className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export CSV ({filteredLeads.length})</span>
+            </a>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Split vs Kanban Switcher */}
-          <div
-            role="group"
-            aria-label="CRM display mode"
-            className="inline-flex rounded-control border border-line bg-surface-muted p-0.5"
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("split")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === "split"
-                  ? "bg-surface text-primary shadow-xs"
-                  : "text-ink-muted hover:text-ink-heading"
-              }`}
+        {/* Attribution Source, Priority & Quick Toggles */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-xs">
+          <label className="flex items-center gap-1.5 text-ink-muted">
+            <span className="font-semibold">Source:</span>
+            <select
+              aria-label="Filter by lead source"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="rounded-control border border-line bg-surface px-2.5 py-1.5 text-xs text-ink-heading"
             >
-              <List className="h-3.5 w-3.5" />
-              <span>Split List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("kanban")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === "kanban"
-                  ? "bg-surface text-primary shadow-xs"
-                  : "text-ink-muted hover:text-ink-heading"
-              }`}
+              <option value="ALL">All Sources ({availableSources.length})</option>
+              {availableSources.map((src) => (
+                <option key={src} value={src}>
+                  {src}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-ink-muted">
+            <span className="font-semibold">Priority:</span>
+            <select
+              aria-label="Filter by lead priority"
+              value={priorityFilter}
+              onChange={(e) =>
+                setPriorityFilter(e.target.value as "ALL" | LeadPriority)
+              }
+              className="rounded-control border border-line bg-surface px-2.5 py-1.5 text-xs text-ink-heading"
             >
-              <Columns3 className="h-3.5 w-3.5" />
-              <span>Kanban Board</span>
-            </button>
-          </div>
+              <option value="ALL">All Priorities</option>
+              {LEAD_PRIORITIES.map((pr) => (
+                <option key={pr} value={pr}>
+                  {pr}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <button
             type="button"
             onClick={() => setDuplicatesOnly((v) => !v)}
             aria-pressed={duplicatesOnly}
-            className={`rounded-control border px-3 py-2 text-xs font-medium transition-colors ${
+            className={`rounded-control border px-3 py-1.5 text-xs font-medium transition-colors ${
               duplicatesOnly
                 ? "border-primary bg-accent-subtle text-primary"
                 : "border-line bg-surface text-ink-body hover:bg-surface-muted"
@@ -651,7 +1045,7 @@ export function LeadsCrmClient({
             type="button"
             onClick={() => setFollowUpOnly((v) => !v)}
             aria-pressed={followUpOnly}
-            className={`rounded-control border px-3 py-2 text-xs font-medium transition-colors ${
+            className={`rounded-control border px-3 py-1.5 text-xs font-medium transition-colors ${
               followUpOnly
                 ? "border-primary bg-accent-subtle text-primary"
                 : "border-line bg-surface text-ink-body hover:bg-surface-muted"
@@ -659,15 +1053,83 @@ export function LeadsCrmClient({
           >
             Scheduled Follow-Ups
           </button>
-
-          <a
-            href={exportUrl}
-            className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Export CSV ({filteredLeads.length})</span>
-          </a>
         </div>
+
+        {/* CSV Import Drawer */}
+        {importOpen && canManageLeads && (
+          <form
+            onSubmit={handleRunCsvImport}
+            className="space-y-3 rounded-control border border-primary/30 bg-surface-muted/50 p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-ink-heading">
+                  Import Leads from CSV
+                </h3>
+                <p className="text-[11px] text-ink-muted">
+                  Supports OmniFlow exported CSVs or spreadsheets with `Name`, `Email`, `Company`, `Industry`, `Status`, `Priority`, `Proposal Value`, and `Source` columns (max 250 rows/batch).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportOpen(false)}
+                aria-label="Close CSV import panel"
+                className="rounded p-1 text-ink-muted hover:text-ink-heading"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleCsvFileSelected}
+                className="text-xs text-ink-body file:mr-3 file:rounded-control file:border-0 file:bg-accent-subtle file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary"
+              />
+            </div>
+
+            <textarea
+              rows={4}
+              value={importCsvText}
+              onChange={(e) => setImportCsvText(e.target.value)}
+              placeholder={
+                'Name,Email,Company,Industry,Interested Service,Priority,Proposal Value,Business Problem\n"Jane Doe",jane@example.com,"Acme Ops","Logistics","AI Workflow Automation",High,6500,"Automate carrier invoice triage"'
+              }
+              className="w-full rounded-control border border-line bg-surface p-3 font-mono text-xs text-ink-heading"
+            />
+
+            {importFeedback && (
+              <p
+                role="status"
+                className={`text-xs font-medium ${
+                  importFeedback.type === "success"
+                    ? "text-status-success"
+                    : "text-status-error"
+                }`}
+              >
+                {importFeedback.text}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setImportOpen(false)}
+                className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-body"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                disabled={importing || !importCsvText.trim()}
+                className="rounded-control bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+              >
+                {importing ? "Importing..." : "Validate & Import Rows"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Status Pipeline Filter Tabs */}
@@ -713,7 +1175,7 @@ export function LeadsCrmClient({
             No matching enquiries found
           </p>
           <p className="mt-1 text-sm text-ink-muted">
-            Adjust your filters or submit a test enquiry via the public /contact form.
+            Adjust your filters, import a CSV batch, or submit a test enquiry via the public /contact form.
           </p>
         </div>
       ) : viewMode === "kanban" ? (
@@ -745,6 +1207,7 @@ export function LeadsCrmClient({
                     ) : (
                       stageLeads.map((lead) => {
                         const isSelected = selectedLead?.id === lead.id;
+                        const pr = lead.priority || "Medium";
                         return (
                           <div
                             key={lead.id}
@@ -759,11 +1222,21 @@ export function LeadsCrmClient({
                               onClick={() => handleSelectLead(lead)}
                               className="w-full text-left"
                             >
-                              <p className="truncate text-xs font-bold text-ink-heading">
-                                {lead.name}
-                              </p>
+                              <div className="flex items-center justify-between gap-1">
+                                <p className="truncate text-xs font-bold text-ink-heading">
+                                  {lead.name}
+                                </p>
+                                <span
+                                  className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold ${PRIORITY_BADGE_CLASSES[pr]}`}
+                                >
+                                  {pr}
+                                </span>
+                              </div>
                               <p className="truncate text-[11px] text-ink-muted">
                                 {lead.company}
+                                {typeof lead.proposalValue === "number"
+                                  ? ` · $${lead.proposalValue.toLocaleString()}`
+                                  : ""}
                               </p>
                               <p className="mt-1.5 line-clamp-2 text-[11px] text-ink-body">
                                 {lead.businessProblem}
@@ -803,6 +1276,7 @@ export function LeadsCrmClient({
                 (lead.followUpDate as string) <= todayIso &&
                 lead.status !== "Won" &&
                 lead.status !== "Lost";
+              const pr = lead.priority || "Medium";
 
               return (
                 <button
@@ -824,9 +1298,16 @@ export function LeadsCrmClient({
                         {lead.company} · {lead.industry}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-full border border-line bg-surface-muted px-2.5 py-0.5 text-[11px] font-semibold text-ink-heading">
-                      {lead.status}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${PRIORITY_BADGE_CLASSES[pr]}`}
+                      >
+                        {pr}
+                      </span>
+                      <span className="rounded-full border border-line bg-surface-muted px-2.5 py-0.5 text-[11px] font-semibold text-ink-heading">
+                        {lead.status}
+                      </span>
+                    </div>
                   </div>
 
                   <p className="mt-2 line-clamp-2 text-xs text-ink-body">
@@ -839,6 +1320,11 @@ export function LeadsCrmClient({
                     <span className="font-medium text-primary">
                       {lead.interestedService}
                     </span>
+                    {typeof lead.proposalValue === "number" && (
+                      <span className="rounded bg-status-success/10 px-1.5 py-0.5 font-mono font-semibold text-status-success">
+                        ${lead.proposalValue.toLocaleString()}
+                      </span>
+                    )}
                     {lead.isDuplicateFlag && (
                       <span className="rounded bg-status-warning/15 px-1.5 py-0.5 font-semibold text-status-warning">
                         Repeat Email

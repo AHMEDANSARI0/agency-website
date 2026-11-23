@@ -46,6 +46,7 @@ const nextConfig: NextConfig = {
       { key: "X-DNS-Prefetch-Control", value: "on" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
@@ -70,6 +71,26 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: baseHeaders,
+      },
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          ...baseHeaders,
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/uploads/:path*",
+        headers: [
+          ...baseHeaders,
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
       },
       {
         source: "/icon.svg",

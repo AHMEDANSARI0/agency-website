@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { LeadStatus } from "@/types/content";
+import type { LeadPriority, LeadStatus } from "@/types/content";
 import { requireAdminApiAuth } from "@/lib/auth/server";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
@@ -16,9 +16,30 @@ const LEAD_STATUSES: [LeadStatus, ...LeadStatus[]] = [
   "Lost",
 ];
 
+const LEAD_PRIORITIES: [LeadPriority, ...LeadPriority[]] = [
+  "Low",
+  "Medium",
+  "High",
+  "Urgent",
+];
+
 const patchLeadSchema = z
   .object({
     status: z.enum(LEAD_STATUSES).optional(),
+    priority: z.enum(LEAD_PRIORITIES).optional(),
+    proposalValue: z.number().min(0).max(100_000_000).nullable().optional(),
+    expectedClosingDate: z
+      .union([
+        z
+          .string()
+          .regex(
+            /^\d{4}-\d{2}-\d{2}$/,
+            "Expected closing date must be YYYY-MM-DD."
+          ),
+        z.null(),
+      ])
+      .optional(),
+    lostReason: z.union([z.string().max(400), z.null()]).optional(),
     statusNote: z.string().max(500).optional(),
     noteText: z.string().max(2000).optional(),
     followUpDate: z
@@ -77,6 +98,10 @@ export async function PATCH(
     const nextNotes = [...current.notes];
     const nextHistory = [...current.statusHistory];
     let nextStatus = current.status;
+    let nextPriority = current.priority || "Medium";
+    let nextProposalValue = current.proposalValue ?? null;
+    let nextExpectedClosing = current.expectedClosingDate ?? null;
+    let nextLostReason = current.lostReason ?? null;
     let nextFollowUp = current.followUpDate;
     let nextDuplicate = current.isDuplicateFlag;
 
@@ -127,9 +152,57 @@ export async function PATCH(
       );
     }
 
+    if (
+      payload.priority !== undefined &&
+      payload.priority !== (current.priority || "Medium")
+    ) {
+      nextPriority = payload.priority;
+      changesSummary.push(`priority -> ${payload.priority}`);
+    }
+
+    if (
+      payload.proposalValue !== undefined &&
+      payload.proposalValue !== (current.proposalValue ?? null)
+    ) {
+      nextProposalValue = payload.proposalValue;
+      changesSummary.push(
+        payload.proposalValue !== null
+          ? `proposal value $${payload.proposalValue}`
+          : "cleared proposal value"
+      );
+    }
+
+    if (
+      payload.expectedClosingDate !== undefined &&
+      payload.expectedClosingDate !== (current.expectedClosingDate ?? null)
+    ) {
+      nextExpectedClosing = payload.expectedClosingDate;
+      changesSummary.push(
+        payload.expectedClosingDate
+          ? `expected close ${payload.expectedClosingDate}`
+          : "cleared expected close date"
+      );
+    }
+
+    if (payload.lostReason !== undefined) {
+      const cleanedReason = payload.lostReason
+        ? sanitizePlainText(payload.lostReason, 400) || null
+        : null;
+      if (cleanedReason !== (current.lostReason ?? null)) {
+        nextLostReason = cleanedReason;
+        changesSummary.push(
+          cleanedReason ? "recorded lost reason" : "cleared lost reason"
+        );
+      }
+    }
+
     return {
       ...current,
       status: nextStatus,
+      priority: nextPriority,
+      proposalValue: nextProposalValue,
+      expectedClosingDate: nextExpectedClosing,
+      lostReason: nextLostReason,
       followUpDate: nextFollowUp,
       isDuplicateFlag: nextDuplicate,
       notes: nextNotes,

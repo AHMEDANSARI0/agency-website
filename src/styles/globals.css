@@ -16,6 +16,9 @@
   --of-color-secondary-fg: #F8FAFC;
   --of-color-accent: #6366F1;
   --of-color-accent-subtle: rgba(79, 70, 229, 0.08);
+  --of-color-electric: #2563EB;
+  --of-color-cyan: #0284C7;
+  --of-color-cyan-subtle: rgba(2, 132, 199, 0.09);
   --of-color-bg: #F8FAFC;
   --of-color-surface: #FFFFFF;
   --of-color-surface-elevated: #FFFFFF;
@@ -59,6 +62,7 @@
     radial-gradient(circle at 82% 8%, rgba(37, 99, 235, 0.10), transparent 46%);
   --of-shadow-card: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 12px 32px -12px rgba(15, 23, 42, 0.08);
   --of-shadow-elevated: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 24px 48px -14px rgba(15, 23, 42, 0.14);
+  --of-shadow-3d: 0 1px 0 0 rgba(255, 255, 255, 0.9) inset, 0 18px 42px -14px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(37, 99, 235, 0.05);
   --of-shadow-glow: 0 10px 28px -8px rgba(79, 70, 229, 0.34);
   --of-spotlight-color: rgba(79, 70, 229, 0.10);
 
@@ -66,6 +70,9 @@
   --of-radius-control: 0.625rem;
   --of-radius-card: 1rem;
   --of-radius-feature: 1.5rem;
+  --of-radius-button: 9999px;
+  --of-heading-tracking: -0.028em;
+  --of-motion-scale: 1;
 
   /* Section Rhythm & Motion Tokens */
   --of-section-py-sm: clamp(3rem, 5vw, 4.25rem);
@@ -88,6 +95,9 @@
   --of-color-secondary-fg: #090D16;
   --of-color-accent: #818CF8;
   --of-color-accent-subtle: rgba(99, 102, 241, 0.14);
+  --of-color-electric: #3B82F6;
+  --of-color-cyan: #22D3EE;
+  --of-color-cyan-subtle: rgba(34, 211, 238, 0.13);
   --of-color-bg: #090D16;
   --of-color-surface: #0F1624;
   --of-color-surface-elevated: #162033;
@@ -129,22 +139,27 @@
     radial-gradient(circle at 82% 8%, rgba(37, 99, 235, 0.16), transparent 46%);
   --of-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 14px 34px -12px rgba(0, 0, 0, 0.55);
   --of-shadow-elevated: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 52px -14px rgba(0, 0, 0, 0.72);
+  --of-shadow-3d: 0 1px 0 0 rgba(148, 163, 184, 0.14) inset, 0 22px 48px -14px rgba(2, 6, 23, 0.78), 0 0 24px -10px rgba(37, 99, 235, 0.22);
   --of-shadow-glow: 0 12px 34px -8px rgba(79, 70, 229, 0.48);
   --of-spotlight-color: rgba(99, 102, 241, 0.16);
 }
 
-/* High-contrast Midnight Charcoal-Navy anchor island (for dark CTA banners, terminals & footer stages) */
+/* High-contrast Dark Anchor Island (adapts to the active theme's Dark Variant tokens) */
 .on-dark {
-  --of-color-bg: #090D16;
-  --of-color-surface: #0F1624;
-  --of-color-surface-elevated: #162033;
-  --of-color-surface-muted: #11192A;
-  --of-color-heading: #F8FAFC;
-  --of-color-body: #CBD5E1;
-  --of-color-muted: #94A3B8;
-  --of-color-border: rgba(148, 163, 184, 0.16);
-  --of-color-border-strong: rgba(148, 163, 184, 0.28);
-  color: #F8FAFC;
+  --of-color-bg: var(--of-dark-island-bg, #090D16);
+  --of-color-surface: var(--of-dark-island-surface, #0F1624);
+  --of-color-surface-elevated: var(--of-dark-island-elevated, #162033);
+  --of-color-surface-muted: var(--of-dark-island-muted, #11192A);
+  --of-color-heading: var(--of-dark-island-heading, #F8FAFC);
+  --of-color-body: var(--of-dark-island-body, #CBD5E1);
+  --of-color-muted: var(--of-dark-island-text-muted, #94A3B8);
+  --of-color-border: var(--of-dark-island-border, rgba(148, 163, 184, 0.16));
+  --of-color-border-strong: color-mix(
+    in srgb,
+    var(--of-dark-island-heading, #F8FAFC) 22%,
+    transparent
+  );
+  color: var(--of-dark-island-heading, #F8FAFC);
 }
 
 html.lenis,
@@ -187,7 +202,7 @@ html.lenis body {
   h6 {
     font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
     color: var(--of-color-heading);
-    letter-spacing: -0.028em;
+    letter-spacing: var(--of-heading-tracking, -0.028em);
     font-weight: 600;
   }
 
@@ -229,17 +244,17 @@ html.lenis body {
   color: var(--of-color-primary);
 }
 
-/* Sweeping Indigo-Violet-Blue Shimmer Text */
+/* Theme-Adaptive Sweeping Shimmer Text (consumes centralized accent tokens) */
 .shine {
   background: linear-gradient(
     105deg,
-    #F8FAFC 0%,
-    #F8FAFC 28%,
-    #A5B4FC 42%,
-    #60A5FA 50%,
-    #C4B5FD 58%,
-    #F8FAFC 72%,
-    #F8FAFC 100%
+    var(--of-color-heading) 0%,
+    var(--of-color-heading) 30%,
+    color-mix(in srgb, var(--of-color-primary) 72%, #FFFFFF) 44%,
+    color-mix(in srgb, var(--of-color-electric) 78%, #FFFFFF) 52%,
+    color-mix(in srgb, var(--of-color-accent) 72%, #FFFFFF) 60%,
+    var(--of-color-heading) 74%,
+    var(--of-color-heading) 100%
   );
   background-size: 300% 100%;
   -webkit-background-clip: text;
@@ -254,11 +269,11 @@ html.lenis body {
   background: linear-gradient(
     105deg,
     var(--of-color-heading) 0%,
-    var(--of-color-heading) 26%,
-    var(--of-color-primary) 44%,
-    #2563EB 52%,
-    var(--of-color-accent) 60%,
-    var(--of-color-heading) 76%,
+    var(--of-color-heading) 28%,
+    var(--of-color-primary) 45%,
+    var(--of-color-electric) 52%,
+    var(--of-color-accent) 59%,
+    var(--of-color-heading) 75%,
     var(--of-color-heading) 100%
   );
   background-size: 300% 100%;
@@ -355,6 +370,42 @@ html.lenis body {
   transform: translate3d(0, -2px, 0);
   box-shadow: var(--of-shadow-elevated);
   border-color: var(--of-color-border-strong);
+}
+
+/* Subtle 3D Architectural Depth Surface & Rim Highlight */
+.surface-3d {
+  box-shadow: var(--of-shadow-3d);
+  position: relative;
+}
+
+.card-3d {
+  box-shadow: var(--of-shadow-3d);
+  transition: transform 0.28s var(--of-ease-balance),
+    box-shadow 0.28s var(--of-ease-balance),
+    border-color 0.28s var(--of-ease-balance);
+}
+
+.card-3d:hover {
+  transform: perspective(1200px) translate3d(0, -3px, 0);
+  box-shadow: var(--of-shadow-elevated);
+  border-color: color-mix(in srgb, var(--of-color-primary) 42%, var(--of-color-border));
+}
+
+/* Masked Perspective Architectural Horizon Grid */
+.architectural-grid-perspective {
+  background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--of-color-electric) 14%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--of-color-primary) 14%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, black 25%, transparent 82%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, black 25%, transparent 82%);
 }
 
 /* Offscreen Section Paint Deferral for Fast Core Web Vitals (TBT / INP) */
@@ -476,6 +527,27 @@ html[data-motion="ready"] [data-reveal="right"]:not(.in) {
   to {
     transform: rotate(1turn);
   }
+}
+
+@keyframes of-signal-flow {
+  0% {
+    opacity: 0;
+    transform: translate3d(-16%, 0, 0);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(116%, 0, 0);
+  }
+}
+
+.animate-signal-flow {
+  animation: of-signal-flow 2.8s cubic-bezier(0.37, 0, 0.63, 1) infinite;
 }
 
 .animate-marquee {

@@ -23,6 +23,8 @@ import { PinnedHero } from "@/components/sections/PinnedHero";
 import { LightUpText } from "@/components/animations/LightUpText";
 import { WorkflowDiagram } from "@/components/sections/WorkflowDiagram";
 import { HomeAutomationLabPreview } from "@/components/sections/HomeAutomationLabPreview";
+import { BeforeAfterWorkflowCompare } from "@/components/sections/BeforeAfterWorkflowCompare";
+import { IntegrationEcosystemVisualizer } from "@/components/sections/IntegrationEcosystemVisualizer";
 import { WORK_TYPE_META } from "@/features/case-studies/constants";
 import { parseSafeMarkdown } from "@/features/blog/markdown";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
@@ -273,35 +275,36 @@ export default async function HomePage() {
         return (
           <section key={block.id} className="border-b border-line bg-surface py-14 sm:py-20">
             <Container>
-              {/* 4 Operational Standards Cards (Honest Proof — Zero Fake Client Logos) */}
+              {/* 4 Business & Operational Standards Cards (Honest Proof — Zero Fake Client Logos) */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   {
                     icon: ShieldCheck,
-                    label: "Deterministic First",
-                    detail: "Validation schemas & routing rules execute before any AI model call.",
+                    label: "Faster Customer Responses",
+                    detail: "Every enquiry and routine question receives an accurate, sub-minute response 24/7.",
                   },
                   {
                     icon: Lock,
-                    label: "Policy-Grounded AI",
-                    detail: "Responses strictly bounded to your approved SOPs with human escalation.",
+                    label: "Safe, Guardrailed AI",
+                    detail: "Answers stay strictly within your approved policies—sensitive cases escalate to your team.",
                   },
                   {
                     icon: Database,
-                    label: "100% Client IP Ownership",
-                    detail: "Full ownership of delivered workflows, prompts, schemas, and documentation.",
+                    label: "100% Client Ownership",
+                    detail: "Your business owns every workflow, credential, database schema, and plain-English runbook.",
                   },
                   {
                     icon: Globe2,
                     label: "US · UK · Canada Overlap",
-                    detail: "Direct architect collaboration aligned with EST and GMT business hours.",
+                    detail: "Direct Principal communication aligned with overlapping EST and GMT business hours.",
                   },
                 ].map((pillar) => {
                   const Icon = pillar.icon;
                   return (
                     <div
                       key={pillar.label}
-                      className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card"
+                      data-reveal=""
+                      className="card-3d rounded-card border border-[var(--of-border-card)] bg-surface-card p-5"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent-subtle text-primary">
@@ -319,26 +322,33 @@ export default async function HomePage() {
 
               {/* Purpose Statement */}
               <div className="mt-14 sm:mt-16">
-                <p className="t-eyebrow mb-4">Engineering Philosophy</p>
+                <p className="t-eyebrow mb-4">Why Growing Teams Choose OmniFlow</p>
                 <LightUpText
-                  text="We connect deterministic automation and policy-grounded AI to your everyday operations. Not fragile hype — an engineering partner that audits, integrates, and delivers."
-                  accentWords={["deterministic", "policy-grounded", "integrates", "delivers"]}
+                  text="Stop paying skilled staff to copy-paste between disconnected apps. We connect your enquiries, CRM, customer support, and operations into dependable automated systems."
+                  accentWords={["enquiries,", "CRM,", "dependable", "automated"]}
                   className="max-w-5xl text-[clamp(1.65rem,3.3vw,2.85rem)] font-semibold leading-[1.18] tracking-tight"
                 />
+              </div>
+              {/* Interactive Connected Ecosystem Architecture */}
+              <div data-reveal="" className="mt-14">
+                <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                  <div>
+                    <Badge variant="accent">Connected Integration Ecosystem</Badge>
+                    <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
+                      Works seamlessly with the business software you already run.
+                    </h2>
+                  </div>
+                  <p className="font-mono text-xs text-primary">
+                    REST · Webhooks · SQL · CRM · Messaging
+                  </p>
+                </div>
+
+                <IntegrationEcosystemVisualizer />
               </div>
             </Container>
 
             {/* Connected Ecosystem Marquee */}
-            <div className="mt-14 overflow-hidden border-t border-line pt-10">
-              <Container className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-ink-muted">
-                  Orchestrating the systems your team already uses
-                </p>
-                <p className="font-mono text-xs text-primary">
-                  REST · Webhooks · SQL · CRM · Messaging
-                </p>
-              </Container>
-
+            <div className="mt-12 overflow-hidden border-t border-line pt-8">
               <div className="space-y-3">
                 <div className="flex w-max animate-marquee gap-3">
                   {[...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1].map(
@@ -379,20 +389,27 @@ export default async function HomePage() {
         return (
           <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
             <Container>
-              <div className="max-w-3xl">
-                <Badge>01 · Operational Diagnostic</Badge>
+              <div data-reveal="" className="max-w-3xl">
+                <Badge>01 · Interactive Before &amp; After Transformation</Badge>
                 <h2 className="t-display mt-3 text-ink-heading">
-                  Where billable hours and high-fit enquiries leak.
+                  See how manual bottlenecks become connected workflows.
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-ink-body sm:text-lg">
-                  Growing service firms rarely suffer from a lack of effort — they suffer from manual handoffs across inboxes, spreadsheets, and disconnected tools.
+                  Select a business process below to compare fragmented manual handoffs against an automated OmniFlow system.
                 </p>
               </div>
 
-              <div className="mt-10 space-y-3.5">
+              {/* Interactive Before / After Workflow Visualizer */}
+              <div data-reveal="" className="mt-10">
+                <BeforeAfterWorkflowCompare />
+              </div>
+
+              {/* 5 High-Impact Bottleneck Diagnostics */}
+              <div className="mt-10 space-y-3">
                 {LEAK_ITEMS.map((item) => (
                   <div
                     key={item.num}
+                    data-reveal=""
                     className="grid grid-cols-1 gap-4 rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card lg:grid-cols-12 lg:items-center lg:p-6"
                   >
                     <div className="lg:col-span-5">
@@ -463,7 +480,8 @@ export default async function HomePage() {
                 {flagshipServices.map((service, idx) => (
                   <article
                     key={service.id}
-                    className="spot flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-7 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elevated"
+                    data-reveal=""
+                    className="spot card-3d flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-7"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2">
@@ -504,14 +522,14 @@ export default async function HomePage() {
                         href={`/services/${service.slug}`}
                         className="group inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
                       >
-                        <span>Inspect specification</span>
+                        <span>See how it works</span>
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                       </Link>
                       <Link
-                        href={`/contact?service=${encodeURIComponent(service.title)}`}
+                        href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=home_flagship_${encodeURIComponent(service.slug)}`}
                         className="font-mono text-xs text-ink-muted hover:text-ink-heading"
                       >
-                        Scope this →
+                        Book call →
                       </Link>
                     </div>
                   </article>
@@ -697,7 +715,7 @@ export default async function HomePage() {
 
                     <div className="mt-6 border-t border-line pt-3.5">
                       <p className="font-mono text-[0.68rem] uppercase tracking-wider text-ink-muted">
-                        Milestone Output
+                        Milestone Deliverable
                       </p>
                       <p className="mt-1 text-xs font-semibold text-ink-heading">
                         {stage.deliverable}
@@ -705,6 +723,45 @@ export default async function HomePage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Trust & Partnership Guarantees: Communication, Ownership & Support */}
+              <div className="mt-8 grid grid-cols-1 gap-5 rounded-card border border-line bg-surface-muted/50 p-6 lg:grid-cols-3">
+                <div className="rounded-xl border border-line bg-surface-card p-5">
+                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
+                    Client Communication
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
+                    Direct Principal Collaboration
+                  </h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
+                    You communicate directly with the system architect—with concise milestone walkthroughs and overlapping EST/GMT availability.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-line bg-surface-card p-5">
+                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
+                    Project Ownership
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
+                    Zero Vendor Lock-In
+                  </h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
+                    All workflows, accounts, API connections, and plain-English operating runbooks are handed over to your business in full.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-line bg-surface-card p-5">
+                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
+                    Maintenance &amp; Support
+                  </p>
+                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
+                    Post-Launch Tuning or Self-Run
+                  </h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
+                    Includes post-launch stabilization monitoring, with optional lightweight ongoing support as your enquiry volume grows.
+                  </p>
+                </div>
               </div>
             </Container>
           </section>
@@ -1010,7 +1067,8 @@ export default async function HomePage() {
                   return (
                     <article
                       key={cs.id}
-                      className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40 hover:shadow-elevated"
+                      data-reveal=""
+                      className="spot card-3d flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6"
                     >
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -1254,38 +1312,37 @@ export default async function HomePage() {
         return (
           <section key={block.id} className="bg-surface px-3 pb-12 pt-4 sm:px-5 sm:pb-16">
             <div
-              className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-slate-800 px-6 py-16 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-20"
+              className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-white/10 px-6 py-16 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-20"
               style={{
-                background:
-                  "radial-gradient(110% 95% at 50% 100%, #312E81 0%, #1E1B4B 42%, #0F172A 78%, #090D16 100%)",
+                background: "var(--of-gradient-cta-banner)",
               }}
             >
-              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-indigo-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Workflow &amp; Bottleneck Review</span>
+              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-white/90">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>Free 25-Minute Discovery Call</span>
               </div>
 
               <h2 className="t-display mx-auto mt-4 max-w-3xl text-white">
-                Replace fragile manual handoffs with dependable automation.
+                Ready to eliminate manual busywork and respond faster?
               </h2>
 
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Share your current intake, support, or operational bottleneck. We will respond within one business day with an honest assessment of what to automate deterministically, where grounded AI adds leverage, and what stays human.
+                Book a free discovery call or share your current bottleneck. Within one business day, we will map what to automate, what tools connect cleanly, and what stays human.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
                 <Link
                   href={settings.primaryCtaHref}
-                  className="group inline-flex items-center gap-2 rounded-control bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-glow transition-all hover:bg-indigo-500"
+                  className="group inline-flex items-center gap-2 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover"
                 >
                   <span>{settings.primaryCtaLabel}</span>
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <Link
-                  href="/demos"
+                  href={settings.secondaryCtaHref || "/demos"}
                   className="inline-flex items-center gap-2 rounded-control border border-slate-600/80 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
                 >
-                  <span>Test All 5 Interactive Demos</span>
+                  <span>{settings.secondaryCtaLabel || "Explore Live Demos"}</span>
                 </Link>
               </div>
 

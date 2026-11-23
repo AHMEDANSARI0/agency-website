@@ -15,12 +15,27 @@ interface NavigatorConnectionLike {
  *    automatically pausing RAF ticks when the browser tab is hidden.
  * 3. RAF-throttled radial spotlight (.spot) tracking restricted to hover-capable devices.
  */
+function isMotionSuppressedByThemeOrOs(): boolean {
+  if (typeof window === "undefined") return true;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return true;
+  }
+  const scaleRaw = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--of-motion-scale")
+    .trim();
+  if (scaleRaw !== "" && Number(scaleRaw) <= 0) {
+    return true;
+  }
+  return false;
+}
+
 export function MotionRuntime() {
   const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (isMotionSuppressedByThemeOrOs()) {
       delete document.documentElement.dataset.motion;
       return;
     }
@@ -87,9 +102,7 @@ export function MotionRuntime() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const prefersReduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+    const prefersReduced = isMotionSuppressedByThemeOrOs();
 
     const targets = document.querySelectorAll<HTMLElement>(
       "[data-reveal]:not(.in)"

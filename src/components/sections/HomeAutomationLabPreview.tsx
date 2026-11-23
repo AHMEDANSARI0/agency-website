@@ -13,6 +13,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { AiConversationSimulator } from "@/components/sections/AiConversationSimulator";
 import {
   calculateAutomationSavings,
   evaluateLeadQualification,
@@ -21,7 +22,7 @@ import {
   type SupportedCurrency,
 } from "@/features/demos/engine";
 
-type PreviewMode = "lead" | "resilience" | "savings";
+type PreviewMode = "lead" | "support" | "resilience" | "savings";
 
 export function HomeAutomationLabPreview() {
   const [mode, setMode] = useState<PreviewMode>("lead");
@@ -52,12 +53,12 @@ export function HomeAutomationLabPreview() {
   });
 
   return (
-    <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8">
+    <div className="surface-3d rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 sm:p-8">
       <div className="flex flex-col justify-between gap-4 border-b border-line pb-6 lg:flex-row lg:items-center">
         <div>
           <Badge variant="accent">Interactive Sandbox · Zero Paid APIs · Instant</Badge>
           <h3 className="mt-2.5 text-xl font-bold tracking-tight text-ink-heading sm:text-2xl">
-            Test OmniFlow&apos;s Deterministic Logic Right Here
+            Test OmniFlow&apos;s Deterministic &amp; AI Triage Logic Live
           </h3>
           <p className="mt-1 text-sm text-ink-body">
             Every output below is computed live by deterministic rules — never pre-baked screenshots or fabricated metrics.
@@ -71,6 +72,7 @@ export function HomeAutomationLabPreview() {
         >
           {[
             { id: "lead" as const, label: "Lead Scoring", icon: Filter },
+            { id: "support" as const, label: "AI Support Simulator", icon: MessageSquareText },
             { id: "resilience" as const, label: "Fail-Safe Queue", icon: Workflow },
             { id: "savings" as const, label: "Time & Cost Estimator", icon: Calculator },
           ].map((tab) => {
@@ -354,6 +356,9 @@ export function HomeAutomationLabPreview() {
         </div>
       )}
 
+      {/* Mode 4: AI Customer Support Conversation Simulator */}
+      {mode === "support" && <AiConversationSimulator />}
+
       {/* Quick Bar to All 5 Demos */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -379,13 +384,38 @@ export function HomeAutomationLabPreview() {
           })}
         </div>
 
-        <Link
-          href="/demos"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
-        >
-          <span>Open Full Interactive Lab</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/contact?service=${encodeURIComponent(
+              mode === "lead"
+                ? "lead-management"
+                : mode === "support"
+                  ? "ai-customer-support"
+                  : mode === "resilience"
+                    ? "workflow-automation"
+                    : "ai-operations"
+            )}&intent=call&source=homepage_lab_${mode}&context=${encodeURIComponent(
+              mode === "lead"
+                ? `Tested Homepage Lead Scorer: ${activePreset.label} -> ${leadEval.tier} (${leadEval.score}/100)`
+                : mode === "support"
+                  ? "Tested Homepage AI Support Conversation Simulator (5-Stage Policy Retrieval & Escalation)"
+                  : mode === "resilience"
+                    ? `Tested Homepage Fail-Safe Queue (Outage Simulation: ${simulateOutage ? "Enabled" : "Normal"})`
+                    : `Tested Homepage Time & Cost Estimator: ${teamCount} staff, ${weeklyHours} hrs/wk (${savings.monthlyHoursReclaimed} hrs/mo reclaimed in ${currency})`
+            )}`}
+            className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+          >
+            <span>Book Discovery Call With This Scenario</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            href="/demos"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
+          >
+            <span>Open Full Interactive Lab</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );

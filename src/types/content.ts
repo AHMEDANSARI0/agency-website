@@ -16,6 +16,8 @@ export type LeadStatus =
   | "Won"
   | "Lost";
 
+export type LeadPriority = "Low" | "Medium" | "High" | "Urgent";
+
 export interface SeoMetadataFields {
   seoTitle?: string;
   seoDescription?: string;
@@ -248,6 +250,10 @@ export interface LeadRecord {
   additionalDetails?: string;
   privacyConsent: boolean;
   status: LeadStatus;
+  priority?: LeadPriority;
+  proposalValue?: number | null;
+  expectedClosingDate?: string | null;
+  lostReason?: string | null;
   source: string;
   isDuplicateFlag: boolean;
   followUpDate: string | null;
@@ -256,6 +262,22 @@ export interface LeadRecord {
   statusHistory: LeadStatusChange[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadDashboardMetrics {
+  totalLeads: number;
+  newLeads: number;
+  qualifiedLeads: number;
+  activePipelineLeads: number;
+  wonLeads: number;
+  lostLeads: number;
+  monthlyEnquiries: number;
+  conversionRatePercent: number;
+  qualificationRatePercent: number;
+  dueFollowUps: number;
+  totalPipelineValue: number;
+  wonRevenueValue: number;
+  sourcesBreakdown: Array<{ source: string; count: number; percent: number }>;
 }
 
 export interface MediaAsset {
