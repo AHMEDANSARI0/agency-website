@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { MotionRuntime } from "@/components/animations/MotionRuntime";
 import { OpeningSequence } from "@/components/animations/OpeningSequence";
+import { ScrollProgressBar } from "@/components/animations/ScrollProgressBar";
 import { AmbientSoundToggle } from "@/components/animations/AmbientSoundToggle";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { AnalyticsConsentManager } from "@/components/analytics/AnalyticsConsentManager";
@@ -47,6 +48,7 @@ export default async function WebsiteLayout({
     <div className="flex min-h-screen flex-col">
       <JsonLdScript data={orgJsonLd} />
       <OpeningSequence brandName={brand.brandName} tagline={settings.tagline} />
+      <ScrollProgressBar />
       <MotionRuntime />
       <Navbar brand={brand} settings={settings} />
       <main id="main-content" className="flex-1">

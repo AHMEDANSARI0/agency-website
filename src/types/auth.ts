@@ -28,6 +28,11 @@ export interface UserRecord {
   role: UserRole;
   passwordHash: string;
   isActive: boolean;
+  mustChangePassword?: boolean;
+  sessionVersion?: number;
+  passwordChangedAt?: string | null;
+  recoveryTokenHash?: string | null;
+  recoveryExpiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string | null;
@@ -39,6 +44,9 @@ export interface SafeUser {
   name: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword: boolean;
+  sessionVersion: number;
+  passwordChangedAt?: string | null;
   createdAt: string;
   lastLoginAt?: string | null;
 }
@@ -49,6 +57,7 @@ export interface SessionPayload {
   email: string;
   name: string;
   role: UserRole;
+  sessionVersion: number;
   issuedAt: number;
   expiresAt: number;
 }
@@ -63,5 +72,15 @@ export interface AuditLogEntry {
   entityId?: string;
   summary: string;
   ipAddress?: string;
+  createdAt: string;
+}
+
+export interface DatabaseBackupSummary {
+  id: string;
+  label: string;
+  createdBy: string;
+  schemaVersion: number;
+  sizeBytes: number;
+  checksumSha256: string;
   createdAt: string;
 }

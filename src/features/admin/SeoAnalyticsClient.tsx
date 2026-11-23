@@ -269,6 +269,16 @@ export function SeoAnalyticsClient({
             <span>/robots.txt</span>
             <ExternalLink className="h-3 w-3 text-ink-muted" />
           </a>
+          <a
+            href="/feed.xml"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-4 py-2 font-mono text-xs text-ink-heading hover:bg-surface-muted"
+          >
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            <span>/feed.xml</span>
+            <ExternalLink className="h-3 w-3 text-ink-muted" />
+          </a>
         </div>
       </div>
 
@@ -345,6 +355,28 @@ export function SeoAnalyticsClient({
               <code>sitemap.xml</code>
             </span>
           </label>
+
+          {/* Live Google SERP Preview */}
+          <div className="rounded-xl border border-line bg-surface-muted/60 p-4">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+              Live Search Snippet Preview ({noIndex ? "NOINDEX" : "INDEXABLE"})
+            </p>
+            <p className="mt-2 truncate font-mono text-[11px] text-ink-muted">
+              {canonicalUrl.trim() ||
+                `https://omniflow.example${
+                  selectedPageSlug === "home" ? "" : `/${selectedPageSlug}`
+                }`}
+            </p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-primary">
+              {(seoTitle.trim() || activePage?.title || "OmniFlow").slice(0, 70)}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-body">
+              {(
+                seoDescription.trim() ||
+                "Automate the work. Accelerate the business. Grounded AI & deterministic workflow automation for US, UK, and Canadian teams."
+              ).slice(0, 165)}
+            </p>
+          </div>
 
           <div className="flex justify-end pt-2">
             <button

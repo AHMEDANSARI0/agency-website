@@ -15,6 +15,7 @@ const createUserSchema = z
     email: z.string().trim().email("Valid staff email is required.").max(160),
     role: z.enum(ROLES),
     password: z.string().min(10).max(128),
+    mustChangePassword: z.boolean().optional(),
   })
   .strict();
 
@@ -48,7 +49,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const strength = validatePasswordStrength(parsed.data.password);
+  const strength = validatePasswordStrength(parsed.data.password, {
+    rejectKnownDefaults: true,
+  });
   if (!strength.valid) {
     return NextResponse.json({ error: strength.reason }, { status: 400 });
   }
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
       email: parsed.data.email.toLowerCase(),
       role: parsed.data.role,
       passwordHash: hashPassword(parsed.data.password),
+      mustChangePassword: Boolean(parsed.data.mustChangePassword),
     });
 
     await db.recordAuditLog({

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/database";
+import { DatabaseUnavailableError } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
-import { checkRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
 import { leadSubmissionSchema } from "@/features/leads/schema";
 import { sendOptionalLeadNotification } from "@/features/leads/notify";
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   const clientIp = extractClientIp(request.headers);
-  const limit = checkRateLimit(`lead_submit:${clientIp}`, 5, 10 * 60 * 1000);
+  const limit = await checkDistributedRateLimit(`lead_submit:${clientIp}`, 5, 10 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       {
@@ -39,12 +40,16 @@ export async function POST(request: Request) {
     typeof (body as { honeypot?: unknown }).honeypot === "string" &&
     (body as { honeypot: string }).honeypot.trim().length > 0
   ) {
-    return NextResponse.json({ ok: true, message: "Thank you. Your enquiry has been received." });
+    return NextResponse.json({
+      ok: true,
+      message: "Thank you. Your enquiry has been received.",
+    });
   }
 
   const parsed = leadSubmissionSchema.safeParse(body);
   if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0]?.message || "Please check the form fields.";
+    const firstIssue =
+      parsed.error.issues[0]?.message || "Please check the form fields.";
     return NextResponse.json(
       {
         error: firstIssue,
@@ -55,31 +60,58 @@ export async function POST(request: Request) {
   }
 
   const data = parsed.data;
-  const emailNotificationStatus = await sendOptionalLeadNotification(data);
 
-  const savedLead = await db.createLead({
-    name: data.name,
-    email: data.email,
-    company: data.company,
-    website: data.website,
-    industry: data.industry,
-    interestedService: data.interestedService,
-    businessProblem: data.businessProblem,
-    budgetRange: data.budgetRange,
-    timeline: data.timeline,
-    additionalDetails: data.additionalDetails,
-    privacyConsent: data.privacyConsent,
-    source: data.source || "website_contact",
-    emailNotificationStatus,
-  });
+  try {
+    // 1. Persist lead in database FIRST so email delivery failures never drop enquiries
+    const savedLead = await db.createLead({
+      name: data.name,
+      email: data.email,
+      company: data.company,
+      website: data.website,
+      industry: data.industry,
+      interestedService: data.interestedService,
+      businessProblem: data.businessProblem,
+      budgetRange: data.budgetRange,
+      timeline: data.timeline,
+      additionalDetails: data.additionalDetails,
+      privacyConsent: data.privacyConsent,
+      source: data.source || "website_contact",
+      emailNotificationStatus: "skipped_unconfigured",
+    });
 
-  return NextResponse.json(
-    {
-      ok: true,
-      leadId: savedLead.id,
-      message:
-        "Thank you. Your enquiry has been logged for review and we will respond within one business day.",
-    },
-    { status: 201 }
-  );
+    // 2. Dispatch optional email alert and record accurate notification status
+    const emailStatus = await sendOptionalLeadNotification(data);
+    if (emailStatus !== "skipped_unconfigured") {
+      await db.updateLead(savedLead.id, (current) => ({
+        ...current,
+        emailNotificationStatus: emailStatus,
+      }));
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        leadId: savedLead.id,
+        notificationStatus: emailStatus,
+        message:
+          "Thank you. Your enquiry has been logged for review and we will respond within one business day.",
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    if (err instanceof DatabaseUnavailableError) {
+      return NextResponse.json(
+        {
+          error:
+            "Our enquiry service is temporarily unavailable while database maintenance completes. Please try again shortly.",
+          code: err.code,
+        },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Unable to process your enquiry right now. Please try again." },
+      { status: 500 }
+    );
+  }
 }

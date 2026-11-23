@@ -1,9 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import postgres from "postgres";
-import type { AuditLogEntry, SafeUser, UserRecord } from "@/types/auth";
+import type {
+  AuditLogEntry,
+  DatabaseBackupSummary,
+  SafeUser,
+  UserRecord,
+} from "@/types/auth";
 import type { BrandAssetConfig } from "@/types/brand";
 import type {
   BlogPost,
@@ -20,25 +25,75 @@ import type {
   TestimonialItem,
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
+import { normalizeStoredThemeConfig } from "@/features/themes/presets";
+import {
+  DatabaseUnavailableError,
+  isNextBuildPhase,
+  isPlaceholderEnvValue,
+  isProductionEnvironment,
+  isServerlessRuntime,
+  type DatabaseFailureCode,
+} from "@/lib/env";
 import {
   CURRENT_SEED_VERSION,
+  buildBootstrapSuperAdmin,
   createInitialSeedSnapshot,
   type OmniFlowDatabaseSnapshot,
+  type StoredDatabaseBackup,
 } from "./seed-data";
 
-export type DatabaseDriverMode = "supabase_postgres" | "local_file_fallback";
+export type DatabaseDriverMode =
+  | "supabase_postgres"
+  | "local_file_fallback"
+  | "unconfigured_production";
 
-function isServerlessRuntime(): boolean {
-  return Boolean(
-    process.env.VERCEL ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.cwd().startsWith("/var/task")
-  );
+export interface DatabaseErrorEvent {
+  timestamp: string;
+  code: DatabaseFailureCode;
+  message: string;
 }
 
-function isNextProductionBuildPhase(): boolean {
-  return process.env.NEXT_PHASE === "phase-production-build";
+export interface DatabaseHealthVerification {
+  driver: DatabaseDriverMode;
+  connected: boolean;
+  schemaReady: boolean;
+  appliedMigrations: string[];
+  missingTables: string[];
+  missingColumns: string[];
+  latencyMs: number;
+  backupCount: number;
+  lastBackupAt: string | null;
+  recentErrorCount: number;
+  errorCode?: DatabaseFailureCode;
+  message: string;
 }
+
+const REQUIRED_POSTGRES_TABLES = [
+  "users",
+  "audit_logs",
+  "kv_configs",
+  "pages",
+  "services",
+  "case_studies",
+  "blog_posts",
+  "faqs",
+  "testimonials",
+  "team_members",
+  "media_assets",
+  "leads",
+  "redirects",
+  "schema_migrations",
+  "rate_limits",
+  "database_backups",
+] as const;
+
+const REQUIRED_USER_COLUMNS = [
+  "must_change_password",
+  "session_version",
+  "password_changed_at",
+  "recovery_token_hash",
+  "recovery_expires_at",
+] as const;
 
 function getLocalDbFilePath(): string {
   if (process.env.OMNIFLOW_LOCAL_DB_PATH) {
@@ -51,12 +106,26 @@ function getLocalDbFilePath(): string {
 }
 
 let inMemoryFallbackSnapshot: OmniFlowDatabaseSnapshot | null = null;
+let inMemorySnapshotPath = "";
 let cachedSqlClient: ReturnType<typeof postgres> | null = null;
 let cachedSqlUrl = "";
 let postgresFallbackUntil = 0;
 let loggedFallbackNoticeForUrl = "";
 let postgresBootstrapChecked = false;
+let postgresBaselineSeeded = false;
 const inFlightReads = new Map<string, Promise<unknown>>();
+const recentDbErrors: DatabaseErrorEvent[] = [];
+
+function recordSanitizedDbError(code: DatabaseFailureCode, message: string): void {
+  recentDbErrors.unshift({
+    timestamp: new Date().toISOString(),
+    code,
+    message,
+  });
+  if (recentDbErrors.length > 25) {
+    recentDbErrors.length = 25;
+  }
+}
 
 function dedupeInFlight<T>(key: string, factory: () => Promise<T>): Promise<T> {
   const existing = inFlightReads.get(key) as Promise<T> | undefined;
@@ -69,13 +138,7 @@ function dedupeInFlight<T>(key: string, factory: () => Promise<T>): Promise<T> {
 }
 
 function isPlaceholderDatabaseUrl(url: string): boolean {
-  return (
-    !url ||
-    url.includes("[ref]") ||
-    url.includes("[password]") ||
-    url.includes("YOUR_PASSWORD") ||
-    url.includes("<password>")
-  );
+  return isPlaceholderEnvValue(url) || !/^postgres(ql)?:\/\//i.test(url.trim());
 }
 
 /**
@@ -104,14 +167,19 @@ export function normalizeDatabaseUrlForRuntime(
 }
 
 function getPostgresClient(): ReturnType<typeof postgres> | null {
-  // Never open live external Postgres sockets during `next build` static compilation/export
-  if (isNextProductionBuildPhase()) return null;
+  // Never open live external Postgres sockets during `next build` compilation
+  if (isNextBuildPhase()) return null;
 
   const rawUrl = process.env.DATABASE_URL?.trim() || "";
   if (isPlaceholderDatabaseUrl(rawUrl)) return null;
   const url = normalizeDatabaseUrlForRuntime(rawUrl);
 
-  if (Date.now() < postgresFallbackUntil && cachedSqlUrl === url) {
+  // Only suppress retries in non-production dev mode; production always surfaces accurate status
+  if (
+    !isProductionEnvironment() &&
+    Date.now() < postgresFallbackUntil &&
+    cachedSqlUrl === url
+  ) {
     return null;
   }
 
@@ -121,15 +189,16 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
     }
     cachedSqlUrl = url;
     postgresBootstrapChecked = false;
+    postgresBaselineSeeded = false;
     const isSupabaseHost =
       url.includes(".supabase.co") || url.includes(".supabase.com");
     const serverless = isServerlessRuntime();
 
     cachedSqlClient = postgres(url, {
-      max: serverless ? 1 : 3,
+      max: serverless ? 2 : 4,
       idle_timeout: serverless ? 5 : 15,
       max_lifetime: 60 * 5,
-      connect_timeout: 4,
+      connect_timeout: 5,
       prepare: false, // Required for Supabase PgBouncer Transaction Pooler (:6543)
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
@@ -137,57 +206,73 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
   return cachedSqlClient;
 }
 
-function isConnectivityOrSchemaError(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const code = String((err as { code?: unknown }).code || "");
-  const message = String((err as { message?: unknown }).message || "");
+function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
+  if (err instanceof DatabaseUnavailableError) return err;
 
-  // Network / DNS / Socket / Timeout / Pooler saturation / Unmigrated schema / Auth codes
-  const fallbackCodes = new Set([
-    "ENOTFOUND",
-    "EAI_AGAIN",
-    "ECONNREFUSED",
-    "ECONNRESET",
-    "ETIMEDOUT",
-    "ENETUNREACH",
-    "EHOSTUNREACH",
-    "CONNECT_TIMEOUT",
-    "CONNECTION_CLOSED",
-    "CONNECTION_DESTROYED",
-    "EMAXCONNSESSION",
-    "53300", // too_many_connections
-    "42P01", // undefined_table (migration not applied yet)
-    "28P01", // invalid_password
-    "3D000", // invalid_catalog_name
-    "08000",
-    "08001",
-    "08003",
-    "08006",
-    "XX000", // Supabase Pooler / Tenant error
-  ]);
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code?: unknown }).code || "")
+      : "";
+  const message =
+    err && typeof err === "object" && "message" in err
+      ? String((err as { message?: unknown }).message || "")
+      : "Database error";
 
-  if (fallbackCodes.has(code)) return true;
-  if (
-    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|CONNECT_TIMEOUT|EMAXCONNSESSION|max clients reached|too many connections|Tenant or user not found/i.test(
-      message
-    )
-  ) {
-    return true;
+  if (code === "28P01" || code === "28000" || /password authentication failed|Tenant or user not found/i.test(message)) {
+    return new DatabaseUnavailableError(
+      "DB_AUTH_FAILED",
+      "Database authentication failed. Verify DATABASE_URL credentials in your deployment configuration."
+    );
   }
-  return false;
+
+  if (code === "42P01" || code === "42703" || code === "3D000") {
+    return new DatabaseUnavailableError(
+      "DB_SCHEMA_MISSING",
+      "Database schema is missing required tables or columns. Run 0001_omniflow_schema.sql and 0002_production_upgrade.sql in Supabase SQL Editor."
+    );
+  }
+
+  if (code === "EMAXCONNSESSION" || code === "53300" || /max clients reached|too many connections/i.test(message)) {
+    return new DatabaseUnavailableError(
+      "DB_POOL_SATURATED",
+      "Database connection pool limit reached. Configure Supabase Transaction Pooler (:6543) for serverless traffic."
+    );
+  }
+
+  if (
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    code === "ECONNREFUSED" ||
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENETUNREACH" ||
+    code === "EHOSTUNREACH" ||
+    code === "CONNECT_TIMEOUT" ||
+    code === "CONNECTION_CLOSED" ||
+    code === "CONNECTION_DESTROYED" ||
+    code.startsWith("08") ||
+    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT/i.test(message)
+  ) {
+    return new DatabaseUnavailableError(
+      "DB_CONNECTION_FAILED",
+      "Database service is currently unreachable. Verify network connectivity and Supabase Pooler configuration."
+    );
+  }
+
+  return new DatabaseUnavailableError(
+    "DB_QUERY_FAILED",
+    "A database operation failed unexpectedly."
+  );
 }
 
-function tripPostgresCircuitBreaker(err: unknown): void {
-  const url = cachedSqlUrl || process.env.DATABASE_URL?.trim() || "";
-  const msg =
-    err && typeof err === "object" && "message" in err
-      ? String((err as { message?: unknown }).message)
-      : "Unreachable database host";
+function isConnectivityOrSchemaError(err: unknown): boolean {
+  const classified = classifyDatabaseError(err);
+  return classified.code !== "DB_QUERY_FAILED";
+}
 
-  const isTransientPoolCap = /EMAXCONNSESSION|max clients reached|53300/i.test(
-    msg
-  );
-  postgresFallbackUntil = Date.now() + (isTransientPoolCap ? 10_000 : 60_000);
+function tripDevCircuitBreaker(err: unknown): void {
+  const url = cachedSqlUrl || process.env.DATABASE_URL?.trim() || "";
+  postgresFallbackUntil = Date.now() + 60_000;
 
   if (cachedSqlClient) {
     const staleClient = cachedSqlClient;
@@ -197,19 +282,14 @@ function tripPostgresCircuitBreaker(err: unknown): void {
 
   if (loggedFallbackNoticeForUrl !== url) {
     loggedFallbackNoticeForUrl = url;
+    const classified = classifyDatabaseError(err);
     console.warn(
-      `[OmniFlow DB] PostgreSQL unavailable (${msg}) — automatically switched to resilient fallback store.`
+      `[OmniFlow Dev DB] PostgreSQL unavailable (${classified.code}) — switched to local development JSON store (data/omniflow-db.json).`
     );
-
-    if (/db\.[a-z0-9-]+\.supabase\.co/i.test(url)) {
-      console.warn(
-        "[OmniFlow DB] Tip: Supabase Direct hostnames (db.<project-ref>.supabase.co) use IPv6-only DNS. Use the Supabase Pooler URI from Supabase Dashboard -> Connect -> Pooler instead."
-      );
-    }
   }
 }
 
-function withHardDbTimeout<T>(promise: Promise<T>, timeoutMs = 5_000): Promise<T> {
+function withHardDbTimeout<T>(promise: Promise<T>, timeoutMs = 6_000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       const timeoutErr = Object.assign(
@@ -235,25 +315,199 @@ function withHardDbTimeout<T>(promise: Promise<T>, timeoutMs = 5_000): Promise<T
   });
 }
 
+/**
+ * Seeds baseline CMS records into an empty PostgreSQL database once via an atomic transaction.
+ * Uses ON CONFLICT DO NOTHING so existing production content, users, and leads are NEVER overwritten.
+ */
+async function ensurePostgresBaselineSeed(
+  sql: ReturnType<typeof postgres>
+): Promise<void> {
+  if (postgresBaselineSeeded) return;
+
+  const existingKv = await sql<{ cnt: number }[]>`
+    SELECT count(*)::int AS cnt FROM kv_configs WHERE key = 'site_settings'
+  `;
+  if ((existingKv[0]?.cnt ?? 0) > 0) {
+    postgresBaselineSeeded = true;
+    return;
+  }
+
+  const initial = createInitialSeedSnapshot();
+  await sql.begin(async (txRaw) => {
+    const tx = txRaw as unknown as ReturnType<typeof postgres>;
+    await tx`
+      INSERT INTO kv_configs (key, payload, updated_at)
+      VALUES
+        ('site_settings', ${tx.json(initial.siteSettings as unknown as postgres.JSONValue)}, NOW()),
+        ('theme_config', ${tx.json(initial.themeConfig as unknown as postgres.JSONValue)}, NOW()),
+        ('brand_assets', ${tx.json(initial.brandAssets as unknown as postgres.JSONValue)}, NOW()),
+        ('service_pillars', ${tx.json(initial.servicePillars as unknown as postgres.JSONValue)}, NOW())
+      ON CONFLICT (key) DO NOTHING
+    `;
+
+    for (const page of initial.pages) {
+      await tx`
+        INSERT INTO pages (id, slug, title, status, payload, updated_at)
+        VALUES (
+          ${page.id},
+          ${page.slug},
+          ${page.title},
+          ${page.status},
+          ${tx.json(page as unknown as postgres.JSONValue)},
+          ${page.updatedAt}
+        )
+        ON CONFLICT (slug) DO NOTHING
+      `;
+    }
+
+    for (const svc of initial.services) {
+      await tx`
+        INSERT INTO services (id, slug, title, category_slug, is_flagship_priority, status, sort_order, payload, updated_at)
+        VALUES (
+          ${svc.id},
+          ${svc.slug},
+          ${svc.title},
+          ${svc.categorySlug},
+          ${svc.isFlagshipPriority},
+          ${svc.status},
+          ${svc.order},
+          ${tx.json(svc as unknown as postgres.JSONValue)},
+          ${svc.updatedAt}
+        )
+        ON CONFLICT (slug) DO NOTHING
+      `;
+    }
+
+    for (const cs of initial.caseStudies) {
+      await tx`
+        INSERT INTO case_studies (id, slug, title, work_type, status, payload, updated_at)
+        VALUES (
+          ${cs.id},
+          ${cs.slug},
+          ${cs.title},
+          ${cs.workType},
+          ${cs.status},
+          ${tx.json(cs as unknown as postgres.JSONValue)},
+          ${cs.updatedAt}
+        )
+        ON CONFLICT (slug) DO NOTHING
+      `;
+    }
+
+    for (const post of initial.blogPosts) {
+      await tx`
+        INSERT INTO blog_posts (id, slug, title, category, author_id, status, published_at, payload, updated_at)
+        VALUES (
+          ${post.id},
+          ${post.slug},
+          ${post.title},
+          ${post.category},
+          ${post.authorId},
+          ${post.status},
+          ${post.publishedAt ?? null},
+          ${tx.json(post as unknown as postgres.JSONValue)},
+          ${post.updatedAt}
+        )
+        ON CONFLICT (slug) DO NOTHING
+      `;
+    }
+
+    for (const faq of initial.faqs) {
+      await tx`
+        INSERT INTO faqs (id, category, sort_order, is_published, question, answer)
+        VALUES (
+          ${faq.id},
+          ${faq.category},
+          ${faq.order},
+          ${faq.isPublished},
+          ${faq.question},
+          ${faq.answer}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
+
+    for (const member of initial.teamMembers) {
+      await tx`
+        INSERT INTO team_members (id, is_founder, sort_order, is_published, payload)
+        VALUES (
+          ${member.id},
+          ${member.isFounder},
+          ${member.order},
+          ${member.isPublished},
+          ${tx.json(member as unknown as postgres.JSONValue)}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
+  });
+
+  postgresBaselineSeeded = true;
+}
+
 async function runWithDbFallback<T>(
   pgOp: (sql: ReturnType<typeof postgres>) => Promise<T | undefined>,
   localOp: () => T | Promise<T>
 ): Promise<T> {
+  const strictProd = isProductionEnvironment();
+  const rawUrl = process.env.DATABASE_URL?.trim() || "";
+
+  if (strictProd && isPlaceholderDatabaseUrl(rawUrl)) {
+    const err = new DatabaseUnavailableError(
+      "DB_MISSING_URL",
+      "DATABASE_URL is missing or invalid. Production requires a configured PostgreSQL database."
+    );
+    recordSanitizedDbError(err.code, err.publicMessage);
+    throw err;
+  }
+
   const sql = getPostgresClient();
   if (sql) {
     try {
-      const result = await withHardDbTimeout(pgOp(sql), 5_000);
+      const result = await withHardDbTimeout(
+        (async () => {
+          await ensurePostgresBaselineSeed(sql);
+          return pgOp(sql);
+        })(),
+        6_000
+      );
       if (result !== undefined) {
         return result;
       }
+      if (strictProd) {
+        const emptyErr = new DatabaseUnavailableError(
+          "DB_SCHEMA_MISSING",
+          "Required configuration record was not found in PostgreSQL."
+        );
+        recordSanitizedDbError(emptyErr.code, emptyErr.publicMessage);
+        throw emptyErr;
+      }
     } catch (err) {
+      const classified = classifyDatabaseError(err);
+      recordSanitizedDbError(classified.code, classified.publicMessage);
+
+      // Production NEVER silently falls back to local JSON or /tmp storage
+      if (strictProd) {
+        if (err instanceof DatabaseUnavailableError) throw err;
+        if (isConnectivityOrSchemaError(err)) throw classified;
+        throw err;
+      }
+
       if (isConnectivityOrSchemaError(err)) {
-        tripPostgresCircuitBreaker(err);
+        tripDevCircuitBreaker(err);
       } else {
         throw err;
       }
     }
+  } else if (strictProd) {
+    const err = new DatabaseUnavailableError(
+      "DB_CONNECTION_FAILED",
+      "PostgreSQL client could not be initialized in production."
+    );
+    recordSanitizedDbError(err.code, err.publicMessage);
+    throw err;
   }
+
   return await localOp();
 }
 
@@ -265,10 +519,14 @@ async function ensurePostgresBootstrapAdmin(
     SELECT count(*)::int AS cnt FROM users
   `;
   if ((countRows[0]?.cnt ?? 0) === 0) {
-    const seedAdmin = createInitialSeedSnapshot().users[0];
+    const seedAdmin = buildBootstrapSuperAdmin();
     if (seedAdmin) {
       await sql`
-        INSERT INTO users (id, email, name, role, password_hash, is_active, created_at, updated_at, last_login_at)
+        INSERT INTO users (
+          id, email, name, role, password_hash, is_active,
+          must_change_password, session_version, password_changed_at,
+          created_at, updated_at, last_login_at
+        )
         VALUES (
           ${seedAdmin.id},
           ${seedAdmin.email},
@@ -276,6 +534,9 @@ async function ensurePostgresBootstrapAdmin(
           ${seedAdmin.role},
           ${seedAdmin.passwordHash},
           ${seedAdmin.isActive},
+          ${Boolean(seedAdmin.mustChangePassword)},
+          ${seedAdmin.sessionVersion ?? 1},
+          ${seedAdmin.passwordChangedAt ?? null},
           ${seedAdmin.createdAt},
           ${seedAdmin.updatedAt},
           ${seedAdmin.lastLoginAt ?? null}
@@ -288,11 +549,19 @@ async function ensurePostgresBootstrapAdmin(
 }
 
 export function getActiveDatabaseMode(): DatabaseDriverMode {
-  if (isNextProductionBuildPhase()) return "local_file_fallback";
+  if (isNextBuildPhase()) return "local_file_fallback";
   const rawUrl = process.env.DATABASE_URL?.trim() || "";
-  if (isPlaceholderDatabaseUrl(rawUrl)) return "local_file_fallback";
+  if (isPlaceholderDatabaseUrl(rawUrl)) {
+    return isProductionEnvironment()
+      ? "unconfigured_production"
+      : "local_file_fallback";
+  }
   const url = normalizeDatabaseUrlForRuntime(rawUrl);
-  if (Date.now() < postgresFallbackUntil && cachedSqlUrl === url) {
+  if (
+    !isProductionEnvironment() &&
+    Date.now() < postgresFallbackUntil &&
+    cachedSqlUrl === url
+  ) {
     return "local_file_fallback";
   }
   return "supabase_postgres";
@@ -352,18 +621,15 @@ function upgradeSnapshotIfNeeded(
         }
       : snap.siteSettings;
 
-  const shouldUpgradeDefaultTheme =
-    !snap.themeConfig ||
-    (snap.themeConfig.activePresetId === "omniflow-signature" &&
-      !snap.themeConfig.previousPublished);
+  const normalizedTheme = normalizeStoredThemeConfig(snap.themeConfig);
 
   const upgraded: OmniFlowDatabaseSnapshot = {
     ...snap,
     schemaVersion: CURRENT_SEED_VERSION,
     siteSettings: nextSettings,
-    themeConfig: shouldUpgradeDefaultTheme
+    themeConfig: normalizedTheme.upgraded
       ? fresh.themeConfig
-      : snap.themeConfig,
+      : normalizedTheme.config,
     servicePillars: mergeByKey(
       snap.servicePillars || [],
       fresh.servicePillars,
@@ -381,7 +647,27 @@ function upgradeSnapshotIfNeeded(
       (b) => b.slug
     ),
     faqs: mergeByKey(snap.faqs || [], fresh.faqs, (f) => f.id),
-    pages: mergeByKey(snap.pages || [], fresh.pages, (p) => p.slug),
+    pages: mergeByKey(snap.pages || [], fresh.pages, (p) => p.slug).map((page) => {
+      if (page.slug !== "home") return page;
+      const freshHome = fresh.pages.find((p) => p.slug === "home");
+      if (!freshHome) return page;
+      const mergeHomeSections = (existing: typeof page.sections) => {
+        const byType = new Map(existing.map((s) => [s.type, s]));
+        const canonical = freshHome.sections.map((freshSec, idx) => {
+          const prev = byType.get(freshSec.type);
+          return prev ? { ...prev, order: idx + 1 } : { ...freshSec, order: idx + 1 };
+        });
+        const customExtras = existing
+          .filter((s) => !freshHome.sections.some((fs) => fs.type === s.type) || s.type === "rich_text")
+          .map((s, idx) => ({ ...s, order: canonical.length + idx + 1 }));
+        return [...canonical, ...customExtras];
+      };
+      return {
+        ...page,
+        sections: mergeHomeSections(page.sections || []),
+        draftSections: mergeHomeSections(page.draftSections || page.sections || []),
+      };
+    }),
   };
 
   writeLocalSnapshot(upgraded);
@@ -391,7 +677,7 @@ function upgradeSnapshotIfNeeded(
 function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
   const filePath = getLocalDbFilePath();
   if (!fs.existsSync(filePath)) {
-    if (inMemoryFallbackSnapshot) {
+    if (inMemoryFallbackSnapshot && inMemorySnapshotPath === filePath) {
       return inMemoryFallbackSnapshot;
     }
     const initial = createInitialSeedSnapshot();
@@ -403,9 +689,10 @@ function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
     const parsed = JSON.parse(raw) as OmniFlowDatabaseSnapshot;
     const ready = upgradeSnapshotIfNeeded(parsed);
     inMemoryFallbackSnapshot = ready;
+    inMemorySnapshotPath = filePath;
     return ready;
   } catch {
-    if (inMemoryFallbackSnapshot) {
+    if (inMemoryFallbackSnapshot && inMemorySnapshotPath === filePath) {
       return inMemoryFallbackSnapshot;
     }
     const fallback = createInitialSeedSnapshot();
@@ -415,16 +702,17 @@ function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
 }
 
 function writeLocalSnapshot(snapshot: OmniFlowDatabaseSnapshot): void {
+  const filePath = getLocalDbFilePath();
   inMemoryFallbackSnapshot = snapshot;
+  inMemorySnapshotPath = filePath;
   try {
-    const filePath = getLocalDbFilePath();
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });
     const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf8");
     fs.renameSync(tempPath, filePath);
   } catch {
-    // On strictly read-only serverless containers, inMemoryFallbackSnapshot serves requests cleanly without ENOENT/EROFS crashes
+    // Dev/build fallback only; strict production never reaches writeLocalSnapshot
   }
 }
 
@@ -435,6 +723,9 @@ export function toSafeUser(user: UserRecord): SafeUser {
     name: user.name,
     role: user.role,
     isActive: user.isActive,
+    mustChangePassword: Boolean(user.mustChangePassword),
+    sessionVersion: user.sessionVersion ?? 1,
+    passwordChangedAt: user.passwordChangedAt ?? null,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt ?? null,
   };
@@ -486,7 +777,16 @@ export const db = {
           const rows = await sql<{ payload: ThemeConfiguration }[]>`
             SELECT payload FROM kv_configs WHERE key = 'theme_config' LIMIT 1
           `;
-          return rows[0]?.payload;
+          if (!rows[0]?.payload) return undefined;
+          const { config, upgraded } = normalizeStoredThemeConfig(rows[0].payload);
+          if (upgraded) {
+            await sql`
+              INSERT INTO kv_configs (key, payload, updated_at)
+              VALUES ('theme_config', ${sql.json(config as unknown as postgres.JSONValue)}, NOW())
+              ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+            `.catch(() => undefined);
+          }
+          return config;
         },
         () => readLocalSnapshot().themeConfig
       )
@@ -571,7 +871,7 @@ export const db = {
           : await sql<{ payload: ServiceItem }[]>`
               SELECT payload FROM services ORDER BY sort_order ASC
             `;
-        return rows.length > 0 ? rows.map((r) => r.payload) : undefined;
+        return rows.map((r) => r.payload);
       },
       () => {
         const all = readLocalSnapshot().services;
@@ -657,7 +957,7 @@ export const db = {
           : await sql<{ payload: CaseStudyItem }[]>`
               SELECT payload FROM case_studies ORDER BY updated_at DESC
             `;
-        return rows.length > 0 ? rows.map((r) => r.payload) : undefined;
+        return rows.map((r) => r.payload);
       },
       () => {
         const all = readLocalSnapshot().caseStudies;
@@ -742,7 +1042,7 @@ export const db = {
           : await sql<{ payload: BlogPost }[]>`
               SELECT payload FROM blog_posts ORDER BY updated_at DESC
             `;
-        return rows.length > 0 ? rows.map((r) => r.payload) : undefined;
+        return rows.map((r) => r.payload);
       },
       () => {
         const all = readLocalSnapshot().blogPosts;
@@ -834,7 +1134,7 @@ export const db = {
               SELECT id, category, sort_order as "order", is_published as "isPublished", question, answer
               FROM faqs ORDER BY sort_order ASC
             `;
-        return rows.length > 0 ? rows : undefined;
+        return rows;
       },
       () => {
         const all = readLocalSnapshot().faqs;
@@ -970,7 +1270,7 @@ export const db = {
           : await sql<{ payload: TeamMember }[]>`
               SELECT payload FROM team_members ORDER BY sort_order ASC
             `;
-        return rows.length > 0 ? rows.map((r) => r.payload) : undefined;
+        return rows.map((r) => r.payload);
       },
       () => {
         const all = readLocalSnapshot().teamMembers;
@@ -1035,7 +1335,7 @@ export const db = {
         const rows = await sql<{ payload: PageDocument }[]>`
           SELECT payload FROM pages ORDER BY slug ASC
         `;
-        return rows.length > 0 ? rows.map((r) => r.payload) : undefined;
+        return rows.map((r) => r.payload);
       },
       () => readLocalSnapshot().pages
     );
@@ -1047,7 +1347,7 @@ export const db = {
         const rows = await sql<{ payload: PageDocument }[]>`
           SELECT payload FROM pages WHERE slug = ${slug} LIMIT 1
         `;
-        return rows[0]?.payload;
+        return rows[0]?.payload ?? null;
       },
       () => readLocalSnapshot().pages.find((p) => p.slug === slug) ?? null
     );
@@ -1089,6 +1389,19 @@ export const db = {
     );
   },
 
+  async countUsers(): Promise<number> {
+    return runWithDbFallback(
+      async (sql) => {
+        await ensurePostgresBootstrapAdmin(sql);
+        const rows = await sql<{ cnt: number }[]>`
+          SELECT count(*)::int AS cnt FROM users
+        `;
+        return rows[0]?.cnt ?? 0;
+      },
+      () => readLocalSnapshot().users.length
+    );
+  },
+
   async findUserById(id: string): Promise<UserRecord | null> {
     return runWithDbFallback(
       async (sql) => {
@@ -1101,6 +1414,11 @@ export const db = {
             role: UserRecord["role"];
             password_hash: string;
             is_active: boolean;
+            must_change_password?: boolean;
+            session_version?: number;
+            password_changed_at?: string | null;
+            recovery_token_hash?: string | null;
+            recovery_expires_at?: string | null;
             created_at: string;
             updated_at: string;
             last_login_at: string | null;
@@ -1115,6 +1433,11 @@ export const db = {
           role: r.role,
           passwordHash: r.password_hash,
           isActive: r.is_active,
+          mustChangePassword: Boolean(r.must_change_password),
+          sessionVersion: r.session_version ?? 1,
+          passwordChangedAt: r.password_changed_at ?? null,
+          recoveryTokenHash: r.recovery_token_hash ?? null,
+          recoveryExpiresAt: r.recovery_expires_at ?? null,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
           lastLoginAt: r.last_login_at,
@@ -1137,6 +1460,11 @@ export const db = {
             role: UserRecord["role"];
             password_hash: string;
             is_active: boolean;
+            must_change_password?: boolean;
+            session_version?: number;
+            password_changed_at?: string | null;
+            recovery_token_hash?: string | null;
+            recovery_expires_at?: string | null;
             created_at: string;
             updated_at: string;
             last_login_at: string | null;
@@ -1151,6 +1479,11 @@ export const db = {
           role: r.role,
           passwordHash: r.password_hash,
           isActive: r.is_active,
+          mustChangePassword: Boolean(r.must_change_password),
+          sessionVersion: r.session_version ?? 1,
+          passwordChangedAt: r.password_changed_at ?? null,
+          recoveryTokenHash: r.recovery_token_hash ?? null,
+          recoveryExpiresAt: r.recovery_expires_at ?? null,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
           lastLoginAt: r.last_login_at,
@@ -1159,6 +1492,54 @@ export const db = {
       () =>
         readLocalSnapshot().users.find(
           (u) => u.email.toLowerCase() === normalized
+        ) ?? null
+    );
+  },
+
+  async findUserByRecoveryTokenHash(tokenHash: string): Promise<UserRecord | null> {
+    if (!tokenHash) return null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<
+          {
+            id: string;
+            email: string;
+            name: string;
+            role: UserRecord["role"];
+            password_hash: string;
+            is_active: boolean;
+            must_change_password?: boolean;
+            session_version?: number;
+            password_changed_at?: string | null;
+            recovery_token_hash?: string | null;
+            recovery_expires_at?: string | null;
+            created_at: string;
+            updated_at: string;
+            last_login_at: string | null;
+          }[]
+        >`SELECT * FROM users WHERE recovery_token_hash = ${tokenHash} LIMIT 1`;
+        if (!rows[0]) return null;
+        const r = rows[0];
+        return {
+          id: r.id,
+          email: r.email,
+          name: r.name,
+          role: r.role,
+          passwordHash: r.password_hash,
+          isActive: r.is_active,
+          mustChangePassword: Boolean(r.must_change_password),
+          sessionVersion: r.session_version ?? 1,
+          passwordChangedAt: r.password_changed_at ?? null,
+          recoveryTokenHash: r.recovery_token_hash ?? null,
+          recoveryExpiresAt: r.recovery_expires_at ?? null,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          lastLoginAt: r.last_login_at,
+        };
+      },
+      () =>
+        readLocalSnapshot().users.find(
+          (u) => u.recoveryTokenHash === tokenHash
         ) ?? null
     );
   },
@@ -1174,16 +1555,22 @@ export const db = {
             name: string;
             role: UserRecord["role"];
             is_active: boolean;
+            must_change_password?: boolean;
+            session_version?: number;
+            password_changed_at?: string | null;
             created_at: string;
             last_login_at: string | null;
           }[]
-        >`SELECT id, email, name, role, is_active, created_at, last_login_at FROM users ORDER BY created_at ASC`;
+        >`SELECT id, email, name, role, is_active, must_change_password, session_version, password_changed_at, created_at, last_login_at FROM users ORDER BY created_at ASC`;
         return rows.map((r) => ({
           id: r.id,
           email: r.email,
           name: r.name,
           role: r.role,
           isActive: r.is_active,
+          mustChangePassword: Boolean(r.must_change_password),
+          sessionVersion: r.session_version ?? 1,
+          passwordChangedAt: r.password_changed_at ?? null,
           createdAt: r.created_at,
           lastLoginAt: r.last_login_at,
         }));
@@ -1219,6 +1606,7 @@ export const db = {
     name: string;
     role: UserRecord["role"];
     passwordHash: string;
+    mustChangePassword?: boolean;
   }): Promise<SafeUser> {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await this.findUserByEmail(normalizedEmail);
@@ -1233,6 +1621,11 @@ export const db = {
       role: input.role,
       passwordHash: input.passwordHash,
       isActive: true,
+      mustChangePassword: Boolean(input.mustChangePassword),
+      sessionVersion: 1,
+      passwordChangedAt: input.mustChangePassword ? null : now,
+      recoveryTokenHash: null,
+      recoveryExpiresAt: null,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: null,
@@ -1241,7 +1634,12 @@ export const db = {
     return runWithDbFallback(
       async (sql) => {
         await sql`
-          INSERT INTO users (id, email, name, role, password_hash, is_active, created_at, updated_at, last_login_at)
+          INSERT INTO users (
+            id, email, name, role, password_hash, is_active,
+            must_change_password, session_version, password_changed_at,
+            recovery_token_hash, recovery_expires_at,
+            created_at, updated_at, last_login_at
+          )
           VALUES (
             ${created.id},
             ${created.email},
@@ -1249,6 +1647,11 @@ export const db = {
             ${created.role},
             ${created.passwordHash},
             ${created.isActive},
+            ${Boolean(created.mustChangePassword)},
+            ${created.sessionVersion ?? 1},
+            ${created.passwordChangedAt ?? null},
+            ${null},
+            ${null},
             ${created.createdAt},
             ${created.updatedAt},
             ${created.lastLoginAt ?? null}
@@ -1272,10 +1675,21 @@ export const db = {
       role?: UserRecord["role"];
       isActive?: boolean;
       passwordHash?: string;
+      mustChangePassword?: boolean;
+      bumpSessionVersion?: boolean;
+      recoveryTokenHash?: string | null;
+      recoveryExpiresAt?: string | null;
     }
   ): Promise<SafeUser | null> {
     const current = await this.findUserById(id);
     if (!current) return null;
+
+    const now = new Date().toISOString();
+    const shouldBumpSession =
+      Boolean(patch.bumpSessionVersion) ||
+      Boolean(patch.passwordHash) ||
+      patch.isActive === false ||
+      (patch.role !== undefined && patch.role !== current.role);
 
     const updated: UserRecord = {
       ...current,
@@ -1287,7 +1701,27 @@ export const db = {
         patch.passwordHash !== undefined
           ? patch.passwordHash
           : current.passwordHash,
-      updatedAt: new Date().toISOString(),
+      mustChangePassword:
+        patch.mustChangePassword !== undefined
+          ? patch.mustChangePassword
+          : patch.passwordHash !== undefined
+            ? false
+            : Boolean(current.mustChangePassword),
+      sessionVersion:
+        (current.sessionVersion ?? 1) + (shouldBumpSession ? 1 : 0),
+      passwordChangedAt:
+        patch.passwordHash !== undefined
+          ? now
+          : (current.passwordChangedAt ?? null),
+      recoveryTokenHash:
+        patch.recoveryTokenHash !== undefined
+          ? patch.recoveryTokenHash
+          : (current.recoveryTokenHash ?? null),
+      recoveryExpiresAt:
+        patch.recoveryExpiresAt !== undefined
+          ? patch.recoveryExpiresAt
+          : (current.recoveryExpiresAt ?? null),
+      updatedAt: now,
     };
 
     return runWithDbFallback(
@@ -1299,6 +1733,11 @@ export const db = {
             role = ${updated.role},
             is_active = ${updated.isActive},
             password_hash = ${updated.passwordHash},
+            must_change_password = ${Boolean(updated.mustChangePassword)},
+            session_version = ${updated.sessionVersion ?? 1},
+            password_changed_at = ${updated.passwordChangedAt ?? null},
+            recovery_token_hash = ${updated.recoveryTokenHash ?? null},
+            recovery_expires_at = ${updated.recoveryExpiresAt ?? null},
             updated_at = ${updated.updatedAt}
           WHERE id = ${id}
         `;
@@ -1313,6 +1752,11 @@ export const db = {
         return toSafeUser(updated);
       }
     );
+  },
+
+  async revokeUserSessions(userId: string): Promise<number | null> {
+    const updated = await this.updateUser(userId, { bumpSessionVersion: true });
+    return updated ? updated.sessionVersion : null;
   },
 
   async listLeads(): Promise<LeadRecord[]> {
@@ -1503,11 +1947,15 @@ export const db = {
       () => readLocalSnapshot().mediaAssets
     );
 
-    const [brand, posts, members] = await Promise.all([
-      this.getBrandAssets(),
-      this.listBlogPosts(false),
-      this.listTeamMembers(false),
-    ]);
+    const [brand, posts, members, pages, services, caseStudies] =
+      await Promise.all([
+        this.getBrandAssets(),
+        this.listBlogPosts(false),
+        this.listTeamMembers(false),
+        this.listPages(),
+        this.listServices(false),
+        this.listCaseStudies(false),
+      ]);
 
     return assets.map((asset) => {
       const usedIn: string[] = [];
@@ -1528,6 +1976,21 @@ export const db = {
       for (const m of members) {
         if (m.avatarUrl === asset.url) {
           usedIn.push(`Team: ${m.name}`);
+        }
+      }
+      for (const pg of pages) {
+        if (JSON.stringify(pg).includes(asset.url)) {
+          usedIn.push(`Page: /${pg.slug === "home" ? "" : pg.slug}`);
+        }
+      }
+      for (const s of services) {
+        if (JSON.stringify(s).includes(asset.url)) {
+          usedIn.push(`Service: ${s.slug}`);
+        }
+      }
+      for (const cs of caseStudies) {
+        if (JSON.stringify(cs).includes(asset.url)) {
+          usedIn.push(`Case Study: ${cs.slug}`);
         }
       }
       return { ...asset, usedIn };
@@ -1780,5 +2243,658 @@ export const db = {
       },
       () => readLocalSnapshot().auditLogs.slice(0, limit)
     );
+  },
+
+  getRecentErrors(): DatabaseErrorEvent[] {
+    return [...recentDbErrors];
+  },
+
+  async verifyHealth(): Promise<DatabaseHealthVerification> {
+    const startMs = Date.now();
+    const strictProd = isProductionEnvironment();
+    const rawUrl = process.env.DATABASE_URL?.trim() || "";
+
+    if (isPlaceholderDatabaseUrl(rawUrl)) {
+      if (strictProd) {
+        return {
+          driver: "unconfigured_production",
+          connected: false,
+          schemaReady: false,
+          appliedMigrations: [],
+          missingTables: [...REQUIRED_POSTGRES_TABLES],
+          missingColumns: [...REQUIRED_USER_COLUMNS],
+          latencyMs: Date.now() - startMs,
+          backupCount: 0,
+          lastBackupAt: null,
+          recentErrorCount: recentDbErrors.length,
+          errorCode: "DB_MISSING_URL",
+          message:
+            "DATABASE_URL is not configured. Production requires Supabase PostgreSQL.",
+        };
+      }
+
+      const snap = readLocalSnapshot();
+      const backups = snap.databaseBackups || [];
+      return {
+        driver: "local_file_fallback",
+        connected: true,
+        schemaReady: true,
+        appliedMigrations: [
+          "0001_omniflow_schema",
+          "0002_production_upgrade",
+        ],
+        missingTables: [],
+        missingColumns: [],
+        latencyMs: Date.now() - startMs,
+        backupCount: backups.length,
+        lastBackupAt: backups[0]?.createdAt ?? null,
+        recentErrorCount: recentDbErrors.length,
+        message: "Local development JSON store active.",
+      };
+    }
+
+    const sql = getPostgresClient();
+    if (!sql) {
+      return {
+        driver: strictProd ? "unconfigured_production" : "local_file_fallback",
+        connected: !strictProd,
+        schemaReady: !strictProd,
+        appliedMigrations: strictProd
+          ? []
+          : ["0001_omniflow_schema", "0002_production_upgrade"],
+        missingTables: strictProd ? [...REQUIRED_POSTGRES_TABLES] : [],
+        missingColumns: strictProd ? [...REQUIRED_USER_COLUMNS] : [],
+        latencyMs: Date.now() - startMs,
+        backupCount: 0,
+        lastBackupAt: null,
+        recentErrorCount: recentDbErrors.length,
+        errorCode: strictProd ? "DB_CONNECTION_FAILED" : undefined,
+        message: strictProd
+          ? "PostgreSQL client unavailable."
+          : "Local fallback active while PostgreSQL host is unreachable.",
+      };
+    }
+
+    try {
+      const verification = await withHardDbTimeout(
+        (async () => {
+          await sql`SELECT 1`;
+
+          const tableRows = await sql<{ table_name: string }[]>`
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+          `;
+          const presentTables = new Set(tableRows.map((r) => r.table_name));
+          const missingTables = REQUIRED_POSTGRES_TABLES.filter(
+            (t) => !presentTables.has(t)
+          );
+
+          const colRows = await sql<{ column_name: string }[]>`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'users'
+          `;
+          const presentCols = new Set(colRows.map((r) => r.column_name));
+          const missingColumns = REQUIRED_USER_COLUMNS.filter(
+            (c) => !presentCols.has(c)
+          );
+
+          let appliedMigrations: string[] = [];
+          if (presentTables.has("schema_migrations")) {
+            const migRows = await sql<{ version: string }[]>`
+              SELECT version FROM schema_migrations ORDER BY version ASC
+            `;
+            appliedMigrations = migRows.map((m) => m.version);
+          }
+
+          let backupCount = 0;
+          let lastBackupAt: string | null = null;
+          if (presentTables.has("database_backups")) {
+            const bRows = await sql<
+              { cnt: number; latest: string | null }[]
+            >`
+              SELECT count(*)::int AS cnt, max(created_at)::text AS latest FROM database_backups
+            `;
+            backupCount = bRows[0]?.cnt ?? 0;
+            lastBackupAt = bRows[0]?.latest ?? null;
+          }
+
+          const schemaReady =
+            missingTables.length === 0 && missingColumns.length === 0;
+
+          return {
+            driver: "supabase_postgres" as const,
+            connected: true,
+            schemaReady,
+            appliedMigrations,
+            missingTables,
+            missingColumns,
+            latencyMs: Date.now() - startMs,
+            backupCount,
+            lastBackupAt,
+            recentErrorCount: recentDbErrors.length,
+            errorCode: schemaReady
+              ? undefined
+              : ("DB_SCHEMA_MISSING" as DatabaseFailureCode),
+            message: schemaReady
+              ? "PostgreSQL connected and all schema migrations verified."
+              : `PostgreSQL connected, but schema migration is incomplete (${[
+                  ...missingTables,
+                  ...missingColumns.map((c) => `users.${c}`),
+                ].join(", ")}).`,
+          };
+        })(),
+        5_000
+      );
+
+      return verification;
+    } catch (err) {
+      const classified = classifyDatabaseError(err);
+      recordSanitizedDbError(classified.code, classified.publicMessage);
+      return {
+        driver: "supabase_postgres",
+        connected: false,
+        schemaReady: false,
+        appliedMigrations: [],
+        missingTables: [],
+        missingColumns: [],
+        latencyMs: Date.now() - startMs,
+        backupCount: 0,
+        lastBackupAt: null,
+        recentErrorCount: recentDbErrors.length,
+        errorCode: classified.code,
+        message: classified.publicMessage,
+      };
+    }
+  },
+
+  async exportSnapshot(options?: {
+    redactPasswordHashes?: boolean;
+  }): Promise<{
+    snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups">;
+    checksumSha256: string;
+    sizeBytes: number;
+  }> {
+    const [
+      siteSettings,
+      themeConfig,
+      brandAssets,
+      servicePillars,
+      services,
+      caseStudies,
+      blogPosts,
+      faqs,
+      testimonials,
+      teamMembers,
+      pages,
+      leads,
+      mediaAssets,
+      redirects,
+      auditLogs,
+    ] = await Promise.all([
+      this.getSiteSettings(),
+      this.getThemeConfig(),
+      this.getBrandAssets(),
+      this.getServicePillars(),
+      this.listServices(false),
+      this.listCaseStudies(false),
+      this.listBlogPosts(false),
+      this.listFaqs(false),
+      this.listTestimonials(false),
+      this.listTeamMembers(false),
+      this.listPages(),
+      this.listLeads(),
+      this.listMediaAssets(),
+      this.listRedirects(),
+      this.listAuditLogs(200),
+    ]);
+
+    const rawUsers = await runWithDbFallback<UserRecord[]>(
+      async (sql) => {
+        const rows = await sql<
+          {
+            id: string;
+            email: string;
+            name: string;
+            role: UserRecord["role"];
+            password_hash: string;
+            is_active: boolean;
+            must_change_password?: boolean;
+            session_version?: number;
+            password_changed_at?: string | null;
+            created_at: string;
+            updated_at: string;
+            last_login_at: string | null;
+          }[]
+        >`SELECT * FROM users ORDER BY created_at ASC`;
+        return rows.map((r) => ({
+          id: r.id,
+          email: r.email,
+          name: r.name,
+          role: r.role,
+          passwordHash: options?.redactPasswordHashes
+            ? "[REDACTED]"
+            : r.password_hash,
+          isActive: r.is_active,
+          mustChangePassword: Boolean(r.must_change_password),
+          sessionVersion: r.session_version ?? 1,
+          passwordChangedAt: r.password_changed_at ?? null,
+          recoveryTokenHash: null,
+          recoveryExpiresAt: null,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          lastLoginAt: r.last_login_at,
+        }));
+      },
+      () =>
+        readLocalSnapshot().users.map((u) => ({
+          ...u,
+          passwordHash: options?.redactPasswordHashes
+            ? "[REDACTED]"
+            : u.passwordHash,
+          recoveryTokenHash: null,
+          recoveryExpiresAt: null,
+        }))
+    );
+
+    const snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups"> = {
+      schemaVersion: CURRENT_SEED_VERSION,
+      users: rawUsers,
+      auditLogs,
+      siteSettings,
+      themeConfig,
+      brandAssets,
+      servicePillars,
+      services,
+      caseStudies,
+      blogPosts,
+      faqs,
+      testimonials,
+      teamMembers,
+      pages,
+      leads,
+      mediaAssets,
+      redirects,
+    };
+
+    const serialized = JSON.stringify(snapshot);
+    const sizeBytes = Buffer.byteLength(serialized, "utf8");
+    const checksumSha256 = createHash("sha256")
+      .update(serialized, "utf8")
+      .digest("hex");
+
+    return { snapshot, checksumSha256, sizeBytes };
+  },
+
+  async listBackups(): Promise<DatabaseBackupSummary[]> {
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<
+          {
+            id: string;
+            label: string;
+            created_by: string;
+            schema_version: number;
+            size_bytes: number;
+            checksum_sha256: string;
+            created_at: string;
+          }[]
+        >`
+          SELECT id, label, created_by, schema_version, size_bytes, checksum_sha256, created_at
+          FROM database_backups
+          ORDER BY created_at DESC
+          LIMIT 25
+        `;
+        return rows.map((r) => ({
+          id: r.id,
+          label: r.label,
+          createdBy: r.created_by,
+          schemaVersion: r.schema_version,
+          sizeBytes: r.size_bytes,
+          checksumSha256: r.checksum_sha256,
+          createdAt: r.created_at,
+        }));
+      },
+      () =>
+        (readLocalSnapshot().databaseBackups || []).map(
+          ({ snapshot: _unused, ...meta }) => {
+            void _unused;
+            return meta;
+          }
+        )
+    );
+  },
+
+  async createBackup(input: {
+    label: string;
+    createdBy: string;
+  }): Promise<DatabaseBackupSummary> {
+    const exported = await this.exportSnapshot({ redactPasswordHashes: false });
+    const entry: StoredDatabaseBackup = {
+      id: `bkp_${randomBytes(6).toString("hex")}`,
+      label: input.label.trim().slice(0, 120) || "Manual Snapshot",
+      createdBy: input.createdBy,
+      schemaVersion: CURRENT_SEED_VERSION,
+      sizeBytes: exported.sizeBytes,
+      checksumSha256: exported.checksumSha256,
+      createdAt: new Date().toISOString(),
+      snapshot: exported.snapshot,
+    };
+
+    return runWithDbFallback(
+      async (sql) => {
+        await sql`
+          INSERT INTO database_backups (
+            id, label, created_by, schema_version, size_bytes, checksum_sha256, snapshot, created_at
+          )
+          VALUES (
+            ${entry.id},
+            ${entry.label},
+            ${entry.createdBy},
+            ${entry.schemaVersion},
+            ${entry.sizeBytes},
+            ${entry.checksumSha256},
+            ${sql.json(entry.snapshot as unknown as postgres.JSONValue)},
+            ${entry.createdAt}
+          )
+        `;
+        const { snapshot: _unused, ...summary } = entry;
+        void _unused;
+        return summary;
+      },
+      () => {
+        const snap = readLocalSnapshot();
+        const existing = snap.databaseBackups || [];
+        snap.databaseBackups = [entry, ...existing].slice(0, 20);
+        writeLocalSnapshot(snap);
+        const { snapshot: _unused, ...summary } = entry;
+        void _unused;
+        return summary;
+      }
+    );
+  },
+
+  async restoreBackup(
+    backupId: string,
+    actorEmail: string
+  ): Promise<{ restoredId: string; safetyBackupId: string }> {
+    // 1. Always capture a pre-restore safety backup first so no records can ever be lost
+    const safetyBackup = await this.createBackup({
+      label: `Auto Pre-Restore Safety Snapshot (before ${backupId})`,
+      createdBy: actorEmail,
+    });
+
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<
+          {
+            id: string;
+            checksum_sha256: string;
+            snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups">;
+          }[]
+        >`
+          SELECT id, checksum_sha256, snapshot
+          FROM database_backups
+          WHERE id = ${backupId}
+          LIMIT 1
+        `;
+        const row = rows[0];
+        if (!row) {
+          throw new Error("Backup snapshot not found.");
+        }
+
+        const serialized = JSON.stringify(row.snapshot);
+        const computedChecksum = createHash("sha256")
+          .update(serialized, "utf8")
+          .digest("hex");
+        if (computedChecksum !== row.checksum_sha256) {
+          throw new Error(
+            "Backup integrity check failed (SHA-256 mismatch). Restore aborted safely."
+          );
+        }
+
+        const data = row.snapshot;
+        // 2. Restore inside a single atomic PostgreSQL transaction (merges safely without dropping active admins or leads)
+        await sql.begin(async (txRaw) => {
+          const tx = txRaw as unknown as ReturnType<typeof postgres>;
+          await tx`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES
+              ('site_settings', ${tx.json(data.siteSettings as unknown as postgres.JSONValue)}, NOW()),
+              ('theme_config', ${tx.json(data.themeConfig as unknown as postgres.JSONValue)}, NOW()),
+              ('brand_assets', ${tx.json(data.brandAssets as unknown as postgres.JSONValue)}, NOW()),
+              ('service_pillars', ${tx.json(data.servicePillars as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+          `;
+
+          for (const page of data.pages || []) {
+            await tx`
+              INSERT INTO pages (id, slug, title, status, payload, updated_at)
+              VALUES (
+                ${page.id},
+                ${page.slug},
+                ${page.title},
+                ${page.status},
+                ${tx.json(page as unknown as postgres.JSONValue)},
+                ${page.updatedAt}
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                slug = EXCLUDED.slug,
+                title = EXCLUDED.title,
+                status = EXCLUDED.status,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at
+            `;
+          }
+
+          for (const svc of data.services || []) {
+            await tx`
+              INSERT INTO services (id, slug, title, category_slug, is_flagship_priority, status, sort_order, payload, updated_at)
+              VALUES (
+                ${svc.id},
+                ${svc.slug},
+                ${svc.title},
+                ${svc.categorySlug},
+                ${svc.isFlagshipPriority},
+                ${svc.status},
+                ${svc.order},
+                ${tx.json(svc as unknown as postgres.JSONValue)},
+                ${svc.updatedAt}
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                slug = EXCLUDED.slug,
+                title = EXCLUDED.title,
+                category_slug = EXCLUDED.category_slug,
+                is_flagship_priority = EXCLUDED.is_flagship_priority,
+                status = EXCLUDED.status,
+                sort_order = EXCLUDED.sort_order,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at
+            `;
+          }
+
+          for (const cs of data.caseStudies || []) {
+            await tx`
+              INSERT INTO case_studies (id, slug, title, work_type, status, payload, updated_at)
+              VALUES (
+                ${cs.id},
+                ${cs.slug},
+                ${cs.title},
+                ${cs.workType},
+                ${cs.status},
+                ${tx.json(cs as unknown as postgres.JSONValue)},
+                ${cs.updatedAt}
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                slug = EXCLUDED.slug,
+                title = EXCLUDED.title,
+                work_type = EXCLUDED.work_type,
+                status = EXCLUDED.status,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at
+            `;
+          }
+
+          for (const post of data.blogPosts || []) {
+            await tx`
+              INSERT INTO blog_posts (id, slug, title, category, author_id, status, published_at, payload, updated_at)
+              VALUES (
+                ${post.id},
+                ${post.slug},
+                ${post.title},
+                ${post.category},
+                ${post.authorId},
+                ${post.status},
+                ${post.publishedAt ?? null},
+                ${tx.json(post as unknown as postgres.JSONValue)},
+                ${post.updatedAt}
+              )
+              ON CONFLICT (id) DO UPDATE SET
+                slug = EXCLUDED.slug,
+                title = EXCLUDED.title,
+                category = EXCLUDED.category,
+                status = EXCLUDED.status,
+                published_at = EXCLUDED.published_at,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at
+            `;
+          }
+
+          for (const faq of data.faqs || []) {
+            await tx`
+              INSERT INTO faqs (id, category, sort_order, is_published, question, answer)
+              VALUES (${faq.id}, ${faq.category}, ${faq.order}, ${faq.isPublished}, ${faq.question}, ${faq.answer})
+              ON CONFLICT (id) DO UPDATE SET
+                category = EXCLUDED.category,
+                sort_order = EXCLUDED.sort_order,
+                is_published = EXCLUDED.is_published,
+                question = EXCLUDED.question,
+                answer = EXCLUDED.answer
+            `;
+          }
+
+          for (const rdr of data.redirects || []) {
+            await tx`
+              INSERT INTO redirects (id, source_path, destination_path, permanent, is_active, created_at)
+              VALUES (${rdr.id}, ${rdr.sourcePath}, ${rdr.destinationPath}, ${rdr.permanent}, ${rdr.isActive}, ${rdr.createdAt})
+              ON CONFLICT (source_path) DO UPDATE SET
+                destination_path = EXCLUDED.destination_path,
+                permanent = EXCLUDED.permanent,
+                is_active = EXCLUDED.is_active
+            `;
+          }
+        });
+
+        return { restoredId: backupId, safetyBackupId: safetyBackup.id };
+      },
+      () => {
+        const snap = readLocalSnapshot();
+        const backups = snap.databaseBackups || [];
+        const target = backups.find((b) => b.id === backupId);
+        if (!target) {
+          throw new Error("Backup snapshot not found.");
+        }
+        const computedChecksum = createHash("sha256")
+          .update(JSON.stringify(target.snapshot), "utf8")
+          .digest("hex");
+        if (computedChecksum !== target.checksumSha256) {
+          throw new Error(
+            "Backup integrity check failed (SHA-256 mismatch). Restore aborted safely."
+          );
+        }
+
+        // Preserve existing users & leads that aren't in the older snapshot so no live leads or staff lockouts occur
+        const mergedUsers = mergeByKey(
+          snap.users,
+          target.snapshot.users || [],
+          (u) => u.id
+        );
+        const mergedLeads = mergeByKey(
+          snap.leads,
+          target.snapshot.leads || [],
+          (l) => l.id
+        );
+
+        const nextSnap: OmniFlowDatabaseSnapshot = {
+          ...target.snapshot,
+          users: mergedUsers,
+          leads: mergedLeads,
+          auditLogs: snap.auditLogs,
+          databaseBackups: backups,
+        };
+        writeLocalSnapshot(nextSnap);
+        return { restoredId: backupId, safetyBackupId: safetyBackup.id };
+      }
+    );
+  },
+
+  async checkDistributedRateLimitBucket(
+    key: string,
+    maxRequests: number,
+    windowMs: number
+  ): Promise<{ allowed: boolean; remaining: number; retryAfterSeconds: number } | null> {
+    if (
+      !process.env.DATABASE_URL?.trim() ||
+      Boolean(process.env.OMNIFLOW_LOCAL_DB_PATH) ||
+      Date.now() < postgresFallbackUntil
+    ) {
+      return null;
+    }
+    try {
+      const sql = getPostgresClient();
+      if (!sql) return null;
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + windowMs);
+
+      const rows = await sql<
+        Array<{ count: number; expires_at: Date | string }>
+      >`
+        INSERT INTO rate_limits (bucket_key, count, window_start, expires_at)
+        VALUES (${key}, 1, ${now.toISOString()}, ${expiresAt.toISOString()})
+        ON CONFLICT (bucket_key) DO UPDATE
+        SET
+          count = CASE
+            WHEN rate_limits.expires_at <= ${now.toISOString()} THEN 1
+            ELSE rate_limits.count + 1
+          END,
+          window_start = CASE
+            WHEN rate_limits.expires_at <= ${now.toISOString()} THEN ${now.toISOString()}::timestamptz
+            ELSE rate_limits.window_start
+          END,
+          expires_at = CASE
+            WHEN rate_limits.expires_at <= ${now.toISOString()} THEN ${expiresAt.toISOString()}::timestamptz
+            ELSE rate_limits.expires_at
+          END
+        RETURNING count, expires_at
+      `;
+
+      const row = rows[0];
+      if (!row) return null;
+      const count = Number(row.count || 1);
+      const expMs = new Date(row.expires_at).getTime();
+      const retryAfterSeconds = Math.max(1, Math.ceil((expMs - now.getTime()) / 1000));
+
+      // Opportunistic expired bucket cleanup (~2% of calls)
+      if (Math.random() < 0.02) {
+        sql`DELETE FROM rate_limits WHERE expires_at < NOW()`.catch(() => undefined);
+      }
+
+      if (count > maxRequests) {
+        return {
+          allowed: false,
+          remaining: 0,
+          retryAfterSeconds,
+        };
+      }
+
+      return {
+        allowed: true,
+        remaining: Math.max(0, maxRequests - count),
+        retryAfterSeconds: 0,
+      };
+    } catch {
+      return null;
+    }
   },
 };

@@ -8,29 +8,35 @@ interface RevealProps {
   delayMs?: number;
 }
 
+/**
+ * Progressive-enhancement scroll reveal wrapper:
+ * Renders visible by default during SSR so LCP/crawlers are never blocked,
+ * and subtly animates off-screen blocks using GPU translate3d + opacity.
+ */
 export function Reveal({ children, className = "", delayMs = 0 }: RevealProps) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [hiddenUntilInView, setHiddenUntilInView] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      setVisible(true);
-      return;
-    }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setVisible(true);
-      return;
-    }
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     const node = ref.current;
-    if (!node || typeof IntersectionObserver === "undefined") {
-      setVisible(true);
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    const rect = node.getBoundingClientRect();
+    const vh = window.innerHeight || 800;
+    if (rect.top < vh * 0.92) {
+      // Already in or near initial viewport — keep visible immediately
       return;
     }
+
+    setHiddenUntilInView(true);
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          setVisible(true);
+          setHiddenUntilInView(false);
           observer.disconnect();
         }
       },
@@ -44,8 +50,10 @@ export function Reveal({ children, className = "", delayMs = 0 }: RevealProps) {
     <div
       ref={ref}
       style={delayMs > 0 ? { transitionDelay: `${delayMs}ms` } : undefined}
-      className={`transition-all duration-500 ease-out ${
-        visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      className={`transition-[opacity,transform] duration-500 ease-[var(--of-ease-balance)] will-change-[opacity,transform] ${
+        hiddenUntilInView
+          ? "translate-y-3 opacity-0"
+          : "translate-y-0 opacity-100"
       } ${className}`}
     >
       {children}

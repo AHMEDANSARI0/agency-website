@@ -1,5 +1,5 @@
 import type { BrandAssetConfig } from "@/types/brand";
-import type { AuditLogEntry, UserRecord } from "@/types/auth";
+import type { AuditLogEntry, DatabaseBackupSummary, UserRecord } from "@/types/auth";
 import type {
   BlogPost,
   CaseStudyItem,
@@ -16,9 +16,14 @@ import type {
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
 import { createDefaultThemeConfiguration } from "@/features/themes/presets";
-import { hashPassword } from "@/lib/security/password";
+import { isProductionEnvironment } from "@/lib/env";
+import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
-export const CURRENT_SEED_VERSION = 4;
+export const CURRENT_SEED_VERSION = 7;
+
+export interface StoredDatabaseBackup extends DatabaseBackupSummary {
+  snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups">;
+}
 
 export interface OmniFlowDatabaseSnapshot {
   schemaVersion: number;
@@ -38,37 +43,73 @@ export interface OmniFlowDatabaseSnapshot {
   leads: LeadRecord[];
   mediaAssets: MediaAsset[];
   redirects: RedirectRule[];
+  databaseBackups?: StoredDatabaseBackup[];
+}
+
+export function buildBootstrapSuperAdmin(nowIso = new Date().toISOString()): UserRecord | null {
+  const strictProd = isProductionEnvironment();
+  const rawEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || "";
+  const rawPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() || "";
+  const bootstrapName = process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "Ahmed Ansari";
+
+  if (strictProd) {
+    // Production NEVER permits missing, placeholder, or known default passwords.
+    if (!rawEmail || rawEmail === "admin@omniflow.example" || !rawPassword) {
+      return null;
+    }
+    const strength = validatePasswordStrength(rawPassword, {
+      rejectKnownDefaults: true,
+    });
+    if (!strength.valid) {
+      return null;
+    }
+    return {
+      id: "usr_founder_admin",
+      email: rawEmail,
+      name: bootstrapName,
+      role: "SUPER_ADMIN",
+      passwordHash: hashPassword(rawPassword),
+      isActive: true,
+      mustChangePassword: process.env.ADMIN_FORCE_FIRST_PASSWORD_CHANGE !== "false",
+      sessionVersion: 1,
+      passwordChangedAt: null,
+      recoveryTokenHash: null,
+      recoveryExpiresAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      lastLoginAt: null,
+    };
+  }
+
+  // Local development & automated tests ONLY
+  const devEmail = rawEmail || "admin@omniflow.example";
+  const devPassword =
+    rawPassword.length >= 10 &&
+    validatePasswordStrength(rawPassword).valid
+      ? rawPassword
+      : "ChangeMe_StrongPass_2026!";
+
+  return {
+    id: "usr_founder_admin",
+    email: devEmail,
+    name: bootstrapName,
+    role: "SUPER_ADMIN",
+    passwordHash: hashPassword(devPassword),
+    isActive: true,
+    mustChangePassword: process.env.ADMIN_FORCE_FIRST_PASSWORD_CHANGE === "true",
+    sessionVersion: 1,
+    passwordChangedAt: null,
+    recoveryTokenHash: null,
+    recoveryExpiresAt: null,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    lastLoginAt: null,
+  };
 }
 
 export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
   const now = "2026-11-22T12:00:00.000Z";
-  const bootstrapEmail = (
-    process.env.ADMIN_BOOTSTRAP_EMAIL?.trim() || "admin@omniflow.example"
-  ).toLowerCase();
-  const rawBootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() || "";
-  if (rawBootstrapPassword.length > 0 && rawBootstrapPassword.length < 8) {
-    console.warn(
-      "[OmniFlow Seed] ADMIN_BOOTSTRAP_PASSWORD in .env is shorter than 8 characters — using default bootstrap password (ChangeMe_StrongPass_2026!) so build/startup does not fail. Please set ADMIN_BOOTSTRAP_PASSWORD to at least 8 characters."
-    );
-  }
-  const bootstrapPassword =
-    rawBootstrapPassword.length >= 8
-      ? rawBootstrapPassword
-      : "ChangeMe_StrongPass_2026!";
-  const bootstrapName =
-    process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "Ahmed Ansari";
-
-  const superAdmin: UserRecord = {
-    id: "usr_founder_admin",
-    email: bootstrapEmail,
-    name: bootstrapName,
-    role: "SUPER_ADMIN",
-    passwordHash: hashPassword(bootstrapPassword),
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: null,
-  };
+  const bootstrapAdmin = buildBootstrapSuperAdmin(now);
 
   const brandAssets: BrandAssetConfig = {
     brandName: "OmniFlow",
@@ -702,7 +743,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       contentMarkdown: `## Start With Reliability First\n\nMany small agencies and service businesses assume automation requires complex AI models at every step. In practice, the highest-trust business systems combine **deterministic workflow logic** for routing, validation, and permissions with **targeted AI assistance** only where unstructured language needs classification or summarization.\n\n## Where Deterministic Logic Wins\n\n- Validating contact forms, budgets, and required onboarding fields\n- Enforcing CRM status transitions and role permissions\n- Triggering notifications, invoices, and audit logs predictably\n\n## Where Grounded AI Helps\n\n- Summarizing lengthy prospect problem descriptions before a discovery call\n- Matching incoming customer questions against an approved FAQ library\n- Drafting human-reviewed response suggestions\n\n## Practical Takeaway\n\nBefore paying for recurring AI API usage, map your workflow triggers, exceptions, and handoffs cleanly. A well-structured pipeline costs less to run, is easier to debug, and earns lasting trust from clients.`,
       category: "Workflow Architecture",
       tags: ["Workflow Automation", "Lead Management", "Best Practices"],
-      authorId: superAdmin.id,
+      authorId: bootstrapAdmin?.id || "usr_founder_admin",
       authorName: "Ahmed Ansari",
       featuredImageUrl: null,
       featuredImageAlt: "Diagram comparing deterministic workflow rules and AI-assisted steps",
@@ -728,7 +769,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       contentMarkdown: `## Why Generic Chatbots Lose Client Trust\n\nFor consultants, agencies, and high-trust service providers, a single invented policy or inaccurate quote damages credibility. Open-ended chatbots fail when they try to answer every question instead of respecting boundaries.\n\n## The Three-Layer Guardrail Pattern\n\n- **Approved Knowledge Only:** Restrict automated answers to verified FAQs, onboarding guides, and scheduling rules.\n- **Explicit Escalation Triggers:** Route billing disputes, custom scope negotiations, and sensitive requests directly to a human owner.\n- **Structured Handoff Briefs:** Give your team a clean summary so the client never has to repeat their problem twice.\n\n## Measuring What Actually Matters\n\nInstead of chasing full automation percentages, measure whether routine questions are answered accurately and whether your specialists have uninterrupted blocks for client delivery.`,
       category: "Customer Experience",
       tags: ["AI Customer Support", "Guardrails", "Service Businesses"],
-      authorId: superAdmin.id,
+      authorId: bootstrapAdmin?.id || "usr_founder_admin",
       authorName: "Ahmed Ansari",
       featuredImageUrl: null,
       featuredImageAlt: "Three-layer guardrail pattern for policy-grounded customer support",
@@ -754,7 +795,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       contentMarkdown: `## The Shared Inbox Bottleneck\n\nWhen website enquiries arrive as unstructured emails, busy founders often delay replies until the end of the week. By then, high-intent prospects in New York, London, or Toronto have already booked calls elsewhere.\n\n## Core Elements of a Clean Lead Pipeline\n\n- **Structured Intake Fields:** Capture company context, primary business bottleneck, and timeline upfront.\n- **Duplicate Awareness:** Flag returning contacts automatically so past conversation history stays unified.\n- **Clear Pipeline Stages:** Track every enquiry cleanly from New and Contacted through Qualified and Proposal Sent.\n\n## Start Lean and Expand\n\nYou do not need an expensive enterprise CRM to run a disciplined pipeline. Start with clean validation, reliable database logging, and clear follow-up ownership.`,
       category: "Lead Management",
       tags: ["Lead Management", "CRM", "Consultants"],
-      authorId: superAdmin.id,
+      authorId: bootstrapAdmin?.id || "usr_founder_admin",
       authorName: "Ahmed Ansari",
       featuredImageUrl: null,
       featuredImageAlt: "Structured inbound lead pipeline stages for agencies and consultants",
@@ -855,16 +896,22 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
 
   const homeSections = [
     { id: "sec-hero", type: "hero" as const, title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
-    { id: "sec-problems", type: "problems_outcomes" as const, title: "Operational Bottlenecks We Solve", isVisible: true, order: 2, config: {} },
-    { id: "sec-services", type: "services_overview" as const, title: "Core Services & AI Capabilities", isVisible: true, order: 3, config: {} },
-    { id: "sec-how", type: "how_it_works" as const, title: "How OmniFlow Works", isVisible: true, order: 4, config: {} },
-    { id: "sec-workflow", type: "workflow_demo" as const, title: "Interactive Workflow Demonstration", isVisible: true, order: 5, config: {} },
-    { id: "sec-industries", type: "industry_use_cases" as const, title: "Built for Service Businesses, Consultants & Agencies", isVisible: true, order: 6, config: {} },
-    { id: "sec-cases", type: "case_studies_highlight" as const, title: "Reference Architectures & Work", isVisible: true, order: 7, config: {} },
-    { id: "sec-founder", type: "founder_intro" as const, title: "Led by Ahmed Ansari", isVisible: true, order: 8, config: {} },
-    { id: "sec-testimonials", type: "testimonials" as const, title: "Client Feedback", isVisible: true, order: 9, config: {} },
-    { id: "sec-faq", type: "faq_section" as const, title: "Frequently Asked Questions", isVisible: true, order: 10, config: {} },
-    { id: "sec-cta", type: "cta_banner" as const, title: "Ready to Streamline Your Operations?", isVisible: true, order: 11, config: {} },
+    { id: "sec-trust", type: "trust_strip" as const, title: "Deterministic Engineering Standards & Stack", isVisible: true, order: 2, config: {} },
+    { id: "sec-problems", type: "problems_outcomes" as const, title: "Operational Bottlenecks vs. Engineered Outcomes", isVisible: true, order: 3, config: {} },
+    { id: "sec-flagship", type: "flagship_systems" as const, title: "Three Flagship Automation Systems", isVisible: true, order: 4, config: {} },
+    { id: "sec-services", type: "services_overview" as const, title: "Five AI & Automation Practice Pillars", isVisible: true, order: 5, config: {} },
+    { id: "sec-demos-preview", type: "interactive_demos_preview" as const, title: "Test Live Deterministic Systems in Your Browser", isVisible: true, order: 6, config: {} },
+    { id: "sec-workflow", type: "workflow_demo" as const, title: "End-to-End Deterministic Execution Trace", isVisible: true, order: 7, config: {} },
+    { id: "sec-how", type: "how_it_works" as const, title: "Four-Stage Engineering Delivery Methodology", isVisible: true, order: 8, config: {} },
+    { id: "sec-industries", type: "industry_use_cases" as const, title: "Playbooks for Service Businesses, Consultants & Agencies", isVisible: true, order: 9, config: {} },
+    { id: "sec-governance", type: "architecture_governance" as const, title: "Safety Guardrails, Policy Grounding & Full Ownership", isVisible: true, order: 10, config: {} },
+    { id: "sec-roi", type: "roi_framing" as const, title: "Lean, Cost-Controlled Operational Economics", isVisible: true, order: 11, config: {} },
+    { id: "sec-cases", type: "case_studies_highlight" as const, title: "Reference Architectures & Verified Work", isVisible: true, order: 12, config: {} },
+    { id: "sec-founder", type: "founder_intro" as const, title: "Principal-Led Engineering by Ahmed Ansari", isVisible: true, order: 13, config: {} },
+    { id: "sec-insights", type: "insights_preview" as const, title: "Operational Engineering Briefings & Guides", isVisible: true, order: 14, config: {} },
+    { id: "sec-testimonials", type: "testimonials" as const, title: "Verified Client Feedback", isVisible: true, order: 15, config: {} },
+    { id: "sec-faq", type: "faq_section" as const, title: "Frequently Asked Questions", isVisible: true, order: 16, config: {} },
+    { id: "sec-cta", type: "cta_banner" as const, title: "Ready to Replace Manual Bottlenecks with Reliable Systems?", isVisible: true, order: 17, config: {} },
   ];
 
   const pages: PageDocument[] = [
@@ -887,7 +934,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
 
   return {
     schemaVersion: CURRENT_SEED_VERSION,
-    users: [superAdmin],
+    users: bootstrapAdmin ? [bootstrapAdmin] : [],
     auditLogs: [
       {
         id: "aud_initial_seed",
@@ -914,5 +961,6 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
     leads: [],
     mediaAssets: [],
     redirects: [],
+    databaseBackups: [],
   };
 }

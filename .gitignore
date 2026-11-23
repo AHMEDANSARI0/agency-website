@@ -13,6 +13,7 @@ coverage/
 # Local runtime data & patch backups (never commit secrets or local mutable DB)
 data/
 patches/
+upgrade-phase-*.mjs
 .patch-backups/
 .omniflow-patch-state.json
 public/uploads/
@@ -40,6 +41,3 @@ yarn-error.log*
 *.pem
 *.tsbuildinfo
 next-env.d.ts
-.patchers/
-patchers
-/patchers

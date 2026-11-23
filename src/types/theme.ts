@@ -30,6 +30,7 @@ export interface SemanticColorTokens {
 export interface ComponentStateTokens {
   navbarBg: string;
   navbarBorder: string;
+  navbarText?: string;
   footerBg: string;
   footerText: string;
   cardBg: string;
@@ -101,6 +102,10 @@ export interface ThemeConfiguration {
   previousPublished?: {
     light: ThemeTokenSet;
     dark: ThemeTokenSet;
+    overrides?: {
+      light?: ComponentTokenOverrides;
+      dark?: ComponentTokenOverrides;
+    };
   } | null;
   customPresets: ThemePreset[];
   updatedAt: string;

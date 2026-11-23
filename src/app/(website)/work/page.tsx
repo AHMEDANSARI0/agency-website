@@ -1,50 +1,54 @@
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 import { db } from "@/lib/database";
-import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WorkFilterGrid } from "@/components/sections/WorkFilterGrid";
+import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Our Work & System Portfolio",
+  title: "Work, Prototypes & Reference Architectures",
   description:
-    "Explore OmniFlow workflow architectures, internal prototypes, and authorized client implementations with transparent classification.",
+    "Explore OmniFlow’s transparently labeled automation architectures, internal workflow prototypes, and authorized client implementations.",
 };
 
-export default async function WorkPortfolioPage() {
-  const items = await db.listCaseStudies(true);
+export default async function WorkPage() {
+  const [items, settings] = await Promise.all([
+    db.listCaseStudies(true),
+    db.getSiteSettings(),
+  ]);
 
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: "Our Work" }]}
-        badge="Portfolio & Reference Systems"
-        title="Engineered Workflow Systems & Reference Blueprints"
-        description="We label every published system transparently—distinguishing verified client engagements from internal reference prototypes and concept architectures."
-        actions={
-          <>
-            <Button href="/contact">Request Custom Architecture</Button>
-            <Button href="/case-studies" variant="outline">
-              Detailed Case Studies
-            </Button>
-          </>
-        }
+        breadcrumbs={[{ label: "Work & Architectures" }]}
+        badge="Transparent Portfolio & Blueprints"
+        title="Systems We Design, Test & Deploy"
+        description="Every entry below carries an explicit verification badge distinguishing authorized client deployments from internal prototypes and reference architectures—never fabricated claims."
       />
 
-      <section className="py-12 sm:py-16">
+      <section className="bg-surface py-16 sm:py-22">
         <Container>
-          <div className="mb-8 flex items-start gap-3 rounded-card border border-line bg-surface-muted p-4 text-xs text-ink-body sm:items-center">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+          <div className="mb-8 flex items-start gap-3 rounded-card border border-primary/20 bg-accent-subtle/45 p-4 text-xs text-ink-body sm:items-center sm:text-sm">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mt-0" />
             <span>
-              <strong>Transparency Standard:</strong> Client names, testimonials, and measured
-              results are published strictly when verified and explicitly authorized by the client.
+              <strong className="text-ink-heading">Verification Standard:</strong> Client engagements are published strictly after written client authorization. Internal prototypes and concept architectures are labeled explicitly.
             </span>
           </div>
 
           <WorkFilterGrid items={items} />
         </Container>
       </section>
+
+      <PageConversionBanner
+        eyebrow="Architecture Review"
+        title="Have a workflow similar to one of our reference blueprints?"
+        description="Share your stack and operational requirements. We will adapt a proven architecture to your exact business rules."
+        primaryLabel={settings.primaryCtaLabel}
+        primaryHref={settings.primaryCtaHref}
+      />
     </>
   );
 }

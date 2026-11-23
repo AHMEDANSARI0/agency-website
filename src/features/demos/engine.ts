@@ -1,5 +1,5 @@
 // ==============================================================================
-// OmniFlow Deterministic Interactive Demos Engine (Section 8)
+// OmniFlow Deterministic Interactive Demos Engine
 // Uses local deterministic rules & sample knowledge packs — zero paid AI APIs.
 // All outputs are explicitly labeled as interactive simulation outputs.
 // ==============================================================================
@@ -34,6 +34,7 @@ export interface LeadDemoResult {
   completenessPassed: boolean;
   reasons: string[];
   preCallBrief: string;
+  targetResponseSla: string;
 }
 
 export const LEAD_DEMO_PRESETS: Array<{ id: string; label: string; data: LeadDemoInput }> = [
@@ -148,10 +149,24 @@ export function evaluateLeadQualification(input: LeadDemoInput): LeadDemoResult 
       ? `Principal Architect (${input.region} Overlap Window)`
       : `Solutions Intake Queue (${input.region})`;
 
+  const targetResponseSla =
+    tier === "High-Intent Fast-Track"
+      ? "< 60s CRM Sync + Priority Same-Day Architect Review"
+      : tier === "Qualified Standard"
+        ? "< 60s CRM Sync + 1 Business Day Scoping Reply"
+        : "Automated Scope Clarification Prompt + Queue Review";
+
+  const segmentLabels: Record<LeadDemoInput["segment"], string> = {
+    service_business: "Service Business",
+    consultant: "Consultant / Advisory Firm",
+    small_agency: "Small / Boutique Agency",
+  };
+
   const preCallBrief = [
     `[SIMULATED PRE-CALL BRIEF]`,
-    `Account: ${input.companyName.trim() || "Unnamed Prospect"} (${input.region})`,
+    `Account: ${input.companyName.trim() || "Unnamed Prospect"} (${input.region} · ${segmentLabels[input.segment]})`,
     `Qualification Tier: ${tier} (${score}/100)`,
+    `Target SLA: ${targetResponseSla}`,
     `Recommended Starting System: ${recommendedServiceTitle}`,
     `Reported Volume: ~${input.monthlyEnquiries} enquiries/month`,
     `Core Bottleneck: ${trimmedProblem || "Pending details"}`,
@@ -166,6 +181,7 @@ export function evaluateLeadQualification(input: LeadDemoInput): LeadDemoResult 
     completenessPassed,
     reasons,
     preCallBrief,
+    targetResponseSla,
   };
 }
 
@@ -184,7 +200,7 @@ export interface SupportReplyResult {
   guardrailTriggered: string | null;
 }
 
-interface PolicyEntry {
+export interface PolicyEntry {
   keywords: string[];
   title: string;
   approvedAnswer: string;
@@ -234,11 +250,17 @@ const DOMAIN_POLICIES: Record<SupportDomainId, { name: string; entries: PolicyEn
         approvedAnswer:
           "Please ensure clear access to the primary utility panel 15 minutes prior to your scheduled technician window. You will receive an automated SMS/email confirmation when the specialist is en route.",
       },
+      {
+        keywords: ["quote", "estimate", "inspection", "turnaround"],
+        title: "OPS-15: Standard Site Assessment & Quote Turnaround",
+        approvedAnswer:
+          "Standard commercial quotes are issued within one business day once site square footage and service access details are confirmed via our intake form.",
+      },
     ],
   },
 };
 
-const ESCALATION_TRIGGERS = [
+export const ESCALATION_TRIGGERS = [
   { keyword: "discount", reason: "Custom pricing / discount negotiation requires human partner approval." },
   { keyword: "refund", reason: "Billing & refund requests are strictly handled by human finance/account leads." },
   { keyword: "liability", reason: "Legal contract terms & liability clauses cannot be modified by automated support." },
@@ -246,6 +268,13 @@ const ESCALATION_TRIGGERS = [
   { keyword: "guarantee", reason: "Performance/financial guarantees are restricted by compliance guardrails." },
   { keyword: "urgent", reason: "High-urgency flag routed directly to on-call account owner." },
 ];
+
+export function getSupportDomainPack(domain: SupportDomainId): {
+  name: string;
+  entries: PolicyEntry[];
+} {
+  return DOMAIN_POLICIES[domain];
+}
 
 export const SUPPORT_SAMPLE_PROMPTS: Array<{
   label: string;
@@ -266,6 +295,11 @@ export const SUPPORT_SAMPLE_PROMPTS: Array<{
     label: "Weekly Status Cadence Question",
     domain: "agency",
     question: "When do we receive our weekly project status report each week?",
+  },
+  {
+    label: "Out-of-Scope Unknown Topic Test",
+    domain: "service_ops",
+    question: "Do you offer custom international freight brokerage in Singapore?",
   },
 ];
 
@@ -336,6 +370,7 @@ export interface WorkflowSimulationStep {
   nodeName: string;
   status: "passed" | "fallback_engaged";
   detail: string;
+  latencyMs: number;
 }
 
 export function simulateWorkflowExecution(params: {
@@ -361,18 +396,21 @@ export function simulateWorkflowExecution(params: {
       nodeName: `Trigger: ${triggerLabels[params.trigger]}`,
       status: "passed",
       detail: "Webhook payload received and timestamped with request correlation ID.",
+      latencyMs: 18,
     },
     {
       stepNumber: 2,
       nodeName: "Guardrail & Schema Validation",
       status: "passed",
       detail: "Zod field validation, duplicate email check, and rate-limit verification passed.",
+      latencyMs: 24,
     },
     {
       stepNumber: 3,
       nodeName: `Primary Execution: ${actionLabels[params.action]}`,
       status: "passed",
       detail: "Primary database transaction committed atomically with audit trail entry.",
+      latencyMs: 46,
     },
   ];
 
@@ -383,6 +421,7 @@ export function simulateWorkflowExecution(params: {
       status: "fallback_engaged",
       detail:
         "Simulated external email provider timeout detected -> Record preserved safely in CRM with 'emailNotificationStatus: failed' flag for retry; zero data lost.",
+      latencyMs: 32,
     });
   } else {
     steps.push({
@@ -390,10 +429,34 @@ export function simulateWorkflowExecution(params: {
       nodeName: "Owner Notification & Follow-Up Queue",
       status: "passed",
       detail: "Structured brief dispatched to assigned owner and follow-up date queued.",
+      latencyMs: 54,
     });
   }
 
   return steps;
+}
+
+export function buildWorkflowAuditPayload(params: {
+  trigger: WorkflowTriggerId;
+  action: WorkflowActionId;
+  simulateExternalEmailOutage: boolean;
+  runCount: number;
+}): string {
+  return JSON.stringify(
+    {
+      event: params.trigger,
+      idempotencyKey: `idem_of_${params.trigger}_${1000 + params.runCount}`,
+      validation: "zod_strict_passed",
+      databaseCommit: "committed_atomic",
+      actionExecuted: params.action,
+      notificationState: params.simulateExternalEmailOutage
+        ? "queued_for_retry_zero_data_loss"
+        : "dispatched_to_owner",
+      recordsLost: 0,
+    },
+    null,
+    2
+  );
 }
 
 // ------------------------------------------------------------------------------
@@ -413,8 +476,11 @@ export interface SavingsInput {
 export interface SavingsOutput {
   monthlyHoursReclaimed: number;
   annualHoursReclaimed: number;
+  annualWorkweeksReclaimed: number;
   monthlyValueReclaimed: number;
   annualValueReclaimed: number;
+  totalWeeklyManualHours: number;
+  weeklyHoursRetainedHuman: number;
   currencySymbol: string;
 }
 
@@ -424,6 +490,44 @@ const CURRENCY_SYMBOLS: Record<SupportedCurrency, string> = {
   CAD: "CA$",
 };
 
+export const SAVINGS_SCENARIO_PRESETS: Array<{
+  id: string;
+  label: string;
+  currency: SupportedCurrency;
+  teamMembersCount: number;
+  manualHoursPerPersonPerWeek: number;
+  hourlyCost: number;
+  captureRatePercent: number;
+}> = [
+  {
+    id: "us-advisory",
+    label: "US Advisory Practice (5 Staff)",
+    currency: "USD",
+    teamMembersCount: 5,
+    manualHoursPerPersonPerWeek: 6,
+    hourlyCost: 65,
+    captureRatePercent: 50,
+  },
+  {
+    id: "uk-agency",
+    label: "UK Boutique Agency (7 Staff)",
+    currency: "GBP",
+    teamMembersCount: 7,
+    manualHoursPerPersonPerWeek: 5,
+    hourlyCost: 48,
+    captureRatePercent: 50,
+  },
+  {
+    id: "ca-service",
+    label: "Canadian Service Operator (4 Staff)",
+    currency: "CAD",
+    teamMembersCount: 4,
+    manualHoursPerPersonPerWeek: 8,
+    hourlyCost: 58,
+    captureRatePercent: 55,
+  },
+];
+
 export function calculateAutomationSavings(input: SavingsInput): SavingsOutput {
   const staff = Math.min(100, Math.max(1, Math.round(input.teamMembersCount)));
   const weeklyHours = Math.min(40, Math.max(1, Number(input.manualHoursPerPersonPerWeek)));
@@ -432,8 +536,13 @@ export function calculateAutomationSavings(input: SavingsInput): SavingsOutput {
 
   const totalWeeklyManualHours = staff * weeklyHours;
   const weeklyReclaimed = totalWeeklyManualHours * captureFraction;
+  const weeklyHoursRetainedHuman = Math.max(
+    0,
+    Math.round((totalWeeklyManualHours - weeklyReclaimed) * 10) / 10
+  );
   const monthlyHoursReclaimed = Math.round(weeklyReclaimed * 4.33);
   const annualHoursReclaimed = Math.round(weeklyReclaimed * 52);
+  const annualWorkweeksReclaimed = Math.round((annualHoursReclaimed / 40) * 10) / 10;
 
   const monthlyValueReclaimed = Math.round(monthlyHoursReclaimed * rate);
   const annualValueReclaimed = Math.round(annualHoursReclaimed * rate);
@@ -441,8 +550,11 @@ export function calculateAutomationSavings(input: SavingsInput): SavingsOutput {
   return {
     monthlyHoursReclaimed,
     annualHoursReclaimed,
+    annualWorkweeksReclaimed,
     monthlyValueReclaimed,
     annualValueReclaimed,
+    totalWeeklyManualHours,
+    weeklyHoursRetainedHuman,
     currencySymbol: CURRENCY_SYMBOLS[input.currency] || "$",
   };
 }
@@ -459,6 +571,12 @@ export interface ReadinessAnswers {
   primaryBottleneck: "leads" | "support" | "operations";
 }
 
+export interface ReadinessPillarScore {
+  label: string;
+  percent: number;
+  status: string;
+}
+
 export interface ReadinessResult {
   score: number;
   stageLabel: string;
@@ -466,6 +584,8 @@ export interface ReadinessResult {
   actionChecklist: string[];
   recommendedServiceSlug: string;
   recommendedServiceName: string;
+  pillars: ReadinessPillarScore[];
+  pilotMilestonePlan: string[];
 }
 
 export function evaluateReadinessAssessment(answers: ReadinessAnswers): ReadinessResult {
@@ -503,21 +623,61 @@ export function evaluateReadinessAssessment(answers: ReadinessAnswers): Readines
   }
   actionChecklist.push("Start with deterministic validation and routing rules before adding optional AI steps.");
 
+  const toPercent = (v: 1 | 2 | 3) => (v === 3 ? 100 : v === 2 ? 55 : 20);
+
+  const pillars: ReadinessPillarScore[] = [
+    {
+      label: "Process & SOP Clarity",
+      percent: toPercent(answers.sopClarity),
+      status: answers.sopClarity === 3 ? "Repeatable" : answers.sopClarity === 2 ? "Partial Notes" : "Ad-Hoc",
+    },
+    {
+      label: "Data Centralization",
+      percent: toPercent(answers.dataTracking),
+      status: answers.dataTracking === 3 ? "Structured CRM" : answers.dataTracking === 2 ? "Spreadsheets" : "Inbox Scattered",
+    },
+    {
+      label: "Repetitive Volume ROI",
+      percent: toPercent(answers.weeklyRepetitiveVolume),
+      status: answers.weeklyRepetitiveVolume === 3 ? "10+ hrs/wk" : answers.weeklyRepetitiveVolume === 2 ? "3–10 hrs/wk" : "< 3 hrs/wk",
+    },
+    {
+      label: "Exception Governance",
+      percent: toPercent(answers.humanOwnerAssigned),
+      status: answers.humanOwnerAssigned === 3 ? "Dedicated Owner" : answers.humanOwnerAssigned === 2 ? "Founder Review" : "Unassigned",
+    },
+  ];
+
   const serviceMap: Record<
     ReadinessAnswers["primaryBottleneck"],
-    { slug: string; name: string }
+    { slug: string; name: string; pilotSteps: string[] }
   > = {
     leads: {
       slug: "lead-management",
       name: "Lead Management & Qualification Systems",
+      pilotSteps: [
+        "Week 1: Audit inbound enquiry channels & define qualification schema",
+        "Week 2: Build deterministic CRM sync, duplicate check & owner brief",
+        "Week 3: Verify edge cases in staging & launch with team runbook",
+      ],
     },
     support: {
       slug: "ai-customer-support",
       name: "AI Customer Support & Triage Workflows",
+      pilotSteps: [
+        "Week 1: Compile top 15 approved FAQ/SOP answers & escalation boundaries",
+        "Week 2: Configure policy-grounded reply drafting & human escalation alerts",
+        "Week 3: Shadow-mode verification before enabling client-facing triage",
+      ],
     },
     operations: {
       slug: "workflow-automation",
       name: "End-to-End Business Workflow Automation",
+      pilotSteps: [
+        "Week 1: Map cross-tool handoffs & eliminate redundant manual data entry",
+        "Week 2: Implement idempotent webhook orchestration & retry fallback queue",
+        "Week 3: End-to-end staging test & full administrative handover",
+      ],
     },
   };
 
@@ -530,5 +690,7 @@ export function evaluateReadinessAssessment(answers: ReadinessAnswers): Readines
     actionChecklist,
     recommendedServiceSlug: rec.slug,
     recommendedServiceName: rec.name,
+    pillars,
+    pilotMilestonePlan: rec.pilotSteps,
   };
 }

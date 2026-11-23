@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  ExternalLink,
   Eye,
   EyeOff,
   GripVertical,
@@ -29,58 +30,88 @@ const SECTION_CATALOG: {
 }[] = [
   {
     type: "hero",
-    label: "Pinned Kinetic Hero + Marquee",
-    description: "Two-stage scroll-pinned hero card, Purpose LightUp, and integration marquee.",
+    label: "01 · Executive Architectural Hero",
+    description: "Light-first architectural split hero with live deterministic triage telemetry.",
+  },
+  {
+    type: "trust_strip",
+    label: "02 · Engineering Standards & Stack Strip",
+    description: "Verification standards, integration stack, and US/UK/Canada timezone overlap.",
   },
   {
     type: "problems_outcomes",
-    label: "Operational Bottlenecks (01)",
-    description: "5-point operational leaks breakdown with interactive spotlight rows.",
+    label: "03 · Operational Bottlenecks vs. Outcomes",
+    description: "5-point revenue & operations leak diagnosis paired with engineered outcomes.",
+  },
+  {
+    type: "flagship_systems",
+    label: "04 · Three Flagship Priority Systems",
+    description: "Lead Management, Policy-Grounded AI Support, and End-to-End Workflow Automation.",
   },
   {
     type: "services_overview",
-    label: "Flagship & Core Services (02)",
-    description: "Priority AI Automation + Business Automation pillars and service cards.",
+    label: "05 · Core AI & Automation Practice Pillars",
+    description: "Structured practice grid across all 5 AI & operational engineering domains.",
+  },
+  {
+    type: "interactive_demos_preview",
+    label: "06 · Live Interactive Automation Lab Preview",
+    description: "Embedded zero-API deterministic sandbox preview linking to all 5 live demos.",
   },
   {
     type: "workflow_demo",
-    label: "Interactive Workflow Execution Trace",
-    description: "9s vs 4m comparison bar and live simulated workflow trace.",
+    label: "07 · Deterministic Workflow Execution Trace",
+    description: "Interactive 4-stage payload inspector and automated vs. manual comparison.",
   },
   {
     type: "how_it_works",
-    label: "Engineering Delivery Process (03)",
-    description: "4-stage deterministic audit, architecture, verification, and handover.",
+    label: "08 · 4-Stage Engineering Delivery Process",
+    description: "Audit, deterministic architecture, staged QA verification, and full handover.",
   },
   {
     type: "industry_use_cases",
-    label: "Industry Playbooks",
-    description: "Cross-market US, UK, and Canada operational use cases.",
+    label: "09 · Industry Playbooks (US · UK · Canada)",
+    description: "Tailored playbooks for service businesses, consultants, and boutique agencies.",
+  },
+  {
+    type: "architecture_governance",
+    label: "10 · Safety, Guardrails & Data Ownership",
+    description: "Deterministic-first routing, grounded knowledge boundaries, and 100% IP ownership.",
+  },
+  {
+    type: "roi_framing",
+    label: "11 · Transparent Economics & Cost Control",
+    description: "Honest cost-controlled architecture framing vs. brittle SaaS sprawl.",
   },
   {
     type: "case_studies_highlight",
-    label: "Case Studies & Architecture Blueprints (04)",
-    description: "Transparently badged workflow case studies and system blueprints.",
+    label: "12 · Reference Architectures & Verified Work",
+    description: "Transparently badged workflow case studies and reference system blueprints.",
   },
   {
     type: "founder_intro",
-    label: "Founder & Insights Preview (05)",
-    description: "Founder profile card and latest published engineering articles.",
+    label: "13 · Principal-Led Engineering (Founder)",
+    description: "Direct principal accountability card led by Ahmed Ansari.",
+  },
+  {
+    type: "insights_preview",
+    label: "14 · Engineering Briefings & Insights",
+    description: "Latest published operational engineering articles and implementation guides.",
   },
   {
     type: "testimonials",
-    label: "Verified Client Testimonials",
-    description: "Renders only when authorized + verified testimonials exist.",
+    label: "15 · Verified Client Feedback Gate",
+    description: "Renders strictly when authorized + verified client testimonials exist.",
   },
   {
     type: "faq_section",
-    label: "FAQ Accordion",
-    description: "Expandable answers for common technical and engagement questions.",
+    label: "16A · Executive FAQ Accordion",
+    description: "Accessible expandable answers for technical, security, and scoping questions.",
   },
   {
     type: "cta_banner",
-    label: "Closing Vermilion Conversion Island",
-    description: "High-contrast warm obsidian CTA banner with discovery action.",
+    label: "16B · Executive Consultation Banner",
+    description: "High-contrast midnight-indigo conversion island with audit & lab CTAs.",
   },
   {
     type: "rich_text",
@@ -292,8 +323,18 @@ export function PageBuilderClient({
             ))}
           </select>
           <span className="rounded-full border border-line bg-surface-muted px-3 py-1 font-mono text-[11px] text-ink-muted">
-            Safe Design-System Mode · No Raw HTML/JS
+            {sections.filter((s) => s.isVisible).length} visible ·{" "}
+            {sections.filter((s) => !s.isVisible).length} hidden
           </span>
+          <a
+            href={selectedSlug === "home" ? "/" : `/${selectedSlug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-primary hover:bg-accent-subtle"
+          >
+            <span>Live Page</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">

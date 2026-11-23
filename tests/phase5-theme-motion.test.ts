@@ -9,6 +9,7 @@ import { POST as createUserHandler } from "@/app/api/admin/users/route";
 import { evaluateThemeContrast } from "@/features/themes/color-utils";
 import {
   BUILT_IN_THEME_PRESETS,
+  DEFAULT_THEME_PRESET_ID,
   OMNIFLOW_DARK_TOKENS,
   OMNIFLOW_LIGHT_TOKENS,
 } from "@/features/themes/presets";
@@ -42,15 +43,17 @@ afterAll(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
-describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand Assets", () => {
+describe("Theme Manager, Light-First Indigo Signature Palette & Brand Assets", () => {
   let adminToken = "";
   let editorToken = "";
 
-  it("1. defaults to Warm Obsidian (#0B0908) + Vermilion (#D23A1F) dark-first palette with 0 WCAG AA warnings", async () => {
-    expect(OMNIFLOW_DARK_TOKENS.colors.background).toBe("#0B0908");
-    expect(OMNIFLOW_DARK_TOKENS.colors.primary).toBe("#D23A1F");
-    expect(OMNIFLOW_DARK_TOKENS.colors.heading).toBe("#F2EADB");
-    expect(OMNIFLOW_LIGHT_TOKENS.colors.background).toBe("#F5EFE3");
+  it("1. defaults to Light-First Indigo Signature (#F8FAFC / #4F46E5) + Midnight-Navy Dark Mode (#090D16) with 0 WCAG AA warnings", async () => {
+    expect(OMNIFLOW_LIGHT_TOKENS.colors.background).toBe("#F8FAFC");
+    expect(OMNIFLOW_LIGHT_TOKENS.colors.surface).toBe("#FFFFFF");
+    expect(OMNIFLOW_LIGHT_TOKENS.colors.primary).toBe("#4F46E5");
+    expect(OMNIFLOW_LIGHT_TOKENS.colors.heading).toBe("#0B1120");
+    expect(OMNIFLOW_DARK_TOKENS.colors.background).toBe("#090D16");
+    expect(OMNIFLOW_DARK_TOKENS.colors.heading).toBe("#F8FAFC");
 
     for (const preset of BUILT_IN_THEME_PRESETS) {
       expect(evaluateThemeContrast("dark", preset.dark)).toEqual([]);
@@ -58,8 +61,8 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
     }
 
     const initialTheme = await db.getThemeConfig();
-    expect(initialTheme.activePresetId).toBe("omniflow-editorial-ember");
-    expect(initialTheme.defaultMode).toBe("dark");
+    expect(initialTheme.activePresetId).toBe(DEFAULT_THEME_PRESET_ID);
+    expect(initialTheme.defaultMode).toBe("light");
   });
 
   it("2. enforces RBAC on /api/admin/theme and supports draft, publish, custom presets, CSS sanitization & rollback", async () => {
@@ -113,8 +116,8 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
         method: "PUT",
         headers: makeHeaders(editorToken),
         body: JSON.stringify({
-          defaultMode: "dark",
-          activePresetId: "omniflow-editorial-ember",
+          defaultMode: "light",
+          activePresetId: DEFAULT_THEME_PRESET_ID,
           light: OMNIFLOW_LIGHT_TOKENS,
           dark: OMNIFLOW_DARK_TOKENS,
           publish: true,
@@ -124,20 +127,20 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
     expect(editorDenied.status).toBe(403);
 
     // Super Admin publishes custom accent & malicious injection string is sanitized out
-    const customDark = structuredClone(OMNIFLOW_DARK_TOKENS);
-    customDark.colors.accent = "#FF7A33";
-    customDark.colors.link = "#FF7A33; background:url(evil)"; // invalid -> falls back safely
+    const customLight = structuredClone(OMNIFLOW_LIGHT_TOKENS);
+    customLight.colors.accent = "#2563EB";
+    customLight.colors.link = "#2563EB; background:url(evil)"; // invalid -> falls back safely
 
     const pubRes = await putThemeHandler(
       new Request("http://localhost:3000/api/admin/theme", {
         method: "PUT",
         headers: makeHeaders(adminToken),
         body: JSON.stringify({
-          defaultMode: "dark",
-          activePresetId: "omniflow-editorial-ember",
-          light: OMNIFLOW_LIGHT_TOKENS,
-          dark: customDark,
-          overrides: { dark: { primaryButtonBg: "#E04020" } },
+          defaultMode: "light",
+          activePresetId: DEFAULT_THEME_PRESET_ID,
+          light: customLight,
+          dark: OMNIFLOW_DARK_TOKENS,
+          overrides: { light: { primaryButtonBg: "#4338CA" } },
           publish: true,
         }),
       })
@@ -145,12 +148,14 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
     expect(pubRes.status).toBe(200);
     const pubData = (await pubRes.json()) as {
       themeConfig: {
-        published: { dark: { colors: { accent: string; link: string } } };
+        updatedBy?: string;
+        published: { light: { colors: { accent: string; link: string } } };
       };
     };
-    expect(pubData.themeConfig.published.dark.colors.accent).toBe("#FF7A33");
-    expect(pubData.themeConfig.published.dark.colors.link).toBe(
-      OMNIFLOW_DARK_TOKENS.colors.link
+    expect(pubData.themeConfig.updatedBy).toBe("admin@omniflow.example");
+    expect(pubData.themeConfig.published.light.colors.accent).toBe("#2563EB");
+    expect(pubData.themeConfig.published.light.colors.link).toBe(
+      OMNIFLOW_LIGHT_TOKENS.colors.link
     );
 
     // Save custom preset
@@ -160,13 +165,13 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
         headers: makeHeaders(adminToken),
         body: JSON.stringify({
           action: "save_custom_preset",
-          name: "Warm Sunset Variant",
+          name: "Electric Blue Variant",
         }),
       })
     );
     expect(savePresetRes.status).toBe(200);
 
-    // Rollback restores previous published (#F06A2A accent)
+    // Rollback restores previous published (#6366F1 accent)
     const rollbackRes = await postThemeHandler(
       new Request("http://localhost:3000/api/admin/theme", {
         method: "POST",
@@ -176,7 +181,7 @@ describe("Phase 5 — Warm Obsidian & Vermilion Palette, Theme Manager & Brand A
     );
     expect(rollbackRes.status).toBe(200);
     const rolled = await db.getThemeConfig();
-    expect(rolled.published.dark.colors.accent).toBe("#F06A2A");
+    expect(rolled.published.light.colors.accent).toBe("#6366F1");
   });
 
   it("3. updates replaceable Brand Identity slots and strips unsafe javascript: URLs", async () => {

@@ -5,7 +5,12 @@ const strictFrameHeaders = process.env.ENABLE_STRICT_FRAME_HEADERS === "true";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  compress: true,
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   experimental: {
+    optimizePackageImports: ["lucide-react"],
     serverActions: {
       allowedOrigins: ["localhost:3000", "*.e2b.app", "*.vercel.app"],
     },
@@ -17,7 +22,8 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+        value:
+          "camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()",
       },
     ];
 
@@ -35,6 +41,16 @@ const nextConfig: NextConfig = {
         headers: baseHeaders,
       },
       {
+        source: "/icon.svg",
+        headers: [
+          ...baseHeaders,
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
         source: "/admin/:path*",
         headers: [
           ...baseHeaders,
@@ -43,7 +59,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/api/admin/:path*",
+        source: "/api/:path*",
         headers: [
           ...baseHeaders,
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },

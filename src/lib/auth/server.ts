@@ -4,11 +4,14 @@ import { NextResponse } from "next/server";
 import type { PermissionAction, SafeUser } from "@/types/auth";
 import type { SiteSettings } from "@/types/content";
 import { db, toSafeUser } from "@/lib/database";
+import { DatabaseUnavailableError } from "@/lib/env";
 import { verifySameOriginRequest } from "@/lib/security/csrf";
 import { hasPermission } from "./rbac";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "./session";
 
-export function extractSessionTokenFromCookieHeader(cookieHeader: string | null): string | null {
+export function extractSessionTokenFromCookieHeader(
+  cookieHeader: string | null
+): string | null {
   if (!cookieHeader) return null;
   const pairs = cookieHeader.split(";");
   for (const rawPair of pairs) {
@@ -28,11 +31,17 @@ export async function resolveAdminUserFromToken(
   const session = verifySessionToken(token);
   if (!session) return null;
 
-  // Always verify against live DB record so deactivated users or role changes take effect immediately
+  // Verify against live DB record so deactivated accounts, role changes, and revoked sessionVersions take effect immediately
   const liveUser = await db.findUserById(session.userId);
   if (!liveUser || !liveUser.isActive) {
     return null;
   }
+
+  const liveVersion = liveUser.sessionVersion ?? 1;
+  if (session.sessionVersion !== liveVersion) {
+    return null;
+  }
+
   return toSafeUser(liveUser);
 }
 
@@ -42,7 +51,10 @@ export async function getCurrentAdminUser(): Promise<SafeUser | null> {
   return resolveAdminUserFromToken(token);
 }
 
-export async function requireAdminPageAuth(requiredAction?: PermissionAction): Promise<{
+export async function requireAdminPageAuth(
+  requiredAction?: PermissionAction,
+  options?: { allowUnchangedBootstrapPassword?: boolean }
+): Promise<{
   user: SafeUser;
   settings: SiteSettings;
   allowed: boolean;
@@ -50,6 +62,9 @@ export async function requireAdminPageAuth(requiredAction?: PermissionAction): P
   const user = await getCurrentAdminUser();
   if (!user) {
     redirect("/admin/login");
+  }
+  if (user.mustChangePassword && !options?.allowUnchangedBootstrapPassword) {
+    redirect("/admin/account?forcePasswordChange=1");
   }
   const settings = await db.getSiteSettings();
   const allowed = requiredAction
@@ -72,7 +87,8 @@ export type ApiAuthResult =
 
 export async function requireAdminApiAuth(
   request: Request,
-  requiredAction?: PermissionAction
+  requiredAction?: PermissionAction,
+  options?: { allowWhenPasswordChangeRequired?: boolean }
 ): Promise<ApiAuthResult> {
   if (!verifySameOriginRequest(request)) {
     return {
@@ -94,27 +110,57 @@ export async function requireAdminApiAuth(
     }
   }
 
-  const user = await resolveAdminUserFromToken(token);
-  if (!user) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: "Authentication required. Please sign in to continue." },
-        { status: 401 }
-      ),
-    };
-  }
+  try {
+    const user = await resolveAdminUserFromToken(token);
+    if (!user) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Authentication required. Please sign in to continue." },
+          { status: 401 }
+        ),
+      };
+    }
 
-  const settings = await db.getSiteSettings();
-  if (requiredAction && !hasPermission(user.role, requiredAction, settings.rolePolicies)) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: "Insufficient role permissions for this action." },
-        { status: 403 }
-      ),
-    };
-  }
+    if (user.mustChangePassword && !options?.allowWhenPasswordChangeRequired) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error:
+              "Password replacement is required before performing administrative actions.",
+            code: "MUST_CHANGE_PASSWORD",
+          },
+          { status: 403 }
+        ),
+      };
+    }
 
-  return { ok: true, user, settings };
+    const settings = await db.getSiteSettings();
+    if (
+      requiredAction &&
+      !hasPermission(user.role, requiredAction, settings.rolePolicies)
+    ) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Insufficient role permissions for this action." },
+          { status: 403 }
+        ),
+      };
+    }
+
+    return { ok: true, user, settings };
+  } catch (err) {
+    if (err instanceof DatabaseUnavailableError) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: err.publicMessage, code: err.code },
+          { status: 503 }
+        ),
+      };
+    }
+    throw err;
+  }
 }

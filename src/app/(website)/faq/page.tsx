@@ -1,24 +1,30 @@
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { db } from "@/lib/database";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Badge } from "@/components/ui/Badge";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
   buildBreadcrumbJsonLd,
   buildFaqPageJsonLd,
 } from "@/features/seo/json-ld";
+import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Frequently Asked Questions",
   description:
-    "Answers to common questions about OmniFlow services, deterministic vs. AI workflows, security guardrails, ownership, and pricing.",
+    "Clear answers about OmniFlow’s AI automation process, data ownership, cost control, guardrails, and US/UK/Canada engagement workflow.",
 };
 
 export default async function FaqPage() {
-  const faqs = await db.listFaqs(true);
+  const [faqs, settings] = await Promise.all([
+    db.listFaqs(true),
+    db.getSiteSettings(),
+  ]);
+
   const categories = Array.from(new Set(faqs.map((f) => f.category)));
 
   const structuredData = [
@@ -34,48 +40,50 @@ export default async function FaqPage() {
       <JsonLdScript data={structuredData} />
       <PageHeader
         breadcrumbs={[{ label: "FAQ" }]}
-        badge="Questions & Answers"
+        badge="Answers & Transparency"
         title="Frequently Asked Questions"
-        description="Straightforward answers on how OmniFlow scopes, builds, secures, and hands over business automation systems."
+        description="Straightforward answers on how we scope, secure, price, and hand over business automation systems."
       />
 
-      <section className="py-14 sm:py-20">
-        <Container className="max-w-4xl space-y-12">
-          {categories.map((category) => (
-            <div key={category}>
-              <Badge variant="outline">{category}</Badge>
-              <div className="mt-4 space-y-4">
-                {faqs
-                  .filter((f) => f.category === category)
-                  .map((faq) => (
+      <section className="bg-surface py-16 sm:py-22">
+        <Container className="max-w-4xl space-y-10">
+          {categories.map((category) => {
+            const group = faqs.filter((f) => f.category === category);
+            return (
+              <div key={category} className="space-y-4">
+                <Badge variant="accent">{category}</Badge>
+                <div className="space-y-3">
+                  {group.map((faq, idx) => (
                     <details
                       key={faq.id}
-                      className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card"
+                      open={idx === 0}
+                      className="more rounded-card border border-[var(--of-border-card)] bg-surface-card px-6 py-5 shadow-card"
                     >
-                      <summary className="cursor-pointer list-none font-semibold text-ink-heading">
-                        {faq.question}
+                      <summary className="flex items-center justify-between gap-4 text-left text-base font-bold text-ink-heading sm:text-lg">
+                        <span>{faq.question}</span>
+                        <span className="more-icon grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-surface-muted text-primary">
+                          <Plus className="h-4 w-4" />
+                        </span>
                       </summary>
-                      <p className="mt-3 text-sm leading-relaxed text-ink-body">{faq.answer}</p>
+                      <p className="mt-3 border-t border-line pt-3 text-sm leading-relaxed text-ink-body sm:text-base">
+                        {faq.answer}
+                      </p>
                     </details>
                   ))}
+                </div>
               </div>
-            </div>
-          ))}
-
-          <div className="rounded-card border border-line bg-surface-muted p-8 text-center">
-            <h2 className="text-xl font-bold text-ink-heading">Have a Specific Technical Question?</h2>
-            <p className="mt-2 text-sm text-ink-body">
-              Send us your question directly and we will respond with a clear, practical answer.
-            </p>
-            <div className="mt-5 flex justify-center">
-              <Button href="/contact">
-                Ask OmniFlow
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            );
+          })}
         </Container>
       </section>
+
+      <PageConversionBanner
+        eyebrow="Still Have a Question?"
+        title="Ask us about your specific tools, compliance rules, or timeline"
+        description="Submit your question through our private enquiry form and receive a direct answer within one business day."
+        primaryLabel="Contact OmniFlow"
+        primaryHref={settings.primaryCtaHref}
+      />
     </>
   );
 }

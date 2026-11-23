@@ -25,6 +25,7 @@ const brandSchema = z
     faviconUrl: z.string().max(500).nullable().optional(),
     ogImageUrl: z.string().max(500).nullable().optional(),
     showTextFallback: z.boolean(),
+    updatedAt: z.string().optional(),
   })
   .strict();
 

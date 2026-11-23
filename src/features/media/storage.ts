@@ -1,23 +1,86 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import type { MediaAsset } from "@/types/content";
+import {
+  StorageUnavailableError,
+  isPlaceholderEnvValue,
+  isProductionEnvironment,
+} from "@/lib/env";
 
-export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB per upload
-export const FREE_TIER_QUOTA_BYTES = 500 * 1024 * 1024; // 500 MB Supabase Free Tier reference
+export const DEFAULT_MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB max single file (fits Vercel serverless 4.5 MB body cap)
+export const DEFAULT_TOTAL_QUOTA_BYTES = 500 * 1024 * 1024; // 500 MB persistent storage quota
 
-const ALLOWED_MIMES: Record<
+// Backwards-compatible named constants
+export const MAX_UPLOAD_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
+export const FREE_TIER_QUOTA_BYTES = DEFAULT_TOTAL_QUOTA_BYTES;
+
+export function getMaxSingleUploadBytes(): number {
+  const parsed = Number(process.env.MEDIA_MAX_FILE_BYTES || DEFAULT_MAX_UPLOAD_BYTES);
+  if (Number.isFinite(parsed) && parsed >= 64 * 1024 && parsed <= 50 * 1024 * 1024) {
+    return Math.floor(parsed);
+  }
+  return DEFAULT_MAX_UPLOAD_BYTES;
+}
+
+export function getTotalStorageQuotaBytes(): number {
+  const parsed = Number(process.env.MEDIA_TOTAL_QUOTA_BYTES || DEFAULT_TOTAL_QUOTA_BYTES);
+  if (Number.isFinite(parsed) && parsed >= 10 * 1024 * 1024) {
+    return Math.floor(parsed);
+  }
+  return DEFAULT_TOTAL_QUOTA_BYTES;
+}
+
+export const ALLOWED_MEDIA_MIME_MAP: Record<
   string,
-  { ext: string; defaultCategory: MediaAsset["category"] }
+  {
+    canonicalExt: string;
+    acceptedExtensions: readonly string[];
+    defaultCategory: MediaAsset["category"];
+  }
 > = {
-  "image/png": { ext: "png", defaultCategory: "image" },
-  "image/jpeg": { ext: "jpg", defaultCategory: "image" },
-  "image/webp": { ext: "webp", defaultCategory: "image" },
-  "image/gif": { ext: "gif", defaultCategory: "image" },
-  "image/svg+xml": { ext: "svg", defaultCategory: "svg" },
-  "application/pdf": { ext: "pdf", defaultCategory: "document" },
+  "image/png": {
+    canonicalExt: "png",
+    acceptedExtensions: ["png"],
+    defaultCategory: "image",
+  },
+  "image/jpeg": {
+    canonicalExt: "jpg",
+    acceptedExtensions: ["jpg", "jpeg"],
+    defaultCategory: "image",
+  },
+  "image/webp": {
+    canonicalExt: "webp",
+    acceptedExtensions: ["webp"],
+    defaultCategory: "image",
+  },
+  "image/gif": {
+    canonicalExt: "gif",
+    acceptedExtensions: ["gif"],
+    defaultCategory: "image",
+  },
+  "image/svg+xml": {
+    canonicalExt: "svg",
+    acceptedExtensions: ["svg"],
+    defaultCategory: "svg",
+  },
+  "application/pdf": {
+    canonicalExt: "pdf",
+    acceptedExtensions: ["pdf"],
+    defaultCategory: "document",
+  },
 };
+
+export const ALLOWED_MEDIA_MIME_TYPES = Object.keys(ALLOWED_MEDIA_MIME_MAP);
+export const ALLOWED_MEDIA_EXTENSIONS = [
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "svg",
+  "pdf",
+] as const;
 
 function matchesMagicHeader(mime: string, buf: Buffer): boolean {
   if (buf.length < 4) return false;
@@ -84,7 +147,8 @@ export function validateSafeSvgBuffer(buf: Buffer): {
 
 export function validateMediaUpload(
   mimeType: string,
-  buffer: Buffer
+  buffer: Buffer,
+  originalFilename?: string
 ): {
   valid: boolean;
   reason?: string;
@@ -94,21 +158,34 @@ export function validateMediaUpload(
   if (buffer.length === 0) {
     return { valid: false, reason: "Uploaded file is empty." };
   }
-  if (buffer.length > MAX_UPLOAD_BYTES) {
+  const maxFileBytes = getMaxSingleUploadBytes();
+  if (buffer.length > maxFileBytes) {
+    const maxMb = (maxFileBytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, "");
     return {
       valid: false,
-      reason: "File exceeds the 4 MB maximum upload limit.",
+      reason: `File exceeds the ${maxMb} MB maximum per-file upload limit.`,
     };
   }
+
   const normalizedMime = mimeType.trim().toLowerCase();
-  const meta = ALLOWED_MIMES[normalizedMime];
+  const meta = ALLOWED_MEDIA_MIME_MAP[normalizedMime];
   if (!meta) {
     return {
       valid: false,
-      reason:
-        "Unsupported file format. Allowed formats: PNG, JPEG, WebP, GIF, sanitized SVG, and PDF.",
+      reason: `Unsupported MIME type. Allowed types: ${ALLOWED_MEDIA_MIME_TYPES.join(", ")}.`,
     };
   }
+
+  if (originalFilename && originalFilename.includes(".")) {
+    const rawExt = originalFilename.split(".").pop()?.trim().toLowerCase() || "";
+    if (rawExt && !meta.acceptedExtensions.includes(rawExt)) {
+      return {
+        valid: false,
+        reason: `File extension (.${rawExt}) does not match declared MIME type (${normalizedMime}).`,
+      };
+    }
+  }
+
   if (normalizedMime === "image/svg+xml") {
     const svgCheck = validateSafeSvgBuffer(buffer);
     if (!svgCheck.valid) return svgCheck;
@@ -121,23 +198,146 @@ export function validateMediaUpload(
 
   return {
     valid: true,
-    ext: meta.ext,
+    ext: meta.canonicalExt,
     defaultCategory: meta.defaultCategory,
   };
 }
 
-function getLocalUploadsDir(): string {
+function getLocalDevUploadsDir(): string {
   if (process.env.OMNIFLOW_UPLOADS_DIR) {
     return path.resolve(process.env.OMNIFLOW_UPLOADS_DIR);
   }
-  if (
-    process.env.VERCEL ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.cwd().startsWith("/var/task")
-  ) {
-    return path.join(os.tmpdir(), "omniflow-uploads");
-  }
   return path.join(process.cwd(), "public", "uploads");
+}
+
+function getSupabaseStorageConfig(): {
+  supabaseUrl: string;
+  serviceKey: string;
+  bucket: string;
+} | null {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || "omniflow-media";
+
+  if (
+    isPlaceholderEnvValue(supabaseUrl) ||
+    !/^https:\/\//i.test(supabaseUrl) ||
+    isPlaceholderEnvValue(serviceKey)
+  ) {
+    return null;
+  }
+
+  return {
+    supabaseUrl: supabaseUrl.replace(/\/$/, ""),
+    serviceKey,
+    bucket,
+  };
+}
+
+export interface StorageHealthVerification {
+  provider: "supabase_storage" | "local_dev" | "unconfigured_production";
+  configured: boolean;
+  healthy: boolean;
+  bucket: string;
+  maxSingleFileBytes: number;
+  totalQuotaBytes: number;
+  allowedMimeTypes: string[];
+  allowedExtensions: readonly string[];
+  message: string;
+}
+
+export async function verifyStorageHealth(): Promise<StorageHealthVerification> {
+  const strictProd = isProductionEnvironment();
+  const cfg = getSupabaseStorageConfig();
+  const maxSingleFileBytes = getMaxSingleUploadBytes();
+  const totalQuotaBytes = getTotalStorageQuotaBytes();
+
+  if (!cfg) {
+    if (strictProd) {
+      return {
+        provider: "unconfigured_production",
+        configured: false,
+        healthy: false,
+        bucket: process.env.SUPABASE_STORAGE_BUCKET?.trim() || "omniflow-media",
+        maxSingleFileBytes,
+        totalQuotaBytes,
+        allowedMimeTypes: ALLOWED_MEDIA_MIME_TYPES,
+        allowedExtensions: ALLOWED_MEDIA_EXTENSIONS,
+        message:
+          "Persistent object storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      };
+    }
+
+    return {
+      provider: "local_dev",
+      configured: true,
+      healthy: true,
+      bucket: "public/uploads",
+      maxSingleFileBytes,
+      totalQuotaBytes,
+      allowedMimeTypes: ALLOWED_MEDIA_MIME_TYPES,
+      allowedExtensions: ALLOWED_MEDIA_EXTENSIONS,
+      message: "Local development filesystem storage active.",
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4_000);
+  if (typeof timer.unref === "function") timer.unref();
+
+  try {
+    const res = await fetch(
+      `${cfg.supabaseUrl}/storage/v1/bucket/${encodeURIComponent(cfg.bucket)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${cfg.serviceKey}`,
+          apikey: cfg.serviceKey,
+        },
+        signal: controller.signal,
+      }
+    );
+
+    if (!res.ok) {
+      return {
+        provider: "supabase_storage",
+        configured: true,
+        healthy: false,
+        bucket: cfg.bucket,
+        maxSingleFileBytes,
+        totalQuotaBytes,
+        allowedMimeTypes: ALLOWED_MEDIA_MIME_TYPES,
+        allowedExtensions: ALLOWED_MEDIA_EXTENSIONS,
+        message: `Supabase Storage bucket "${cfg.bucket}" returned status ${res.status}. Ensure the public bucket exists in Supabase Storage.`,
+      };
+    }
+
+    return {
+      provider: "supabase_storage",
+      configured: true,
+      healthy: true,
+      bucket: cfg.bucket,
+      maxSingleFileBytes,
+      totalQuotaBytes,
+      allowedMimeTypes: ALLOWED_MEDIA_MIME_TYPES,
+      allowedExtensions: ALLOWED_MEDIA_EXTENSIONS,
+      message: `Supabase Storage bucket "${cfg.bucket}" verified and reachable.`,
+    };
+  } catch {
+    return {
+      provider: "supabase_storage",
+      configured: true,
+      healthy: false,
+      bucket: cfg.bucket,
+      maxSingleFileBytes,
+      totalQuotaBytes,
+      allowedMimeTypes: ALLOWED_MEDIA_MIME_TYPES,
+      allowedExtensions: ALLOWED_MEDIA_EXTENSIONS,
+      message: "Supabase Storage endpoint could not be reached within timeout.",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function storeMediaFile(input: {
@@ -150,45 +350,52 @@ export async function storeMediaFile(input: {
   url: string;
   storageProvider: "local" | "supabase";
 }> {
-  const baseSlug = input.originalName
-    .replace(/\.[^.]+$/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "asset";
+  const baseSlug =
+    input.originalName
+      .replace(/\.[^.]+$/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "asset";
 
   const filename = `${Date.now()}-${randomBytes(4).toString("hex")}-${baseSlug}.${input.ext}`;
+  const strictProd = isProductionEnvironment();
+  const cfg = getSupabaseStorageConfig();
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || "omniflow-media";
-
-  if (supabaseUrl && serviceKey) {
-    const endpoint = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(
-      bucket
+  if (cfg) {
+    const endpoint = `${cfg.supabaseUrl}/storage/v1/object/${encodeURIComponent(
+      cfg.bucket
     )}/${encodeURIComponent(filename)}`;
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        apikey: serviceKey,
-        "Content-Type": input.mimeType,
-        "x-upsert": "true",
-      },
-      body: new Uint8Array(input.buffer),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Supabase Storage upload failed (${res.status}).`);
+    let res: Response;
+    try {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.serviceKey}`,
+          apikey: cfg.serviceKey,
+          "Content-Type": input.mimeType,
+          "x-upsert": "true",
+        },
+        body: new Uint8Array(input.buffer),
+      });
+    } catch {
+      throw new StorageUnavailableError(
+        "STORAGE_UPLOAD_FAILED",
+        "Failed to reach persistent cloud media storage. Upload was rejected to prevent temporary data loss."
+      );
     }
 
-    const publicUrl = `${supabaseUrl.replace(
-      /\/$/,
-      ""
-    )}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodeURIComponent(
-      filename
-    )}`;
+    if (!res.ok) {
+      throw new StorageUnavailableError(
+        "STORAGE_UPLOAD_FAILED",
+        `Persistent media storage rejected the upload (HTTP ${res.status}). Verify bucket "${cfg.bucket}" exists in Supabase Storage.`
+      );
+    }
+
+    const publicUrl = `${cfg.supabaseUrl}/storage/v1/object/public/${encodeURIComponent(
+      cfg.bucket
+    )}/${encodeURIComponent(filename)}`;
 
     return {
       filename,
@@ -197,8 +404,16 @@ export async function storeMediaFile(input: {
     };
   }
 
-  // Zero-cost local disk fallback
-  const dir = getLocalUploadsDir();
+  // Production NEVER silently falls back to ephemeral/local storage
+  if (strictProd) {
+    throw new StorageUnavailableError(
+      "STORAGE_UNCONFIGURED",
+      "Persistent media storage is not configured in production. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+    );
+  }
+
+  // Local development & automated test filesystem storage ONLY
+  const dir = getLocalDevUploadsDir();
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, filename), input.buffer);
 
@@ -211,27 +426,44 @@ export async function storeMediaFile(input: {
 
 export async function removeStoredMediaFile(asset: MediaAsset): Promise<void> {
   if (asset.storageProvider === "local") {
+    if (isProductionEnvironment()) {
+      return;
+    }
     const safeName = path.basename(asset.filename);
-    const fullPath = path.join(getLocalUploadsDir(), safeName);
+    const fullPath = path.join(getLocalDevUploadsDir(), safeName);
     if (fs.existsSync(fullPath)) {
       fs.rmSync(fullPath, { force: true });
     }
     return;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || "omniflow-media";
-  if (supabaseUrl && serviceKey) {
-    const endpoint = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(
-      bucket
-    )}/${encodeURIComponent(asset.filename)}`;
-    await fetch(endpoint, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        apikey: serviceKey,
-      },
-    }).catch(() => undefined);
+  const cfg = getSupabaseStorageConfig();
+  if (!cfg) {
+    if (isProductionEnvironment()) {
+      throw new StorageUnavailableError(
+        "STORAGE_UNCONFIGURED",
+        "Persistent media storage is not configured in production."
+      );
+    }
+    return;
+  }
+
+  const endpoint = `${cfg.supabaseUrl}/storage/v1/object/${encodeURIComponent(
+    cfg.bucket
+  )}/${encodeURIComponent(asset.filename)}`;
+
+  const res = await fetch(endpoint, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      apikey: cfg.serviceKey,
+    },
+  });
+
+  if (!res.ok && res.status !== 404 && isProductionEnvironment()) {
+    throw new StorageUnavailableError(
+      "STORAGE_DELETE_FAILED",
+      `Failed to delete object from Supabase Storage (HTTP ${res.status}).`
+    );
   }
 }

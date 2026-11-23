@@ -8,8 +8,13 @@ export default async function ProtectedAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, settings } = await requireAdminPageAuth("dashboard:view");
-  const [brand, leads] = await Promise.all([db.getBrandAssets(), db.listLeads()]);
+  const { user, settings } = await requireAdminPageAuth("dashboard:view", {
+    allowUnchangedBootstrapPassword: true,
+  });
+  const [brand, leads] = await Promise.all([
+    db.getBrandAssets(),
+    user.mustChangePassword ? Promise.resolve([]) : db.listLeads(),
+  ]);
   const newLeadsCount = leads.filter((l) => l.status === "New").length;
 
   return (

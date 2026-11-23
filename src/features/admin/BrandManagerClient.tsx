@@ -215,19 +215,19 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
       <div className="space-y-4 lg:col-span-5">
         <div className="rounded-card border border-line bg-surface-card p-6 shadow-card">
           <p className="font-mono text-xs uppercase tracking-wider text-ink-muted">
-            Dark Surface / Notched Navbar Preview
+            Clean Light Surface / Frosted Header Preview (Default)
           </p>
-          <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-[#050404] p-5">
-            <BrandMark brand={brand} href="/admin/brand" tone="inverse" />
-            <span className="font-mono text-[11px] text-[#B9AE9F]">Header Slot</span>
+          <div className="mt-3 flex items-center justify-between rounded-2xl border border-[#E2E8F0] bg-[#FFFFFF] p-5 text-[#0B1120] shadow-sm">
+            <BrandMark brand={brand} href="/admin/brand" tone="auto" />
+            <span className="font-mono text-[11px] text-[#475569]">Light Slot</span>
           </div>
 
           <p className="mt-6 font-mono text-xs uppercase tracking-wider text-ink-muted">
-            Editorial Paper Light Surface Preview
+            Midnight Charcoal-Navy Dark Surface &amp; Footer Preview
           </p>
-          <div className="mt-3 flex items-center justify-between rounded-2xl border border-[#DCD0BC] bg-[#F5EFE3] p-5 text-[#15110D]">
-            <BrandMark brand={brand} href="/admin/brand" tone="auto" />
-            <span className="font-mono text-[11px] text-[#5B5147]">Light Slot</span>
+          <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-800 bg-[#090D16] p-5">
+            <BrandMark brand={brand} href="/admin/brand" tone="inverse" />
+            <span className="font-mono text-[11px] text-slate-400">Dark Slot</span>
           </div>
         </div>
       </div>

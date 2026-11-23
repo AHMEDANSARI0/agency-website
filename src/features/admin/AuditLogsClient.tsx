@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import type { AuditLogEntry } from "@/types/auth";
 
 interface AuditLogsClientProps {
@@ -11,9 +11,15 @@ interface AuditLogsClientProps {
 export function AuditLogsClient({ entries }: AuditLogsClientProps) {
   const [query, setQuery] = useState("");
   const [entityFilter, setEntityFilter] = useState("ALL");
+  const [roleFilter, setRoleFilter] = useState("ALL");
 
   const entityTypes = useMemo(() => {
     const unique = Array.from(new Set(entries.map((e) => e.entityType)));
+    return ["ALL", ...unique];
+  }, [entries]);
+
+  const roleTypes = useMemo(() => {
+    const unique = Array.from(new Set(entries.map((e) => e.actorRole)));
     return ["ALL", ...unique];
   }, [entries]);
 
@@ -21,6 +27,9 @@ export function AuditLogsClient({ entries }: AuditLogsClientProps) {
     const q = query.trim().toLowerCase();
     return entries.filter((item) => {
       if (entityFilter !== "ALL" && item.entityType !== entityFilter) {
+        return false;
+      }
+      if (roleFilter !== "ALL" && item.actorRole !== roleFilter) {
         return false;
       }
       if (!q) return true;
@@ -31,11 +40,32 @@ export function AuditLogsClient({ entries }: AuditLogsClientProps) {
         (item.entityId && item.entityId.toLowerCase().includes(q))
       );
     });
-  }, [entries, query, entityFilter]);
+  }, [entries, query, entityFilter, roleFilter]);
+
+  function handleExportJson() {
+    const payload = JSON.stringify(
+      {
+        exportedAt: new Date().toISOString(),
+        recordCount: filtered.length,
+        entries: filtered,
+      },
+      null,
+      2
+    );
+    const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `omniflow-audit-logs-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col justify-between gap-3 rounded-card border border-line bg-surface-card p-4 shadow-card sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-3 rounded-card border border-[var(--of-border-card)] bg-surface-card p-4 shadow-card lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
           <input
@@ -48,28 +78,52 @@ export function AuditLogsClient({ entries }: AuditLogsClientProps) {
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {entityTypes.map((type) => {
-            const active = entityFilter === type;
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setEntityFilter(type)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-line bg-surface text-ink-body hover:bg-surface-muted"
-                }`}
-              >
-                {type === "ALL" ? "All Categories" : type}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Filter by actor role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink-heading"
+          >
+            {roleTypes.map((r) => (
+              <option key={r} value={r}>
+                {r === "ALL" ? "All Roles" : r}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={handleExportJson}
+            className="inline-flex items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
+          >
+            <Download className="h-3.5 w-3.5 text-primary" />
+            <span>Export JSON ({filtered.length})</span>
+          </button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-card border border-line bg-surface-card shadow-card">
+      <div className="flex flex-wrap gap-1.5">
+        {entityTypes.map((type) => {
+          const active = entityFilter === type;
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setEntityFilter(type)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-line bg-surface-card text-ink-body hover:bg-surface-muted"
+              }`}
+            >
+              {type === "ALL" ? "All Categories" : type}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-hidden rounded-card border border-[var(--of-border-card)] bg-surface-card shadow-card">
         {filtered.length === 0 ? (
           <p className="p-10 text-center text-sm text-ink-muted">
             No audit events match your current filter.

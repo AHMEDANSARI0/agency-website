@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { isKnownDefaultOrWeakPassword } from "@/lib/env";
 
 const KEY_LENGTH = 64;
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
@@ -29,8 +30,11 @@ export function verifyPassword(plainPassword: string, storedHash: string): boole
   }
 }
 
-export function validatePasswordStrength(password: string): { valid: boolean; reason?: string } {
-  if (password.length < 10) {
+export function validatePasswordStrength(
+  password: string,
+  options?: { rejectKnownDefaults?: boolean }
+): { valid: boolean; reason?: string } {
+  if (!password || password.length < 10) {
     return { valid: false, reason: "Password must be at least 10 characters long." };
   }
   if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
@@ -39,5 +43,47 @@ export function validatePasswordStrength(password: string): { valid: boolean; re
       reason: "Password must include uppercase, lowercase, and numeric characters.",
     };
   }
+  if (options?.rejectKnownDefaults && isKnownDefaultOrWeakPassword(password)) {
+    return {
+      valid: false,
+      reason:
+        "This password is a known placeholder or common password. Choose a unique administrator password.",
+    };
+  }
   return { valid: true };
+}
+
+export function generateSecureRecoveryToken(): {
+  rawToken: string;
+  tokenHash: string;
+  expiresAtIso: string;
+} {
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = hashRecoveryToken(rawToken);
+  const expiresAtIso = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
+  return { rawToken, tokenHash, expiresAtIso };
+}
+
+export function hashRecoveryToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken.trim(), "utf8").digest("hex");
+}
+
+export function verifyRecoveryTokenHash(
+  candidateRawToken: string,
+  storedHash: string | null | undefined,
+  expiresAtIso: string | null | undefined,
+  nowMs = Date.now()
+): boolean {
+  if (!candidateRawToken || !storedHash || !expiresAtIso) return false;
+  const expiresMs = Date.parse(expiresAtIso);
+  if (!Number.isFinite(expiresMs) || expiresMs <= nowMs) return false;
+
+  try {
+    const actualBuf = Buffer.from(hashRecoveryToken(candidateRawToken), "hex");
+    const expectedBuf = Buffer.from(storedHash, "hex");
+    if (actualBuf.length !== expectedBuf.length) return false;
+    return timingSafeEqual(actualBuf, expectedBuf);
+  } catch {
+    return false;
+  }
 }

@@ -41,7 +41,7 @@ export function sanitizeTokenSet(
     const colorComponentKeys: Array<
       Exclude<
         keyof typeof safeComponents,
-        "gradientAngleDeg" | "gradientIntensity" | "shadowCard" | "shadowElevated"
+        "gradientAngleDeg" | "gradientIntensity" | "shadowCard" | "shadowElevated" | "navbarText"
       >
     > = [
       "navbarBg",
@@ -70,6 +70,10 @@ export function sanitizeTokenSet(
       if (isValidCssColor(candidate)) {
         safeComponents[key] = candidate.trim();
       }
+    }
+
+    if (isValidCssColor(input.components.navbarText)) {
+      safeComponents.navbarText = input.components.navbarText.trim();
     }
 
     if (
@@ -215,7 +219,7 @@ export function evaluateThemeContrast(
       pairLabel: "Muted Text on Page Background",
       fg: tokens.colors.muted,
       bg: tokens.colors.background,
-      min: 3.5,
+      min: 4.5,
     },
   ];
 
@@ -238,6 +242,7 @@ export function evaluateThemeContrast(
 
 function tokenSetToCssDeclarations(
   tokens: ThemeTokenSet,
+  mode: ResolvedThemeMode,
   overrides?: ComponentTokenOverrides
 ): string {
   const c = tokens.colors;
@@ -255,9 +260,20 @@ function tokenSetToCssDeclarations(
   const badgeBg =
     overrides?.badgeBg && isValidCssColor(overrides.badgeBg) ? overrides.badgeBg : comp.badgeBg;
 
+  const navbarText = comp.navbarText || c.heading;
   const alpha = (comp.gradientIntensity / 100).toFixed(2);
+  const primaryRgb = parseColorToRgb(primaryColor) ?? { r: 79, g: 70, b: 229 };
   const fgRgb = parseColorToRgb(comp.gradientFrom) ?? { r: 79, g: 70, b: 229 };
-  const toRgb = parseColorToRgb(comp.gradientTo) ?? { r: 124, g: 58, b: 237 };
+  const toRgb = parseColorToRgb(comp.gradientTo) ?? { r: 37, g: 99, b: 235 };
+
+  const glassBg =
+    mode === "light" ? "rgba(255, 255, 255, 0.78)" : "rgba(15, 22, 36, 0.76)";
+  const glassBorder =
+    mode === "light" ? "rgba(226, 232, 240, 0.85)" : "rgba(148, 163, 184, 0.16)";
+  const shadowGlow =
+    mode === "light"
+      ? `0 10px 28px -8px rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.34)`
+      : `0 12px 34px -8px rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.48)`;
 
   const lines: Array<[string, string]> = [
     ["--of-color-primary", primaryColor],
@@ -285,6 +301,7 @@ function tokenSetToCssDeclarations(
     ["--of-color-error", c.error],
     ["--of-surface-navbar", navbarBg],
     ["--of-border-navbar", comp.navbarBorder],
+    ["--of-text-navbar", navbarText],
     ["--of-surface-footer", footerBg],
     ["--of-text-footer", comp.footerText],
     ["--of-surface-card", cardBg],
@@ -299,18 +316,24 @@ function tokenSetToCssDeclarations(
     ["--of-text-badge", comp.badgeText],
     ["--of-btn-disabled-bg", comp.buttonDisabledBg],
     ["--of-btn-disabled-text", comp.buttonDisabledText],
+    ["--of-surface-glass", glassBg],
+    ["--of-border-glass", glassBorder],
     [
       "--of-gradient-brand",
       `linear-gradient(${comp.gradientAngleDeg}deg, ${comp.gradientFrom}, ${comp.gradientVia}, ${comp.gradientTo})`,
     ],
     [
       "--of-gradient-hero",
-      `radial-gradient(circle at 20% 15%, rgba(${fgRgb.r}, ${fgRgb.g}, ${fgRgb.b}, ${alpha}), transparent 52%), radial-gradient(circle at 80% 10%, rgba(${toRgb.r}, ${toRgb.g}, ${toRgb.b}, ${alpha}), transparent 46%)`,
+      `radial-gradient(circle at 18% 12%, rgba(${fgRgb.r}, ${fgRgb.g}, ${fgRgb.b}, ${alpha}), transparent 50%), radial-gradient(circle at 82% 8%, rgba(${toRgb.r}, ${toRgb.g}, ${toRgb.b}, ${alpha}), transparent 46%)`,
     ],
     ["--of-shadow-card", comp.shadowCard],
     ["--of-shadow-elevated", comp.shadowElevated],
-    ["--of-radius-card", "0.875rem"],
+    ["--of-shadow-glow", shadowGlow],
+    ["--of-spotlight-color", `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.12)`],
+    ["--of-radius-sm", "0.5rem"],
     ["--of-radius-control", "0.625rem"],
+    ["--of-radius-card", "1rem"],
+    ["--of-radius-feature", "1.5rem"],
   ];
 
   return lines.map(([k, v]) => `  ${k}: ${v};`).join("\n");
@@ -320,8 +343,16 @@ export function buildThemeCssVariables(config?: Partial<ThemeConfiguration> | nu
   const safeLight = sanitizeTokenSet(config?.published?.light, OMNIFLOW_LIGHT_TOKENS);
   const safeDark = sanitizeTokenSet(config?.published?.dark, OMNIFLOW_DARK_TOKENS);
 
-  const lightCss = tokenSetToCssDeclarations(safeLight, config?.published?.overrides?.light);
-  const darkCss = tokenSetToCssDeclarations(safeDark, config?.published?.overrides?.dark);
+  const lightCss = tokenSetToCssDeclarations(
+    safeLight,
+    "light",
+    config?.published?.overrides?.light
+  );
+  const darkCss = tokenSetToCssDeclarations(
+    safeDark,
+    "dark",
+    config?.published?.overrides?.dark
+  );
 
   return `:root, [data-theme="light"] {\n${lightCss}\n}\n\n[data-theme="dark"], .dark {\n${darkCss}\n}`;
 }

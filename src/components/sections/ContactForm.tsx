@@ -8,6 +8,7 @@ import { trackAnalyticsEvent } from "@/components/analytics/AnalyticsConsentMana
 
 interface ContactFormProps {
   defaultService?: string;
+  defaultContext?: string;
   serviceOptions: { slug: string; title: string }[];
 }
 
@@ -36,11 +37,32 @@ const TIMELINES = [
   "Exploratory inquiry",
 ];
 
-export function ContactForm({ defaultService = "", serviceOptions }: ContactFormProps) {
+export function ContactForm({
+  defaultService = "",
+  defaultContext = "",
+  serviceOptions,
+}: ContactFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<{ type: "idle" | "success" | "error"; message?: string }>({
     type: "idle",
   });
+
+  const resolvedDefaultService = React.useMemo(() => {
+    const trimmed = defaultService.trim();
+    if (!trimmed) return "";
+    const bySlugOrTitle = serviceOptions.find(
+      (opt) =>
+        opt.slug.toLowerCase() === trimmed.toLowerCase() ||
+        opt.title.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (bySlugOrTitle) return bySlugOrTitle.title;
+    return "General Automation Assessment";
+  }, [defaultService, serviceOptions]);
+
+  const safeDefaultContext = React.useMemo(
+    () => defaultContext.replace(/[<>]/g, "").trim().slice(0, 500),
+    [defaultContext]
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -119,6 +141,13 @@ export function ContactForm({ defaultService = "", serviceOptions }: ContactForm
         Fields marked with <span aria-hidden="true">*</span> are required. Submissions are private
         and never shared with third parties.
       </p>
+
+      {safeDefaultContext && (
+        <div className="mt-4 rounded-xl border border-primary/25 bg-accent-subtle/50 px-4 py-3 text-xs text-ink-body">
+          <strong className="text-ink-heading">Interactive Lab Context Attached:</strong>{" "}
+          Your simulated scenario summary has been pre-filled below under Additional Context (you can edit it freely).
+        </div>
+      )}
 
       {/* Anti-spam honeypot field hidden from human and assistive users */}
       <div className="hidden" aria-hidden="true">
@@ -215,7 +244,7 @@ export function ContactForm({ defaultService = "", serviceOptions }: ContactForm
             id="lead-service"
             name="interestedService"
             required
-            defaultValue={defaultService || ""}
+            defaultValue={resolvedDefaultService}
             className={inputClasses}
           >
             <option value="" disabled>
@@ -280,7 +309,8 @@ export function ContactForm({ defaultService = "", serviceOptions }: ContactForm
         <textarea
           id="lead-details"
           name="additionalDetails"
-          rows={2}
+          rows={safeDefaultContext ? 3 : 2}
+          defaultValue={safeDefaultContext}
           placeholder="Team size, region (US / UK / Canada), or specific tools you want connected..."
           className={inputClasses}
         />

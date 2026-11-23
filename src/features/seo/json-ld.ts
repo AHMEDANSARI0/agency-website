@@ -1,5 +1,6 @@
 import type {
   BlogPost,
+  CaseStudyItem,
   FaqItem,
   ServiceItem,
   SiteSettings,
@@ -27,6 +28,15 @@ export function serializeJsonLd(data: unknown): string {
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026");
+}
+
+export function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 export function buildBreadcrumbJsonLd(
@@ -67,6 +77,21 @@ export function buildOrganizationAndWebsiteJsonLd(
         "@type": "Person",
         name: settings.founderName,
       },
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "sales and customer support",
+          email: settings.contactEmail,
+          availableLanguage: ["English"],
+          areaServed: ["US", "GB", "CA"],
+        },
+      ],
+      knowsAbout: [
+        "Lead Qualification & CRM Automation",
+        "Grounded AI Customer Support",
+        "Deterministic Workflow Orchestration",
+        "Business Systems Integration",
+      ],
       areaServed: [
         { "@type": "Country", name: "United States" },
         { "@type": "Country", name: "United Kingdom" },
@@ -81,6 +106,7 @@ export function buildOrganizationAndWebsiteJsonLd(
       url: baseUrl,
       name: settings.companyName,
       description: settings.tagline,
+      inLanguage: "en",
       publisher: {
         "@id": `${baseUrl}/#organization`,
       },
@@ -106,6 +132,61 @@ export function buildServiceJsonLd(
       url: baseUrl,
     },
     areaServed: ["United States", "United Kingdom", "Canada"],
+  };
+}
+
+export function buildCaseStudyJsonLd(
+  study: CaseStudyItem,
+  workTypeLabel: string,
+  settings: SiteSettings,
+  baseUrl = getCanonicalSiteUrl()
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: study.title,
+    description: study.problemSummary,
+    genre: workTypeLabel,
+    about: study.industry,
+    author: {
+      "@type": "Organization",
+      name: settings.companyName,
+      url: baseUrl,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: settings.companyName,
+      url: baseUrl,
+    },
+    dateModified: study.updatedAt,
+    mainEntityOfPage: `${baseUrl}/case-studies/${study.slug}`,
+  };
+}
+
+export function buildInteractiveDemosJsonLd(
+  settings: SiteSettings,
+  baseUrl = getCanonicalSiteUrl()
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: `${settings.companyName} Interactive Automation Lab`,
+    url: `${baseUrl}/demos`,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Any",
+    browserRequirements: "Requires JavaScript",
+    description:
+      "Five deterministic interactive workflow demonstrations: Lead Qualification, Grounded AI Customer Support, Workflow Simulator, Multi-Currency Savings Calculator, and Readiness Assessment.",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    provider: {
+      "@type": "Organization",
+      name: settings.companyName,
+      url: baseUrl,
+    },
   };
 }
 

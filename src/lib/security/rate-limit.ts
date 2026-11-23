@@ -1,3 +1,5 @@
+import { db } from "@/lib/database";
+
 interface RateWindow {
   timestamps: number[];
 }
@@ -48,6 +50,27 @@ export function checkRateLimit(
     remaining: Math.max(0, maxRequests - current.timestamps.length),
     retryAfterSeconds: 0,
   };
+}
+
+/**
+ * Distributed Free-Tier rate limiter:
+ * - Uses Supabase PostgreSQL `rate_limits` table atomically across Vercel Serverless cold starts when available.
+ * - Seamlessly falls back to in-memory sliding window (`checkRateLimit`) in local dev/tests or prior to migration 0002.
+ */
+export async function checkDistributedRateLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): Promise<RateLimitResult> {
+  const distributed = await db.checkDistributedRateLimitBucket(
+    key,
+    maxRequests,
+    windowMs
+  );
+  if (distributed) {
+    return distributed;
+  }
+  return checkRateLimit(key, maxRequests, windowMs);
 }
 
 export function extractClientIp(headers: Headers): string {

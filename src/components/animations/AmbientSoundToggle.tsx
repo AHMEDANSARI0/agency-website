@@ -6,25 +6,23 @@ const SOUND_PREF_KEY = "omniflow_ambient_sound";
 const CHORD_FREQS = [146.83, 220.0, 293.66];
 const CHIME_NOTES = [293.66, 349.23, 392.0, 440.0, 523.25];
 
+/**
+ * Subtle opt-in WebAudio ambient soundscape toggle.
+ * Silent by default, zero auto-popups, docked bottom-left to avoid overlapping Back-to-Top / Consent controls,
+ * and hidden automatically under prefers-reduced-motion: reduce.
+ */
 export function AmbientSoundToggle() {
   const [active, setActive] = useState(false);
-  const [showHint, setShowHint] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const chimeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(SOUND_PREF_KEY);
-      if (saved !== "off") {
-        setShowHint(true);
-      }
-    } catch {
-      // Ignore storage access errors
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setReducedMotion(true);
     }
-
-    const hideTimer = window.setTimeout(() => setShowHint(false), 7500);
-    return () => window.clearTimeout(hideTimer);
   }, []);
 
   useEffect(() => {
@@ -47,6 +45,8 @@ export function AmbientSoundToggle() {
       if (ctxRef.current) void ctxRef.current.close();
     };
   }, []);
+
+  if (reducedMotion) return null;
 
   function startAudio() {
     if (!ctxRef.current) {
@@ -98,7 +98,7 @@ export function AmbientSoundToggle() {
         }
         chimeTimerRef.current = window.setTimeout(
           scheduleChime,
-          2400 + Math.random() * 3200
+          2600 + Math.random() * 3200
         );
       };
       chimeTimerRef.current = window.setTimeout(scheduleChime, 1400);
@@ -109,9 +109,8 @@ export function AmbientSoundToggle() {
     if (!ctx || !master) return;
     void ctx.resume();
     master.gain.cancelScheduledValues(ctx.currentTime);
-    master.gain.linearRampToValueAtTime(0.28, ctx.currentTime + 1.1);
+    master.gain.linearRampToValueAtTime(0.24, ctx.currentTime + 1.0);
     setActive(true);
-    setShowHint(false);
     try {
       window.localStorage.setItem(SOUND_PREF_KEY, "on");
     } catch {
@@ -130,7 +129,6 @@ export function AmbientSoundToggle() {
       }, 500);
     }
     setActive(false);
-    setShowHint(false);
     try {
       window.localStorage.setItem(SOUND_PREF_KEY, "off");
     } catch {
@@ -139,26 +137,21 @@ export function AmbientSoundToggle() {
   }
 
   return (
-    <div className="on-dark fixed bottom-5 right-5 z-40 flex items-center gap-2">
-      {showHint && !active && (
-        <span className="pointer-events-none rounded-full border border-white/10 bg-[#050404]/85 px-3 py-1.5 text-xs text-[#F2EADB]/90 backdrop-blur">
-          Tap for ambient sound
-        </span>
-      )}
+    <div className="fixed bottom-5 left-5 z-40 hidden sm:flex sm:items-center">
       <button
         type="button"
         onClick={() => (active ? stopAudio() : startAudio())}
         aria-pressed={active}
         aria-label={active ? "Mute ambient sound" : "Play subtle ambient sound"}
-        title={active ? "Ambient sound on" : "Ambient sound off"}
-        className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-[#050404]/85 backdrop-blur transition-colors hover:border-white/30"
+        title={active ? "Ambient sound on (click to mute)" : "Optional ambient sound"}
+        className="grid h-9 w-9 place-items-center rounded-full border border-line-strong surface-glass shadow-card transition-colors hover:border-primary/40"
       >
-        <span className="flex h-4 items-end gap-[3px]" aria-hidden="true">
+        <span className="flex h-3 items-end gap-[2.5px]" aria-hidden="true">
           {[0.55, 1, 0.75, 0.42].map((bar, idx) => (
             <span
               key={idx}
-              className={`w-[3px] rounded-full transition-all duration-300 ${
-                active ? "bg-[#F06A2A]" : "bg-[#F2EADB]/50"
+              className={`w-[2.5px] rounded-full transition-all duration-300 ${
+                active ? "bg-primary" : "bg-ink-muted/60"
               }`}
               style={{
                 height: active ? `${bar * 100}%` : "3px",

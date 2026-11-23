@@ -15,6 +15,8 @@ const patchUserSchema = z
     role: z.enum(ROLES).optional(),
     isActive: z.boolean().optional(),
     newPassword: z.string().min(10).max(128).optional(),
+    mustChangePassword: z.boolean().optional(),
+    revokeSessions: z.boolean().optional(),
   })
   .strict();
 
@@ -68,7 +70,8 @@ export async function PATCH(
   const wouldLoseSuperAdmin =
     target.role === "SUPER_ADMIN" &&
     target.isActive &&
-    (payload.isActive === false || (payload.role && payload.role !== "SUPER_ADMIN"));
+    (payload.isActive === false ||
+      (payload.role && payload.role !== "SUPER_ADMIN"));
 
   if (wouldLoseSuperAdmin) {
     const allUsers = await db.listUsers();
@@ -85,7 +88,9 @@ export async function PATCH(
 
   let nextPasswordHash: string | undefined;
   if (payload.newPassword) {
-    const strength = validatePasswordStrength(payload.newPassword);
+    const strength = validatePasswordStrength(payload.newPassword, {
+      rejectKnownDefaults: true,
+    });
     if (!strength.valid) {
       return NextResponse.json({ error: strength.reason }, { status: 400 });
     }
@@ -93,13 +98,17 @@ export async function PATCH(
   }
 
   const cleanName =
-    payload.name !== undefined ? sanitizePlainText(payload.name, 100) : undefined;
+    payload.name !== undefined
+      ? sanitizePlainText(payload.name, 100)
+      : undefined;
 
   const updated = await db.updateUser(id, {
     name: cleanName,
     role: payload.role,
     isActive: payload.isActive,
     passwordHash: nextPasswordHash,
+    mustChangePassword: payload.mustChangePassword,
+    bumpSessionVersion: payload.revokeSessions,
   });
 
   if (!updated) {
@@ -118,6 +127,9 @@ export async function PATCH(
   }
   if (nextPasswordHash) {
     changes.push("rotated password");
+  }
+  if (payload.revokeSessions) {
+    changes.push(`revoked active sessions (v${updated.sessionVersion})`);
   }
 
   if (changes.length > 0) {

@@ -1,33 +1,36 @@
 # OmniFlow — AI Automation & Business Solutions Platform
 
+**Positioning:** AI Automation & Business Solutions  
 **Tagline:** Automate the work. Accelerate the business.  
 **Founder:** Ahmed Ansari  
 **Target Markets:** United States, United Kingdom, Canada
 
-## Phase Status
-- **Current Checkpoint:** Phase 7 of 7 — **Production Release Ready** (Technical SEO, Dynamic `sitemap.xml` & `robots.txt`, XSS-Safe JSON-LD Structured Data, 301/307 Redirects Engine with Loop Guard, Consent-Aware GA4 Analytics, Security Headers, and Full Operations Handover Guide in `DEPLOYMENT_AND_HANDOVER.md`)
+OmniFlow is a full-stack Next.js 15 agency website, interactive workflow demonstration suite, and role-based content/CRM administration platform engineered to run on **100% free-tier cloud infrastructure** (Vercel Hobby + Supabase PostgreSQL + Supabase Storage + Resend) with **zero dedicated VM or paid background servers required**.
 
-## Admin Console (`/admin`)
-- **Sign-In Route:** `/admin/login` (public registration is permanently disabled)
-- **Local Bootstrap Credentials (override via `.env` in production):**
-  - Email: `ADMIN_BOOTSTRAP_EMAIL` (default `admin@omniflow.example`)
-  - Password: `ADMIN_BOOTSTRAP_PASSWORD` (default `ChangeMe_StrongPass_2026!`)
-- **Complete Admin Modules (Phases 1–7):**
-  - `/admin` — Real-Data Operational Dashboard
-  - `/admin/leads` — Lead & Enquiry CRM (`New`, `Contacted`, `Qualified`, `Proposal Sent`, `Won`, `Lost`, notes, follow-ups, duplicate flags, formula-safe CSV export)
-  - `/admin/pages` — Controlled Drag-and-Drop Page Section Builder (approved design-system blocks, safe Markdown rich_text, draft vs publish workflow)
-  - `/admin/cms` — Full CMS Content Studio (Blog/Insights with revision history & TOC, Case Studies with honest work-type guardrails, Services, FAQs, Verified Testimonials, Team/Founder)
-  - `/admin/media` — Safe Media Asset Library (PNG/JPEG/WebP/GIF/SVG/PDF binary magic-header + SVG XSS sanitizer, 500 MB quota tracker, live `usedIn` references, Supabase Storage + local fallback)
-  - `/admin/seo` — Technical SEO Audit Matrix, 301/307 Redirects Manager (with loop protection), and Consent-Aware GA4 Analytics Studio
-  - `/admin/theme` — Advanced Light/Dark Theme & Color Token Manager (presets, custom presets, WCAG AA contrast guard, live preview, draft/publish/rollback)
-  - `/admin/brand` — Replaceable Brand Identity & Logo Asset Manager (zero hardcoded logos)
-  - `/admin/settings` — Global Navigation, Footer Columns & Conversion CTA Manager
-  - `/admin/users` — Staff Account Provisioning & Granular Role Policies (`SUPER_ADMIN`, `EDITOR`, `AUTHOR`)
-  - `/admin/audit-logs` — Security & Administrative Audit Trail
+---
 
-## Quick Start
+## Architecture & Security Highlights
 
-1. Copy `.env.example` to `.env` (optional for local development; required for production deployment):
+- **Strict Production Persistence (`src/lib/database/index.ts`, `src/lib/env.ts`):**
+  - **Production (`NODE_ENV=production`):** Requires Supabase PostgreSQL (`DATABASE_URL`) and Supabase Storage (`NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`). Silent fallback to temporary `/tmp` or local JSON files is strictly disabled so production writes can never be lost.
+  - **Local Development & Automated Tests:** Supports zero-setup local JSON persistence (`data/omniflow-db.json`) and `public/uploads/` when `DATABASE_URL` is omitted.
+- **Hardened Staff Authentication (`src/lib/auth/`, `src/lib/security/`):**
+  - Zero default production passwords (`ChangeMe_*` and weak credentials are rejected).
+  - Secure one-time Initial Super Admin Setup wizard (`/admin/setup`) protected by `ADMIN_SETUP_TOKEN` when the `users` table is empty.
+  - Forced password replacement on first bootstrap login (`/admin/account`), SHA-256 single-use account recovery (`/admin/recover`), and instant server-side session revocation via `users.session_version`.
+  - Granular RBAC across `SUPER_ADMIN`, `EDITOR`, and `AUTHOR` roles with self-demotion and last-Super-Admin lockout protection.
+- **Persistent Media Library (`src/features/media/storage.ts`):**
+  - Server-side binary magic-header verification + SVG XSS sanitization.
+  - Separate configurable per-file upload limit (`MEDIA_MAX_FILE_BYTES`, default `4 MB`) and total storage quota (`MEDIA_TOTAL_QUOTA_BYTES`, default `500 MB`).
+  - Live reference tracking across Brand, Pages, Services, Case Studies, Blog Posts, and Team profiles with `409 Conflict` deletion protection.
+- **Accurate Health & Readiness Probes (`/api/health`):**
+  - Separate liveness (`/api/health?probe=liveness`) and deep readiness (`/api/health`) checks verifying live PostgreSQL connectivity, schema migrations, storage bucket reachability, email configuration, and canonical HTTPS domain status without exposing secrets or internal paths.
+
+---
+
+## Local Development Quick Start
+
+1. Copy `.env.example` to `.env`:
    ```bash
    cp .env.example .env
    ```
@@ -35,27 +38,24 @@
    ```bash
    npm install
    ```
-3. Run full verification (TypeScript, ESLint, Vitest unit/integration tests, and Next.js production build):
+3. Run static verification, integration tests, and production build:
    ```bash
    npm run verify
    ```
-4. Start development server:
+4. Start the local development server:
    ```bash
    npm run dev
    ```
 
-## Applying Phase Patchers
-Each phase delivers a self-verifying, cross-platform Node.js patcher (`patches/phase-X-patcher.mjs`) with automatic backups and SHA-256 verification:
+---
 
-```bash
-node phase-1-patcher.mjs
-```
+## Database Migrations & Backups
 
-To roll back a phase patch if needed:
-```bash
-node phase-1-patcher.mjs --rollback
-```
+SQL migrations live in `supabase/migrations/` and are idempotent (`IF NOT EXISTS` / non-destructive):
 
-## Database & Storage Modes
-- **Local Development Fallback (Zero Paid Dependencies):** Automatically initializes an atomic local JSON database at `data/omniflow-db.json` when `DATABASE_URL` is empty.
-- **Production (Vercel + Supabase Free Tier):** Apply `supabase/migrations/0001_omniflow_schema.sql` in the Supabase SQL Editor and set `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Environment Variables.
+1. `supabase/migrations/0001_omniflow_schema.sql` — Core 13 tables and Row-Level Security (RLS) policies.
+2. `supabase/migrations/0002_production_upgrade.sql` — Staff session revocation, forced first-login password rotation, hashed recovery tokens, serverless rate-limit buckets, migration tracking (`schema_migrations`), and transactional backup snapshots (`database_backups`).
+
+Super Admins can create verified SHA-256 database snapshots, download sanitized JSON backups, and perform safe transactional restores (with automatic pre-restore safety snapshots) from **`/admin/account`**.
+
+See **[`DEPLOYMENT_AND_HANDOVER.md`](./DEPLOYMENT_AND_HANDOVER.md)** for complete Supabase, Vercel, Resend, Custom Domain, and DNS configuration instructions.

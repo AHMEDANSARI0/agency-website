@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
-import { ArrowRight, CheckCircle2, Globe2, ShieldCheck, Wrench } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, Globe2, ShieldCheck, Workflow } from "lucide-react";
 import { db } from "@/lib/database";
-import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
 export const metadata: Metadata = {
-  title: "About OmniFlow — Practical AI & Workflow Engineering",
+  title: "About OmniFlow",
   description:
-    "Learn about OmniFlow, founded by Ahmed Ansari to build dependable lead management, AI support, and workflow automation systems for US, UK, and Canadian businesses.",
+    "Founded by Ahmed Ansari, OmniFlow builds dependable, transparent AI automation and business workflow systems for service businesses, consultants, and small agencies.",
 };
 
 export default async function AboutPage() {
@@ -17,81 +20,96 @@ export default async function AboutPage() {
   return (
     <>
       <PageHeader
-        breadcrumbs={[{ label: "About OmniFlow" }]}
-        badge={settings.positioning}
-        title="Dependable Automation Without the Hype"
-        description={`${settings.companyName} was founded by ${settings.founderName} to help service businesses, consultants, and small agencies eliminate repetitive operational bottlenecks through clean, maintainable engineering.`}
-        actions={
-          <>
-            <Button href="/team">Meet Founder &amp; Team</Button>
-            <Button href="/contact" variant="outline">
-              Get in Touch
-            </Button>
-          </>
-        }
+        breadcrumbs={[{ label: "About" }]}
+        badge={`Founded by ${settings.founderName}`}
+        title="Practical Engineering for Businesses That Value Reliability"
+        description="OmniFlow was founded on a straightforward premise: growing service teams don’t need flashy AI gimmicks—they need dependable workflows that capture leads, answer routine questions accurately, and eliminate manual copy-paste."
       />
 
-      <section className="py-16 sm:py-20">
-        <Container>
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <section className="border-b border-line bg-surface py-16 sm:py-22">
+        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-7">
+            <Badge variant="accent">Our Operating Standard</Badge>
+            <h2 className="text-2xl font-bold text-ink-heading sm:text-3xl">
+              Why {settings.companyName} Exists
+            </h2>
+            <p className="text-base leading-relaxed text-ink-body">
+              Across the United States, United Kingdom, and Canada, thousands of strong service businesses, independent consultants, and small agencies lose hours every week to fragmented tools—copying form entries into CRMs, chasing missing onboarding info, and answering the same policy questions repeatedly.
+            </p>
+            <p className="text-base leading-relaxed text-ink-body">
+              At the same time, many businesses have been burned by over-promised AI tools that hallucinate policies, lock clients into expensive SaaS tiers, or break silently when an upstream API changes.
+            </p>
+            <p className="text-base leading-relaxed text-ink-body">
+              Led by founder <strong className="text-ink-heading">{settings.founderName}</strong>, {settings.companyName} takes an engineering-first approach: deterministic business logic where rules are clear, policy-grounded AI only where language understanding adds genuine value, and complete transparency in everything we build and publish.
+            </p>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link href="/team">
+                <Button variant="secondary">Meet Leadership &amp; Team</Button>
+              </Link>
+              <Link href={settings.primaryCtaHref}>
+                <Button>
+                  {settings.primaryCtaLabel}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-5 lg:col-span-5">
             {[
               {
                 icon: ShieldCheck,
-                title: "Reliability Over Gimmicks",
-                body: "We combine deterministic validation and routing with strictly bounded AI steps—so critical client communications and CRM pipelines behave predictably.",
+                title: "Truthful Positioning & Proof",
+                detail:
+                  "Zero fake testimonials, inflated ROI claims, or unverified logos. Reference architectures and prototypes are always labeled honestly.",
               },
               {
-                icon: Wrench,
-                title: "Lean, Cost-Controlled Stack",
-                body: "We avoid locking small teams into bloated software fees. Systems are architected around sensible infrastructure and transparent operational costs.",
+                icon: Workflow,
+                title: "Cost-Controlled Architecture",
+                detail:
+                  "We prioritize lean infrastructure and documented free-tier thresholds before recommending any paid third-party subscriptions.",
               },
               {
                 icon: Globe2,
-                title: "Aligned With US, UK & Canada",
-                body: "Our scoping, communication standards, privacy practices, and review schedules are structured for North American and British business teams.",
+                title: "US, UK & Canada Alignment",
+                detail:
+                  "Structured communication, asynchronous progress demos, and overlapping EST/GMT business-hour collaboration.",
               },
-            ].map((item) => {
-              const Icon = item.icon;
+              {
+                icon: CheckCircle2,
+                title: "100% Client IP & Access Ownership",
+                detail:
+                  "Every delivered workflow, prompt template, database schema, and operational runbook belongs to your business.",
+              },
+            ].map((principle) => {
+              const Icon = principle.icon;
               return (
                 <div
-                  key={item.title}
-                  className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8"
+                  key={principle.title}
+                  className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card"
                 >
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-[var(--of-color-accent-subtle)] text-primary">
-                    <Icon className="h-5 w-5" />
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-accent-subtle text-primary">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-base font-bold text-ink-heading">{principle.title}</h3>
                   </div>
-                  <h2 className="mt-4 text-lg font-bold text-ink-heading">{item.title}</h2>
-                  <p className="mt-2.5 text-sm leading-relaxed text-ink-body">{item.body}</p>
+                  <p className="mt-2.5 text-sm leading-relaxed text-ink-body">{principle.detail}</p>
                 </div>
               );
             })}
           </div>
-
-          <div className="mt-12 rounded-card border border-[var(--of-border-card)] bg-surface-muted p-8 sm:p-10">
-            <h2 className="text-2xl font-bold text-ink-heading">Our Operating Commitments</h2>
-            <ul className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {[
-                "Honest scoping: if a simple deterministic rule solves your problem, we recommend it over complex AI",
-                "Zero fabricated claims: we never invent fake client logos, metrics, or unverified promises",
-                "Clear client ownership: you receive clean documentation and administrative control",
-                "Human-in-the-loop safety: sensitive customer replies always retain human oversight",
-              ].map((commitment) => (
-                <li key={commitment} className="flex items-start gap-2.5 text-sm text-ink-body">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>{commitment}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="mt-12 text-center">
-            <Button href="/contact" size="lg">
-              Discuss Your Operations With OmniFlow
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
         </Container>
       </section>
+
+      <PageConversionBanner
+        eyebrow="Direct Principal Collaboration"
+        title="Speak directly with the architect building your system"
+        description="No commission sales reps or junior handoffs. Share your operational bottleneck and receive an honest engineering assessment."
+        primaryLabel={settings.primaryCtaLabel}
+        primaryHref={settings.primaryCtaHref}
+      />
     </>
   );
 }

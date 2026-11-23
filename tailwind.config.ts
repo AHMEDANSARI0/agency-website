@@ -34,15 +34,18 @@ const config: Config = {
           card: "var(--of-surface-card)",
           input: "var(--of-surface-input)",
           modal: "var(--of-surface-modal)",
+          glass: "var(--of-surface-glass)",
         },
         ink: {
           heading: "var(--of-color-heading)",
           body: "var(--of-color-body)",
           muted: "var(--of-color-muted)",
+          navbar: "var(--of-text-navbar)",
         },
         line: {
           DEFAULT: "var(--of-color-border)",
           strong: "var(--of-color-border-strong)",
+          glass: "var(--of-border-glass)",
         },
         link: {
           DEFAULT: "var(--of-color-link)",
@@ -58,18 +61,26 @@ const config: Config = {
       boxShadow: {
         card: "var(--of-shadow-card)",
         elevated: "var(--of-shadow-elevated)",
+        glow: "var(--of-shadow-glow)",
       },
       backgroundImage: {
         "brand-gradient": "var(--of-gradient-brand)",
         "hero-glow": "var(--of-gradient-hero)",
       },
       borderRadius: {
-        card: "var(--of-radius-card)",
+        sm: "var(--of-radius-sm)",
         control: "var(--of-radius-control)",
+        card: "var(--of-radius-card)",
+        feature: "var(--of-radius-feature)",
+      },
+      spacing: {
+        "section-sm": "var(--of-section-py-sm)",
+        section: "var(--of-section-py)",
+        "section-lg": "var(--of-section-py-lg)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "-apple-system", "sans-serif"],
-        display: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
     },

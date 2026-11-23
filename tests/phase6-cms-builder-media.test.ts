@@ -546,10 +546,18 @@ describe("Phase 6 — Full CMS Studio, Controlled Page Builder, Safe Media Libra
     );
     expect(patchRes.status).toBe(200);
 
-    // Delete asset
-    const delRes = await deleteMediaHandler(
+    // Referenced asset deletion is blocked by default (409), and allowed when Super Admin passes force=true
+    const blockedDelRes = await deleteMediaHandler(
       new Request(
         `http://localhost:3000/api/admin/media?id=${encodeURIComponent(uploaded.id)}`,
+        { method: "DELETE", headers: makeJsonHeaders(adminToken) }
+      )
+    );
+    expect(blockedDelRes.status).toBe(409);
+
+    const delRes = await deleteMediaHandler(
+      new Request(
+        `http://localhost:3000/api/admin/media?id=${encodeURIComponent(uploaded.id)}&force=true`,
         { method: "DELETE", headers: makeJsonHeaders(adminToken) }
       )
     );

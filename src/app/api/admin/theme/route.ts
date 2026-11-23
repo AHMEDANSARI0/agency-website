@@ -132,6 +132,7 @@ export async function PUT(request: Request) {
       ? structuredClone(current.published)
       : current.previousPublished,
     published: shouldPublish ? structuredClone(nextDraft) : current.published,
+    updatedBy: auth.user.email,
   });
 
   await db.recordAuditLog({
@@ -226,6 +227,7 @@ export async function POST(request: Request) {
         ? structuredClone(current.published)
         : current.previousPublished,
       published: publishNow ? structuredClone(nextBundle) : current.published,
+      updatedBy: auth.user.email,
     });
 
     await db.recordAuditLog({

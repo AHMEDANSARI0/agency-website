@@ -5,15 +5,19 @@ import {
   BookOpen,
   Briefcase,
   CheckCircle2,
+  ExternalLink,
+  Eye,
   FileText,
   HelpCircle,
   History,
   MessageSquareQuote,
+  PenLine,
   Plus,
   Save,
   Trash2,
   Users,
 } from "lucide-react";
+import { parseSafeMarkdown } from "@/features/blog/markdown";
 import type {
   BlogPost,
   CaseStudyItem,
@@ -34,6 +38,7 @@ type CmsTab =
   | "team";
 
 interface CmsWorkspaceClientProps {
+  initialTab?: CmsTab;
   initialBlogPosts: BlogPost[];
   initialCaseStudies: CaseStudyItem[];
   initialServices: ServiceItem[];
@@ -45,6 +50,7 @@ interface CmsWorkspaceClientProps {
 }
 
 export function CmsWorkspaceClient({
+  initialTab = "blog",
   initialBlogPosts,
   initialCaseStudies,
   initialServices,
@@ -54,7 +60,10 @@ export function CmsWorkspaceClient({
   canEditAny,
   canPublish,
 }: CmsWorkspaceClientProps) {
-  const [activeTab, setActiveTab] = useState<CmsTab>("blog");
+  const [activeTab, setActiveTab] = useState<CmsTab>(initialTab);
+  const [blogEditorMode, setBlogEditorMode] = useState<"write" | "preview">(
+    "write"
+  );
 
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>(initialBlogPosts);
   const [caseStudies, setCaseStudies] =
@@ -510,18 +519,135 @@ export function CmsWorkspaceClient({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-ink-muted">
-                Structured Markdown Body (`##` H2, `###` H3, `- ` lists, `&gt; `
-                callouts)
-              </label>
-              <textarea
-                rows={11}
-                value={blogForm.contentMarkdown}
-                onChange={(e) =>
-                  setBlogForm({ ...blogForm, contentMarkdown: e.target.value })
-                }
-                className="mt-1 w-full rounded-control border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink-heading"
-              />
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <label className="block text-xs font-medium text-ink-muted">
+                  Structured Markdown Body (`##` H2, `###` H3, `- ` lists, `&gt; `
+                  callouts)
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] text-ink-muted">
+                    {blogForm.contentMarkdown.trim()
+                      ? blogForm.contentMarkdown.trim().split(/\s+/).length
+                      : 0}{" "}
+                    words · ~
+                    {Math.max(
+                      1,
+                      Math.ceil(
+                        (blogForm.contentMarkdown.trim()
+                          ? blogForm.contentMarkdown.trim().split(/\s+/).length
+                          : 0) / 210
+                      )
+                    )}{" "}
+                    min read
+                  </span>
+
+                  <div className="inline-flex rounded-control border border-line bg-surface-muted p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setBlogEditorMode("write")}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${
+                        blogEditorMode === "write"
+                          ? "bg-surface text-primary shadow-xs"
+                          : "text-ink-muted hover:text-ink-heading"
+                      }`}
+                    >
+                      <PenLine className="h-3 w-3" />
+                      <span>Write</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBlogEditorMode("preview")}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${
+                        blogEditorMode === "preview"
+                          ? "bg-surface text-primary shadow-xs"
+                          : "text-ink-muted hover:text-ink-heading"
+                      }`}
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>Preview</span>
+                    </button>
+                  </div>
+
+                  {blogForm.slug && blogForm.status === "published" && (
+                    <a
+                      href={`/blog/${encodeURIComponent(blogForm.slug)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded border border-line bg-surface px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-accent-subtle"
+                    >
+                      <span>Live</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {blogEditorMode === "preview" ? (
+                <div className="max-h-80 space-y-3 overflow-y-auto rounded-control border border-line bg-surface p-4 text-sm text-ink-body">
+                  {parseSafeMarkdown(blogForm.contentMarkdown).length === 0 ? (
+                    <p className="text-xs text-ink-muted">
+                      Nothing to preview yet. Switch to Write mode and add Markdown blocks.
+                    </p>
+                  ) : (
+                    parseSafeMarkdown(blogForm.contentMarkdown).map((blk, i) => {
+                      if (blk.type === "h2") {
+                        return (
+                          <h2
+                            key={i}
+                            className="pt-2 text-lg font-bold text-ink-heading"
+                          >
+                            {blk.text}
+                          </h2>
+                        );
+                      }
+                      if (blk.type === "h3") {
+                        return (
+                          <h3
+                            key={i}
+                            className="pt-1 text-base font-semibold text-ink-heading"
+                          >
+                            {blk.text}
+                          </h3>
+                        );
+                      }
+                      if (blk.type === "blockquote") {
+                        return (
+                          <blockquote
+                            key={i}
+                            className="border-l-2 border-primary bg-accent-subtle/40 px-3 py-2 text-xs italic text-ink-heading"
+                          >
+                            {blk.text}
+                          </blockquote>
+                        );
+                      }
+                      if (blk.type === "ul") {
+                        return (
+                          <ul key={i} className="list-disc space-y-1 pl-5 text-xs">
+                            {blk.items.map((it, j) => (
+                              <li key={j}>{it}</li>
+                            ))}
+                          </ul>
+                        );
+                      }
+                      return (
+                        <p key={i} className="text-xs leading-relaxed">
+                          {blk.text}
+                        </p>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  rows={11}
+                  value={blogForm.contentMarkdown}
+                  onChange={(e) =>
+                    setBlogForm({ ...blogForm, contentMarkdown: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-control border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink-heading"
+                />
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

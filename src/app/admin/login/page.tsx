@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { LoginForm } from "@/features/admin/LoginForm";
 import { ThemeToggle } from "@/features/themes/ThemeToggle";
@@ -11,23 +11,24 @@ import { db } from "@/lib/database";
 export default async function AdminLoginPage() {
   const existingUser = await getCurrentAdminUser();
   if (existingUser) {
+    if (existingUser.mustChangePassword) {
+      redirect("/admin/account?forcePasswordChange=1");
+    }
     redirect("/admin");
   }
 
-  const [brand, settings] = await Promise.all([
+  const [userCount, brand, settings] = await Promise.all([
+    db.countUsers(),
     db.getBrandAssets(),
     db.getSiteSettings(),
   ]);
 
-  const isDev = process.env.NODE_ENV !== "production";
-  const bootstrapEmail = (
-    process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@omniflow.example"
-  )
-    .trim()
-    .toLowerCase();
+  if (userCount === 0) {
+    redirect("/admin/setup");
+  }
 
   return (
-    <div className="flex min-h-screen flex-col justify-between bg-canvas px-4 py-8 sm:px-6">
+    <div className="bg-tech-grid-subtle flex min-h-screen flex-col justify-between bg-canvas px-4 py-8 sm:px-6">
       <div className="mx-auto flex w-full max-w-md items-center justify-between">
         <Link
           href="/"
@@ -40,9 +41,15 @@ export default async function AdminLoginPage() {
       </div>
 
       <main className="mx-auto my-auto w-full max-w-md py-10">
-        <div className="rounded-card border border-line bg-surface-card p-6 shadow-elevated sm:p-8">
+        <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-elevated sm:p-8">
           <div className="mb-6 space-y-2">
-            <BrandMark brand={brand} href="/" />
+            <div className="flex items-center justify-between">
+              <BrandMark brand={brand} href="/" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent-subtle px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
+                <ShieldCheck className="h-3 w-3" />
+                Protected Console
+              </span>
+            </div>
             <h1 className="pt-2 text-2xl font-bold tracking-tight text-ink-heading">
               Staff Administration
             </h1>
@@ -51,7 +58,7 @@ export default async function AdminLoginPage() {
             </p>
           </div>
 
-          <LoginForm showDevHint={isDev} defaultDevEmail={bootstrapEmail} />
+          <LoginForm />
         </div>
       </main>
 

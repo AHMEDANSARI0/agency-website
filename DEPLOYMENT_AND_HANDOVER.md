@@ -1,118 +1,151 @@
-# OmniFlow — Production Deployment, Security & Operations Handover Guide
+# OmniFlow — Production Deployment, Database Migration, Custom Domain & Operations Guide
 
-**Platform:** OmniFlow (`Automate the work. Accelerate the business.`)  
-**Founder:** Ahmed Ansari  
-**Target Markets:** United States, United Kingdom, Canada  
-**Architecture Status:** All 7 Phases Complete & Verified (`phase-1` through `phase-7`)
-
----
-
-## 1. Zero-Cost / Free-Tier Production Stack
-
-OmniFlow is engineered to run at **$0/month** on reputable free tiers while scaling cleanly as client volume grows:
-
-| Layer | Recommended Free-Tier Service | Fallback / Local Mode |
-| --- | --- | --- |
-| **Web & API Hosting** | **Vercel Hobby** (Next.js 15 App Router, HTTPS, Global Edge CDN) | `npm run build && npm run start` on any Node 20+ host |
-| **Relational Database** | **Supabase Free Tier PostgreSQL** (`500 MB` DB, RLS enabled) | Automatic atomic JSON store (`data/omniflow-db.json`) |
-| **Media & Brand Storage** | **Supabase Storage** (`1 GB` free bucket `omniflow-media`) | Automatic local disk storage (`public/uploads/`) |
-| **Lead Email Alerts** | **Resend Free Tier** (`3,000` emails/mo — optional) | Database-first CRM storage (zero lost enquiries even without email API) |
-| **DNS & Edge WAF** | **Cloudflare Free DNS** | Standard registrar DNS |
-| **Privacy Analytics** | **Google Analytics 4** (optional, consent-gated) | Disabled by default until Measurement ID is configured |
+**Platform:** OmniFlow — AI Automation & Business Solutions  
+**Tagline:** Automate the work. Accelerate the business.  
+**Founder:** Ahmed Ansari
 
 ---
 
-## 2. Step-by-Step Production Deployment (Supabase + Vercel)
+## 1. Zero-VM Free-Tier Infrastructure Stack
 
-### Step A — Provision Supabase PostgreSQL & Storage
-1. Create a new project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** -> paste the entire contents of `supabase/migrations/0001_omniflow_schema.sql` -> click **Run**.
-   - This creates all 13 tables (`kv_configs`, `users`, `services`, `case_studies`, `blog_posts`, `faqs`, `testimonials`, `team_members`, `pages`, `leads`, `media_assets`, `redirects`, `audit_logs`), indexes, and Row-Level Security (RLS) policies.
-3. Open **Storage** -> create a **Public** bucket named `omniflow-media` (used for replaceable logos, favicons, OG images, blog covers, and PDFs).
-4. Copy from **Project Settings -> Database & API** (or top **Connect** button):
-   - `DATABASE_URL`: **IMPORTANT — Use the IPv4 Session/Transaction Pooler URI** (`postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`), **NOT** the Direct Connection URI (`db.[ref].supabase.co:5432`). Supabase Direct hostnames are IPv6-only and fail DNS lookup (`ENOTFOUND`) on IPv4 Windows networks, residential ISPs, and standard serverless runtimes. (If `DATABASE_URL` is unreachable, OmniFlow automatically falls back to `data/omniflow-db.json` without crashing builds or pages.)
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY` (keep server-only — never prefix with `NEXT_PUBLIC_`)
+OmniFlow runs completely on serverless/managed free tiers — **no Linux VM, VPS, or paid Redis instance is required** (you only purchase your custom domain name):
 
-### Step B — Configure Environment Variables on Vercel
-Import your Git repository into Vercel and set the following Environment Variables:
+| Layer | Free-Tier Provider | Production Requirement | Local Dev Fallback |
+| :--- | :--- | :--- | :--- |
+| **Application & Edge CDN** | **Vercel Hobby** | Automatic HTTPS, Next.js 15 Serverless Functions | `npm run dev` (`localhost:3000`) |
+| **Relational Database** | **Supabase PostgreSQL** (`500 MB` free) | **Mandatory** (`DATABASE_URL` via Pooler `:6543`) | `data/omniflow-db.json` (dev/test only) |
+| **Persistent Media Storage** | **Supabase Storage** (`1 GB` free) | **Mandatory** (`omniflow-media` public bucket) | `public/uploads/` (dev/test only) |
+| **Transactional Email** | **Resend Free Tier** (`3,000`/mo) | Optional (leads always save to PostgreSQL first) | Skipped cleanly when unset |
+| **DNS & Domain Routing** | **Cloudflare Free DNS** or Registrar | Root `A` + `www` `CNAME` + `SPF/DKIM/DMARC` | `http://localhost:3000` |
 
-```env
-# Canonical Public URL (used for sitemap.xml, robots.txt, OpenGraph, and JSON-LD)
-NEXT_PUBLIC_SITE_URL="https://yourdomain.com"
-
-# Cryptographic HMAC Session Secret (generate 32+ random bytes: openssl rand -hex 32)
-SESSION_SECRET="replace_with_64_char_random_hex_secret"
-
-# Initial Super Admin Bootstrap Account
-ADMIN_BOOTSTRAP_NAME="Ahmed Ansari"
-ADMIN_BOOTSTRAP_EMAIL="ahmed@yourdomain.com"
-ADMIN_BOOTSTRAP_PASSWORD="Replace_With_Strong_Unique_Password_2026!"
-
-# Production Database & Media Storage (Supabase Free Tier)
-DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://[ref].supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="eyJ..."
-SUPABASE_STORAGE_BUCKET="omniflow-media"
-
-# Strict Frame & HSTS Headers in Production
-ENABLE_STRICT_FRAME_HEADERS="true"
-
-# Optional Transactional Lead Notification Emails (Resend)
-RESEND_API_KEY=""
-LEAD_NOTIFICATION_EMAIL="ahmed@yourdomain.com"
-```
-
-### Step C — Deploy & Verify Health
-1. Click **Deploy** in Vercel.
-2. Verify `/api/health` returns `status: "ok"`, `phase: 7`, `databaseMode: "supabase_postgres"`, and `storageMode: "supabase_storage"`.
-3. Verify `/sitemap.xml` and `/robots.txt` list your canonical domain.
+> **Strict Production Guarantee:** In production (`NODE_ENV=production`), OmniFlow **never** silently writes leads, CMS updates, or media uploads into ephemeral `/tmp` or local JSON storage. Missing or broken database/storage credentials surface explicit `503` readiness states and appear immediately on `/api/health` and `/admin`.
 
 ---
 
-## 3. Day-1 Founder Operations Checklist (`/admin`)
+## 2. Safe Database Backup & Migration Procedure
 
-Sign in at **`/admin/login`** (public registration is permanently disabled):
+### 2.1 Before Modifying an Existing Database
+If your Supabase project already contains live enquiries or content:
+1. Sign in to `/admin/account` as `SUPER_ADMIN` and click **Download JSON Backup** (or **Create Snapshot**) to save a verified SHA-256 backup archive locally.
+2. You can also export directly from Supabase Dashboard -> **Database -> Backups** or via `pg_dump`.
 
-1. **Replace Placeholder Brand Marks (`/admin/media` -> `/admin/brand`)**:
-   - Upload your final SVG/PNG light logo, dark logo, compact symbol, favicon, and `1200x630` OpenGraph card in `/admin/media`.
-   - Paste/assign the URLs in `/admin/brand` — Navbar, Footer, Admin Sidebar, and SEO metadata update site-wide without touching code.
-2. **Customize or Switch Theme Presets (`/admin/theme`)**:
-   - Default palette is **OmniFlow Warm Obsidian & Vermilion** (`#0B0908` / `#F2EADB` / `#D23A1F` dark-first with warm ivory `#F5EFE3` light mode).
-   - Built-in contrast checker validates WCAG AA readability before publishing token edits, and every publish stores a 1-click rollback snapshot.
-3. **Manage Services, Case Studies & Insights (`/admin/cms` & `/admin/pages`)**:
-   - Reorder homepage sections or insert safe Markdown editorial blocks in `/admin/pages`.
-   - Publish new articles, FAQs, services, and case studies in `/admin/cms`.
-   - **Honesty Guardrail:** Keep illustrative workflows labeled as *Concept Demo* or *Internal Experiment* until written client permission is obtained (`verified_client` requires `clientPermissionGranted = true`). Testimonials remain automatically hidden on public pages until *Authorized + Verified + Published* are all checked.
-4. **Track & Export Enquiries (`/admin/leads`)**:
-   - Update pipeline stages (`New` -> `Contacted` -> `Qualified` -> `Proposal Sent` -> `Won` / `Lost`), log internal notes, set follow-up dates, and export formula-safe CSV backups.
-5. **Configure SEO, 301 Redirects & Privacy-First GA4 (`/admin/seo`)**:
-   - Audit every route's title/description/indexability, add 301/307 redirects when changing slugs, and optionally enable consent-gated GA4 (`G-XXXXXXXXXX`).
+### 2.2 Applying SQL Migrations (Fresh or Existing Project)
+Open **Supabase Dashboard -> SQL Editor** and run the migration files **in order**:
+1. Paste and run **`supabase/migrations/0001_omniflow_schema.sql`**.
+2. Paste and run **`supabase/migrations/0002_production_upgrade.sql`**.
+
+Both scripts use `CREATE TABLE IF NOT EXISTS` and `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, preserving 100% of existing rows, users, and leads.
+
+### 2.3 Selecting the Correct Supabase Connection String (`DATABASE_URL`)
+1. In Supabase Dashboard, click **Connect** -> **Pooler**.
+2. Copy the **Transaction Pooler** URI (port **`6543`**):
+   ```text
+   postgresql://postgres.[project-ref]:[db-password]@aws-0-[region].pooler.supabase.com:6543/postgres
+   ```
+3. Avoid the Direct Connection URI (`db.[project-ref].supabase.co:5432`) on IPv4/Vercel serverless environments: Direct hostnames publish IPv6-only DNS records, whereas the `:6543` Transaction Pooler supports IPv4 and high-concurrency serverless invocations (`prepare: false` is preconfigured).
+
+### 2.4 Restoring From a Snapshot
+1. Navigate to **`/admin/account`** -> **Database Snapshots & Safe Transactional Restore**.
+2. Click **Restore Safely** next to any verified snapshot.
+3. OmniFlow automatically records a **Pre-Restore Safety Snapshot** first, verifies the SHA-256 checksum, and restores records inside a single PostgreSQL transaction without deleting active Super Admin accounts or newer enquiries.
 
 ---
 
-## 4. Applying & Rolling Back Phase Patchers Locally
+## 3. Persistent Media Storage Setup (Supabase Storage)
 
-All 7 standalone Node.js patchers are located in `patches/`:
+1. In **Supabase Dashboard -> Storage**, click **New Bucket**:
+   - **Name:** `omniflow-media`
+   - **Public bucket:** Enabled (`ON` — allows public rendering of uploaded logos, favicons, OG cards, blog images, and PDF guides while uploads/deletions remain server-authenticated via `SUPABASE_SERVICE_ROLE_KEY`).
+2. Copy from **Project Settings -> API**:
+   - `NEXT_PUBLIC_SUPABASE_URL` (`https://[project-ref].supabase.co`)
+   - `SUPABASE_SERVICE_ROLE_KEY` (**Server-only secret** — never expose in client code or `NEXT_PUBLIC_*`).
+3. Quota & File Limits:
+   - `MEDIA_MAX_FILE_BYTES` defaults to `4194304` (`4 MB` per file, aligned with Vercel Hobby's `4.5 MB` function body limit).
+   - `MEDIA_TOTAL_QUOTA_BYTES` defaults to `524288000` (`500 MB` total tracked quota, adjustable up to `1 GB` on Supabase Storage Free Tier).
 
-```bash
-node patches/phase-1-patcher.mjs
-node patches/phase-2-patcher.mjs
-node patches/phase-3-patcher.mjs
-node patches/phase-4-patcher.mjs
-node patches/phase-5-patcher.mjs
-node patches/phase-6-patcher.mjs
-node patches/phase-7-patcher.mjs
-```
+---
 
-Every patcher verifies SHA-256 checksums after writing and supports instant rollback:
+## 4. Production Environment Variables (Vercel)
 
-```bash
-node patches/phase-7-patcher.mjs --rollback
-```
+In **Vercel Dashboard -> Project -> Settings -> Environment Variables**, configure:
 
-Run the complete automated quality suite anytime with:
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `NEXT_PUBLIC_SITE_URL` | **Yes** | Canonical HTTPS URL (e.g., `https://omniflow.ai` — no trailing slash) |
+| `AUTH_SECRET` | **Yes** | 32+ random character HMAC session secret (`openssl rand -hex 32`) |
+| `SESSION_TTL_HOURS` | No | Session duration in hours (default `24`) |
+| `DATABASE_URL` | **Yes** | Supabase Transaction Pooler PostgreSQL URI (`:6543`) |
+| `ADMIN_SETUP_TOKEN` | Recommended | One-time secret token required to claim `/admin/setup` when `users` table is empty |
+| `ADMIN_BOOTSTRAP_NAME` | Optional | Initial Super Admin display name (e.g., `Ahmed Ansari`) |
+| `ADMIN_BOOTSTRAP_EMAIL` | Optional | Optional env-bootstrapped Super Admin email |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Optional | Must be unique & strong (`10+` chars, upper/lower/digit; default placeholders rejected) |
+| `ADMIN_FORCE_FIRST_PASSWORD_CHANGE` | No | Forces password rotation on first bootstrap login (default `true`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | **Yes** | Supabase project HTTPS URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Yes** | Server-only Supabase Service Role key for persistent Storage |
+| `SUPABASE_STORAGE_BUCKET` | No | Storage bucket name (default `omniflow-media`) |
+| `MEDIA_MAX_FILE_BYTES` | No | Max single upload size in bytes (default `4194304` = `4 MB`) |
+| `MEDIA_TOTAL_QUOTA_BYTES` | No | Total storage quota in bytes (default `524288000` = `500 MB`) |
+| `RESEND_API_KEY` | Optional | Resend API key for new-lead and password-recovery emails |
+| `NOTIFICATION_FROM_EMAIL` | Optional | Verified sender address (e.g., `OmniFlow <notifications@yourdomain.com>`) |
+| `NOTIFICATION_TO_EMAIL` | Optional | Staff recipient email for new lead notifications |
+| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | Optional | Consent-gated GA4 Measurement ID (`G-XXXXXXXXXX`) |
+| `ENABLE_STRICT_FRAME_HEADERS` | Recommended | Set `"true"` on custom HTTPS domain to enable `HSTS` & `X-Frame-Options: SAMEORIGIN` |
 
-```bash
-npm run verify
-```
+---
+
+## 5. Initial Administrator Setup & Recovery
+
+1. **Recommended One-Time Setup (`/admin/setup`):**
+   - Deploy with `ADMIN_SETUP_TOKEN` set and `ADMIN_BOOTSTRAP_PASSWORD` left empty.
+   - Visit `https://yourdomain.com/admin/setup`, enter your name, email, strong unique password, and `ADMIN_SETUP_TOKEN`.
+   - Once created, `/admin/setup` permanently locks (`409 Conflict`).
+2. **Environment Bootstrap Mode:**
+   - If you supply `ADMIN_BOOTSTRAP_EMAIL` and a strong `ADMIN_BOOTSTRAP_PASSWORD`, signing in at `/admin/login` automatically requires you to set a new personal password at `/admin/account` before unlocking other admin modules.
+3. **Session Revocation & Account Recovery:**
+   - Rotate passwords or click **Revoke All Other Browser Sessions** anytime in `/admin/account`.
+   - Super Admins can revoke sessions for any staff user in `/admin/users`.
+   - Forgotten passwords can be reset via `/admin/recover` using 30-minute SHA-256 hashed single-use email tokens (requires `RESEND_API_KEY`).
+
+---
+
+## 6. Custom Domain, DNS & SSL Setup (Vercel + Registrar / Cloudflare)
+
+### Step 1 — Add Domain in Vercel
+1. Open **Vercel Dashboard -> Project -> Settings -> Domains**.
+2. Enter your purchased domain (e.g., `yourdomain.com`) and allow Vercel to add `www.yourdomain.com` with a **308/301 redirect** to your chosen primary canonical hostname.
+3. Copy the exact DNS target values shown in your Vercel Domains panel (always trust the live values Vercel displays for your project).
+
+### Step 2 — Configure DNS Records at Your Registrar or Cloudflare
+Configure DNS records matching your Vercel dashboard instructions:
+
+- **Root / Apex Domain (`@`):**
+  - **Type:** `A`
+  - **Name:** `@`
+  - **Value:** Use the exact IPv4 address displayed in your Vercel Domains dashboard (commonly `76.76.21.21` — verify in Vercel).
+  - *(If using Cloudflare DNS: set Proxy status to **DNS Only / Grey Cloud** initially until Vercel finishes SSL issuance).*
+- **`www` Subdomain:**
+  - **Type:** `CNAME`
+  - **Name:** `www`
+  - **Target:** Use the exact CNAME target shown in Vercel (e.g., `cname.vercel-dns.com.` or your project-specific `.vercel-dns-017.com.`).
+- **Ownership Verification (if domain was previously linked elsewhere):**
+  - **Type:** `TXT`
+  - **Name:** `_vercel`
+  - **Value:** Provider-generated verification token from Vercel Dashboard.
+
+### Step 3 — Transactional Email DNS Authentication (Resend)
+When adding your custom domain in **Resend -> Domains**:
+1. Add the **DKIM** `TXT` record (`resend._domainkey`) provided by Resend.
+2. Add the **SPF** `TXT` and `MX` records on Resend's sending subdomain (typically `send.yourdomain.com`) exactly as shown in Resend.
+3. Add a **DMARC** `TXT` record:
+   - **Name:** `_dmarc`
+   - **Value:** `v=DMARC1; p=none; rua=mailto:postmaster@yourdomain.com`
+4. Click **Verify DNS Records** in Resend, then update `NOTIFICATION_FROM_EMAIL` in Vercel.
+
+### Step 4 — Final Post-Launch Verification
+1. Update `NEXT_PUBLIC_SITE_URL="https://yourdomain.com"` and `ENABLE_STRICT_FRAME_HEADERS="true"` in Vercel, then redeploy.
+2. Open `https://yourdomain.com/api/health` and confirm:
+   - `status: "ok"` (`HTTP 200`)
+   - `database.connected: true`, `database.schemaReady: true`, `database.driver: "supabase_postgres"`
+   - `storage.provider: "supabase_storage"`, `storage.healthy: true`
+   - `domain.https: true`
+3. Open `/robots.txt` and `/sitemap.xml` and submit `https://yourdomain.com/sitemap.xml` in Google Search Console and Bing Webmaster Tools.

@@ -200,7 +200,7 @@ describe("Phase 4 — Admin Auth, Server-Side RBAC, Users, Audit Logs & Lead CRM
     );
     expect(meSuspended.status).toBe(401);
 
-    // Reactivate Author for remaining RBAC checks
+    // Reactivate Author and sign in freshly (suspension permanently revokes pre-suspension session tokens)
     await patchUserHandler(
       new Request(`http://localhost:3000/api/admin/users/${authorId}`, {
         method: "PATCH",
@@ -209,6 +209,22 @@ describe("Phase 4 — Admin Auth, Server-Side RBAC, Users, Audit Logs & Lead CRM
       }),
       { params: Promise.resolve({ id: authorId }) }
     );
+
+    const reloginAuthor = await loginHandler(
+      new Request("http://localhost:3000/api/admin/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "http://localhost:3000",
+          Host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          email: "author@omniflow.example",
+          password: "Author_StrongPass_2026!",
+        }),
+      })
+    );
+    authorToken = extractCookieToken(reloginAuthor.headers.get("set-cookie"));
   });
 
   it("4. updates Lead CRM pipeline, notes, follow-up dates, enforces Author 403, and exports formula-safe CSV", async () => {

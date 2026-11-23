@@ -17,7 +17,11 @@ import type {
   ThemeMode,
   ThemePreset,
 } from "@/types/theme";
-import { evaluateThemeContrast, isValidCssColor } from "@/features/themes/color-utils";
+import {
+  evaluateThemeContrast,
+  getContrastRatio,
+  isValidCssColor,
+} from "@/features/themes/color-utils";
 
 interface ThemeManagerClientProps {
   initialConfig: ThemeConfiguration;
@@ -29,13 +33,13 @@ const COLOR_FIELDS: Array<{
   label: string;
   group: "Brand & CTA" | "Surfaces & Borders" | "Typography & Status";
 }> = [
-  { key: "primary", label: "Primary Accent (Vermilion / Brand)", group: "Brand & CTA" },
-  { key: "primaryHover", label: "Primary Hover (Ember)", group: "Brand & CTA" },
+  { key: "primary", label: "Primary Accent (Indigo / Brand)", group: "Brand & CTA" },
+  { key: "primaryHover", label: "Primary Hover", group: "Brand & CTA" },
   { key: "primaryActive", label: "Primary Active", group: "Brand & CTA" },
   { key: "primaryForeground", label: "Primary Button Text", group: "Brand & CTA" },
-  { key: "secondary", label: "Secondary Pill Bg (Paper)", group: "Brand & CTA" },
+  { key: "secondary", label: "Secondary Pill Bg", group: "Brand & CTA" },
   { key: "secondaryForeground", label: "Secondary Pill Text", group: "Brand & CTA" },
-  { key: "accent", label: "Highlight Accent", group: "Brand & CTA" },
+  { key: "accent", label: "Highlight Accent (Violet / Blue)", group: "Brand & CTA" },
   { key: "link", label: "Link Color", group: "Brand & CTA" },
   { key: "background", label: "Page Canvas Background", group: "Surfaces & Borders" },
   { key: "surface", label: "Primary Surface", group: "Surfaces & Borders" },
@@ -43,11 +47,11 @@ const COLOR_FIELDS: Array<{
   { key: "surfaceMuted", label: "Muted Section Surface", group: "Surfaces & Borders" },
   { key: "border", label: "Subtle Hairline Border", group: "Surfaces & Borders" },
   { key: "borderStrong", label: "Strong Control Border", group: "Surfaces & Borders" },
-  { key: "heading", label: "Heading Text (Paper / Ink)", group: "Typography & Status" },
+  { key: "heading", label: "Heading Text (Charcoal / Alabaster)", group: "Typography & Status" },
   { key: "body", label: "Body Copy Text", group: "Typography & Status" },
   { key: "muted", label: "Muted / Eyebrow Text", group: "Typography & Status" },
-  { key: "success", label: "Success (Jade)", group: "Typography & Status" },
-  { key: "warning", label: "Warning / Focus (Gold)", group: "Typography & Status" },
+  { key: "success", label: "Success Status", group: "Typography & Status" },
+  { key: "warning", label: "Warning Status", group: "Typography & Status" },
   { key: "error", label: "Error Status", group: "Typography & Status" },
 ];
 
@@ -56,14 +60,14 @@ const OVERRIDE_KEYS: Array<{
   label: string;
 }> = [
   { key: "primaryButtonBg", label: "Primary Button Bg Override" },
-  { key: "navbarBg", label: "Notched Navbar Bg Override" },
+  { key: "navbarBg", label: "Floating Navbar Bg Override" },
   { key: "footerBg", label: "Footer Bg Override" },
   { key: "cardBg", label: "Card Surface Bg Override" },
   { key: "badgeBg", label: "Badge Bg Override" },
 ];
 
 function toHexInputFallback(color: string): string {
-  return /^#[0-9a-fA-F]{6}$/.test(color.trim()) ? color.trim() : "#D23A1F";
+  return /^#[0-9a-fA-F]{6}$/.test(color.trim()) ? color.trim() : "#4F46E5";
 }
 
 export function ThemeManagerClient({
@@ -71,7 +75,7 @@ export function ThemeManagerClient({
   builtInPresets,
 }: ThemeManagerClientProps) {
   const [config, setConfig] = useState<ThemeConfiguration>(initialConfig);
-  const [editingMode, setEditingMode] = useState<ResolvedThemeMode>("dark");
+  const [editingMode, setEditingMode] = useState<ResolvedThemeMode>("light");
   const [customPresetName, setCustomPresetName] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -330,8 +334,8 @@ export function ThemeManagerClient({
             }
             className="rounded-control border border-line bg-surface-input px-3 py-1.5 text-xs font-semibold text-ink-heading"
           >
-            <option value="dark">Dark Mode First (#0B0908 Warm Obsidian)</option>
-            <option value="light">Light Mode First (#F5EFE3 Editorial Paper)</option>
+            <option value="light">Light Mode First (#F8FAFC Clean Alabaster — Recommended)</option>
+            <option value="dark">Dark Mode First (#090D16 Midnight Charcoal-Navy)</option>
             <option value="system">Match Visitor OS Preference</option>
           </select>
         </div>
@@ -621,14 +625,15 @@ export function ThemeManagerClient({
                 color: activeTokens.colors.body,
               }}
             >
-              {/* Simulated Notched Top Pill */}
+              {/* Simulated Floating Top Pill */}
               <div
-                className="mx-auto mb-6 flex max-w-xs items-center justify-between rounded-full border px-4 py-2 text-xs"
+                className="mx-auto mb-6 flex max-w-xs items-center justify-between rounded-full border px-4 py-2 text-xs shadow-sm"
                 style={{
                   backgroundColor:
                     activeOverrides.navbarBg || activeTokens.components.navbarBg,
                   borderColor: activeTokens.components.navbarBorder,
-                  color: "#F2EADB",
+                  color:
+                    activeTokens.components.navbarText || activeTokens.colors.heading,
                 }}
               >
                 <span className="font-medium">
@@ -713,6 +718,63 @@ export function ThemeManagerClient({
                     Secondary Pill
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Live WCAG Contrast Scorecard */}
+            <div className="rounded-xl border border-line bg-surface-muted/60 p-3.5">
+              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                WCAG 2.1 Live Contrast Telemetry ({editingMode.toUpperCase()})
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  {
+                    label: "Heading / Canvas",
+                    ratio: getContrastRatio(
+                      activeTokens.colors.heading,
+                      activeTokens.colors.background
+                    ),
+                  },
+                  {
+                    label: "Body / Card",
+                    ratio: getContrastRatio(activeTokens.colors.body, previewCardBg),
+                  },
+                  {
+                    label: "Muted / Canvas",
+                    ratio: getContrastRatio(
+                      activeTokens.colors.muted,
+                      activeTokens.colors.background
+                    ),
+                  },
+                  {
+                    label: "CTA Text / Primary",
+                    ratio: getContrastRatio(
+                      activeTokens.colors.primaryForeground,
+                      previewPrimaryBg
+                    ),
+                  },
+                ].map((pair) => {
+                  const passAA = pair.ratio !== null && pair.ratio >= 4.5;
+                  const passAAA = pair.ratio !== null && pair.ratio >= 7;
+                  return (
+                    <div
+                      key={pair.label}
+                      className="flex items-center justify-between rounded-lg border border-line bg-surface px-2.5 py-1.5"
+                    >
+                      <span className="truncate text-[11px] text-ink-body">
+                        {pair.label}
+                      </span>
+                      <span
+                        className={`ml-2 shrink-0 font-mono text-[11px] font-bold ${
+                          passAA ? "text-status-success" : "text-status-warning"
+                        }`}
+                      >
+                        {pair.ratio ? `${pair.ratio}:1` : "—"}{" "}
+                        {passAAA ? "AAA" : passAA ? "AA" : "LOW"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

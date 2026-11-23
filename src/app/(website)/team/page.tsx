@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
-import { ArrowRight, Globe2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, Globe2, ShieldCheck } from "lucide-react";
 import { db } from "@/lib/database";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Founder & Team — Ahmed Ansari & OmniFlow",
+  title: "Founder & Team",
   description:
-    "Meet Ahmed Ansari, Founder of OmniFlow, and learn how we partner directly with service businesses, consultants, and agencies.",
+    "Meet Ahmed Ansari, Founder of OmniFlow, and learn how our automation engineering engagements are led across the US, UK, and Canada.",
 };
 
 export default async function TeamPage() {
-  const [team, settings] = await Promise.all([
+  const [members, settings] = await Promise.all([
     db.listTeamMembers(true),
     db.getSiteSettings(),
   ]);
@@ -21,82 +25,104 @@ export default async function TeamPage() {
   return (
     <>
       <PageHeader
-        breadcrumbs={[
-          { label: "About", href: "/about" },
-          { label: "Founder & Team" },
-        ]}
-        badge="Leadership & Engineering"
-        title={`Led Directly by ${settings.founderName}`}
-        description="Clients work directly with senior engineering leadership—never passed off to junior account layers after discovery."
-        actions={<Button href="/contact">Schedule Discovery Conversation</Button>}
+        breadcrumbs={[{ label: "About", href: "/about" }, { label: "Founder & Team" }]}
+        badge="Leadership & Delivery"
+        title="Direct Principal Accountability on Every Engagement"
+        description="When you work with OmniFlow, your workflow architecture, guardrails, and implementation are led directly by experienced engineering leadership—not passed off to unaccountable subcontractors."
       />
 
-      <section className="py-16 sm:py-20">
+      <section className="bg-surface py-16 sm:py-22">
         <Container className="space-y-8">
-          {team.map((member) => (
+          {members.map((member) => (
             <article
               key={member.id}
-              className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-8 shadow-card sm:p-10"
+              className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-10"
             >
-              <div className="flex flex-wrap items-center gap-2">
-                {member.isFounder && <Badge>Founder</Badge>}
-                <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
-                  <Globe2 className="h-3.5 w-3.5 text-primary" />
-                  Serving {member.regionsServed.join(", ")}
-                </span>
-              </div>
-
-              <h2 className="mt-4 text-2xl font-bold text-ink-heading sm:text-3xl">
-                {member.name}
-              </h2>
-              <p className="mt-1 text-sm font-medium text-primary">{member.role}</p>
-
-              <p className="mt-4 max-w-3xl text-base leading-relaxed text-ink-body">{member.bio}</p>
-
-              <div className="mt-6">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                  Core Architectural Focus
-                </h3>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {member.focusAreas.map((area) => (
-                    <Badge key={area} variant="outline">
-                      {area}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {member.linkedinUrl && (
-                <div className="mt-6">
-                  <a
-                    href={member.linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-link hover:text-link-hover"
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <div
+                    aria-hidden="true"
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground shadow-glow"
                   >
-                    Connect on LinkedIn →
-                  </a>
+                    {member.name
+                      .split(" ")
+                      .map((p) => p[0])
+                      .join("")
+                      .slice(0, 2)}
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-2xl font-bold text-ink-heading">{member.name}</h2>
+                      {member.isFounder && <Badge variant="accent">Founder</Badge>}
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-primary">{member.role}</p>
+                  </div>
                 </div>
-              )}
+
+                <div className="flex items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3.5 py-1.5 text-xs font-medium text-ink-heading">
+                  <Globe2 className="h-4 w-4 text-primary" />
+                  <span>Serving: {member.regionsServed.join(" · ")}</span>
+                </div>
+              </div>
+
+              <p className="mt-6 max-w-3xl text-base leading-relaxed text-ink-body">
+                {member.bio}
+              </p>
+
+              <div className="mt-6 grid grid-cols-1 gap-6 border-t border-line pt-6 md:grid-cols-2">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    Core Engineering Focus Areas
+                  </h3>
+                  <ul className="mt-3 space-y-2">
+                    {member.focusAreas.map((area) => (
+                      <li
+                        key={area}
+                        className="flex items-center gap-2 text-sm font-medium text-ink-heading"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                        <span>{area}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-line bg-surface-muted p-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider">
+                      Engagement Standard
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-body sm:text-sm">
+                    Every client receives written workflow specifications, staged edge-case testing, and direct walkthroughs across EST and GMT business hours.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href={settings.primaryCtaHref}>
+                  <Button>
+                    Work Directly with {member.name.split(" ")[0]}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/how-it-works">
+                  <Button variant="secondary">Review Delivery Process</Button>
+                </Link>
+              </div>
             </article>
           ))}
-
-          <div className="rounded-card border border-line bg-surface-muted p-8 text-center">
-            <h2 className="text-xl font-bold text-ink-heading">
-              Work Directly With {settings.companyName}
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-ink-body">
-              Every system is scoped, architected, and verified with direct founder involvement.
-            </p>
-            <div className="mt-6 flex justify-center">
-              <Button href="/contact">
-                Start a Conversation
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
         </Container>
       </section>
+
+      <PageConversionBanner
+        eyebrow="Start a Conversation"
+        title="Discuss your workflow directly with Ahmed Ansari"
+        description="Share your operational challenge via our structured intake form and receive a direct response within one business day."
+        primaryLabel={settings.primaryCtaLabel}
+        primaryHref={settings.primaryCtaHref}
+      />
     </>
   );
 }
