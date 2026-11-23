@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
@@ -27,18 +28,41 @@ import {
 
 export type DatabaseDriverMode = "supabase_postgres" | "local_file_fallback";
 
+function isServerlessRuntime(): boolean {
+  return Boolean(
+    process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.cwd().startsWith("/var/task")
+  );
+}
+
 function getLocalDbFilePath(): string {
   if (process.env.OMNIFLOW_LOCAL_DB_PATH) {
     return path.resolve(process.env.OMNIFLOW_LOCAL_DB_PATH);
   }
+  if (isServerlessRuntime()) {
+    return path.join(os.tmpdir(), "omniflow-data", "omniflow-db.json");
+  }
   return path.join(process.cwd(), "data", "omniflow-db.json");
 }
 
+let inMemoryFallbackSnapshot: OmniFlowDatabaseSnapshot | null = null;
 let cachedSqlClient: ReturnType<typeof postgres> | null = null;
 let cachedSqlUrl = "";
 let postgresFallbackUntil = 0;
 let loggedFallbackNoticeForUrl = "";
 let postgresBootstrapChecked = false;
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+function dedupeInFlight<T>(key: string, factory: () => Promise<T>): Promise<T> {
+  const existing = inFlightReads.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const pending = factory().finally(() => {
+    inFlightReads.delete(key);
+  });
+  inFlightReads.set(key, pending);
+  return pending;
+}
 
 function isPlaceholderDatabaseUrl(url: string): boolean {
   return (
@@ -50,9 +74,30 @@ function isPlaceholderDatabaseUrl(url: string): boolean {
   );
 }
 
+/**
+ * On Supabase Pooler (*.pooler.supabase.com), port 5432 is Session Mode (capped at ~15 clients),
+ * which saturates under concurrent serverless invocations (EMAXCONNSESSION).
+ * Port 6543 is Transaction Mode (200+ clients) and works seamlessly with prepare: false.
+ */
+export function normalizeDatabaseUrlForRuntime(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (
+    process.env.OMNIFLOW_FORCE_SESSION_POOLER !== "true" &&
+    /\.pooler\.supabase\.com:5432\b/i.test(trimmed)
+  ) {
+    return trimmed.replace(
+      /(\.pooler\.supabase\.com):5432\b/i,
+      "$1:6543"
+    );
+  }
+  return trimmed;
+}
+
 function getPostgresClient(): ReturnType<typeof postgres> | null {
-  const url = process.env.DATABASE_URL?.trim() || "";
-  if (isPlaceholderDatabaseUrl(url)) return null;
+  const rawUrl = process.env.DATABASE_URL?.trim() || "";
+  if (isPlaceholderDatabaseUrl(rawUrl)) return null;
+  const url = normalizeDatabaseUrlForRuntime(rawUrl);
+
   if (Date.now() < postgresFallbackUntil && cachedSqlUrl === url) {
     return null;
   }
@@ -65,12 +110,14 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
     postgresBootstrapChecked = false;
     const isSupabaseHost =
       url.includes(".supabase.co") || url.includes(".supabase.com");
+    const serverless = isServerlessRuntime();
 
     cachedSqlClient = postgres(url, {
-      max: 5,
-      idle_timeout: 20,
-      connect_timeout: 6,
-      prepare: false, // Required for Supabase PgBouncer Transaction Pooler compatibility
+      max: serverless ? 1 : 3,
+      idle_timeout: serverless ? 5 : 20,
+      max_lifetime: 60 * 5,
+      connect_timeout: 8,
+      prepare: false, // Required for Supabase PgBouncer Transaction Pooler (:6543)
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
   }
@@ -82,7 +129,7 @@ function isConnectivityOrSchemaError(err: unknown): boolean {
   const code = String((err as { code?: unknown }).code || "");
   const message = String((err as { message?: unknown }).message || "");
 
-  // Network / DNS / Socket / Timeout / Unmigrated schema / Auth / Pooler codes
+  // Network / DNS / Socket / Timeout / Pooler saturation / Unmigrated schema / Auth codes
   const fallbackCodes = new Set([
     "ENOTFOUND",
     "EAI_AGAIN",
@@ -94,6 +141,8 @@ function isConnectivityOrSchemaError(err: unknown): boolean {
     "CONNECT_TIMEOUT",
     "CONNECTION_CLOSED",
     "CONNECTION_DESTROYED",
+    "EMAXCONNSESSION",
+    "53300", // too_many_connections
     "42P01", // undefined_table (migration not applied yet)
     "28P01", // invalid_password
     "3D000", // invalid_catalog_name
@@ -101,12 +150,12 @@ function isConnectivityOrSchemaError(err: unknown): boolean {
     "08001",
     "08003",
     "08006",
-    "XX000", // Supabase Tenant or user not found
+    "XX000", // Supabase Pooler / Tenant error
   ]);
 
   if (fallbackCodes.has(code)) return true;
   if (
-    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|CONNECT_TIMEOUT|Tenant or user not found/i.test(
+    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|CONNECT_TIMEOUT|EMAXCONNSESSION|max clients reached|too many connections|Tenant or user not found/i.test(
       message
     )
   ) {
@@ -116,23 +165,26 @@ function isConnectivityOrSchemaError(err: unknown): boolean {
 }
 
 function tripPostgresCircuitBreaker(err: unknown): void {
-  const url = process.env.DATABASE_URL?.trim() || "";
-  postgresFallbackUntil = Date.now() + 60_000;
+  const url = cachedSqlUrl || process.env.DATABASE_URL?.trim() || "";
+  const msg =
+    err && typeof err === "object" && "message" in err
+      ? String((err as { message?: unknown }).message)
+      : "Unreachable database host";
+
+  const isTransientPoolCap = /EMAXCONNSESSION|max clients reached|53300/i.test(
+    msg
+  );
+  postgresFallbackUntil = Date.now() + (isTransientPoolCap ? 10_000 : 60_000);
 
   if (loggedFallbackNoticeForUrl !== url) {
     loggedFallbackNoticeForUrl = url;
-    const msg =
-      err && typeof err === "object" && "message" in err
-        ? String((err as { message?: unknown }).message)
-        : "Unreachable database host";
-
     console.warn(
-      `[OmniFlow DB] PostgreSQL unavailable (${msg}) — automatically switched to Local JSON Store (data/omniflow-db.json).`
+      `[OmniFlow DB] PostgreSQL unavailable (${msg}) — automatically switched to resilient fallback store.`
     );
 
     if (/db\.[a-z0-9-]+\.supabase\.co/i.test(url)) {
       console.warn(
-        "[OmniFlow DB] Tip: Supabase Direct hostnames (db.<project-ref>.supabase.co) use IPv6-only DNS (or the project may be paused). On IPv4 networks (Windows / ISPs / Vercel), use the Supabase Session/Transaction Pooler URI (aws-0-<region>.pooler.supabase.com:6543) from Supabase Dashboard -> Connect -> Pooler."
+        "[OmniFlow DB] Tip: Supabase Direct hostnames (db.<project-ref>.supabase.co) use IPv6-only DNS. Use the Supabase Transaction Pooler URI (aws-0-<region>.pooler.supabase.com:6543) instead."
       );
     }
   }
@@ -191,8 +243,9 @@ async function ensurePostgresBootstrapAdmin(
 }
 
 export function getActiveDatabaseMode(): DatabaseDriverMode {
-  const url = process.env.DATABASE_URL?.trim() || "";
-  if (isPlaceholderDatabaseUrl(url)) return "local_file_fallback";
+  const rawUrl = process.env.DATABASE_URL?.trim() || "";
+  if (isPlaceholderDatabaseUrl(rawUrl)) return "local_file_fallback";
+  const url = normalizeDatabaseUrlForRuntime(rawUrl);
   if (Date.now() < postgresFallbackUntil && cachedSqlUrl === url) {
     return "local_file_fallback";
   }
@@ -292,6 +345,9 @@ function upgradeSnapshotIfNeeded(
 function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
   const filePath = getLocalDbFilePath();
   if (!fs.existsSync(filePath)) {
+    if (inMemoryFallbackSnapshot) {
+      return inMemoryFallbackSnapshot;
+    }
     const initial = createInitialSeedSnapshot();
     writeLocalSnapshot(initial);
     return initial;
@@ -299,8 +355,13 @@ function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
   try {
     const raw = fs.readFileSync(filePath, "utf8");
     const parsed = JSON.parse(raw) as OmniFlowDatabaseSnapshot;
-    return upgradeSnapshotIfNeeded(parsed);
+    const ready = upgradeSnapshotIfNeeded(parsed);
+    inMemoryFallbackSnapshot = ready;
+    return ready;
   } catch {
+    if (inMemoryFallbackSnapshot) {
+      return inMemoryFallbackSnapshot;
+    }
     const fallback = createInitialSeedSnapshot();
     writeLocalSnapshot(fallback);
     return fallback;
@@ -308,12 +369,17 @@ function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
 }
 
 function writeLocalSnapshot(snapshot: OmniFlowDatabaseSnapshot): void {
-  const filePath = getLocalDbFilePath();
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf8");
-  fs.renameSync(tempPath, filePath);
+  inMemoryFallbackSnapshot = snapshot;
+  try {
+    const filePath = getLocalDbFilePath();
+    const dir = path.dirname(filePath);
+    fs.mkdirSync(dir, { recursive: true });
+    const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf8");
+    fs.renameSync(tempPath, filePath);
+  } catch {
+    // On strictly read-only serverless containers, inMemoryFallbackSnapshot serves requests cleanly without ENOENT/EROFS crashes
+  }
 }
 
 export function toSafeUser(user: UserRecord): SafeUser {
@@ -334,14 +400,16 @@ export const db = {
   },
 
   async getSiteSettings(): Promise<SiteSettings> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: SiteSettings }[]>`
-          SELECT payload FROM kv_configs WHERE key = 'site_settings' LIMIT 1
-        `;
-        return rows[0]?.payload;
-      },
-      () => readLocalSnapshot().siteSettings
+    return dedupeInFlight("site_settings", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<{ payload: SiteSettings }[]>`
+            SELECT payload FROM kv_configs WHERE key = 'site_settings' LIMIT 1
+          `;
+          return rows[0]?.payload;
+        },
+        () => readLocalSnapshot().siteSettings
+      )
     );
   },
 
@@ -366,14 +434,16 @@ export const db = {
   },
 
   async getThemeConfig(): Promise<ThemeConfiguration> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: ThemeConfiguration }[]>`
-          SELECT payload FROM kv_configs WHERE key = 'theme_config' LIMIT 1
-        `;
-        return rows[0]?.payload;
-      },
-      () => readLocalSnapshot().themeConfig
+    return dedupeInFlight("theme_config", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<{ payload: ThemeConfiguration }[]>`
+            SELECT payload FROM kv_configs WHERE key = 'theme_config' LIMIT 1
+          `;
+          return rows[0]?.payload;
+        },
+        () => readLocalSnapshot().themeConfig
+      )
     );
   },
 
@@ -400,14 +470,16 @@ export const db = {
   },
 
   async getBrandAssets(): Promise<BrandAssetConfig> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: BrandAssetConfig }[]>`
-          SELECT payload FROM kv_configs WHERE key = 'brand_assets' LIMIT 1
-        `;
-        return rows[0]?.payload;
-      },
-      () => readLocalSnapshot().brandAssets
+    return dedupeInFlight("brand_assets", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<{ payload: BrandAssetConfig }[]>`
+            SELECT payload FROM kv_configs WHERE key = 'brand_assets' LIMIT 1
+          `;
+          return rows[0]?.payload;
+        },
+        () => readLocalSnapshot().brandAssets
+      )
     );
   },
 
@@ -1527,6 +1599,10 @@ export const db = {
   async findActiveRedirect(pathname: string): Promise<RedirectRule | null> {
     const clean = pathname.trim();
     if (!clean || clean === "/") return null;
+    // Skip static file / icon / asset extensions so browser /favicon.* requests never query redirects
+    if (/\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|woff2?|ttf|txt|xml)$/i.test(clean)) {
+      return null;
+    }
     const all = await this.listRedirects();
     return (
       all.find(

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import type { MediaAsset } from "@/types/content";
@@ -128,6 +129,13 @@ export function validateMediaUpload(
 function getLocalUploadsDir(): string {
   if (process.env.OMNIFLOW_UPLOADS_DIR) {
     return path.resolve(process.env.OMNIFLOW_UPLOADS_DIR);
+  }
+  if (
+    process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.cwd().startsWith("/var/task")
+  ) {
+    return path.join(os.tmpdir(), "omniflow-uploads");
   }
   return path.join(process.cwd(), "public", "uploads");
 }

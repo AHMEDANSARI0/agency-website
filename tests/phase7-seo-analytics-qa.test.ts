@@ -20,7 +20,7 @@ import {
   serializeJsonLd,
 } from "@/features/seo/json-ld";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { db } from "@/lib/database";
+import { db, normalizeDatabaseUrlForRuntime } from "@/lib/database";
 import { createInitialSeedSnapshot } from "@/lib/database/seed-data";
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omniflow-phase7-test-"));
@@ -373,6 +373,41 @@ describe("Phase 7 — Technical SEO, Sitemap/Robots, JSON-LD, Redirects & Consen
 
       if (prevSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
       else process.env.NEXT_PUBLIC_SITE_URL = prevSiteUrl;
+    }
+  });
+
+  it("7. upgrades Supabase Session Pooler (:5432) to Transaction Pooler (:6543) & uses os.tmpdir() on Vercel serverless", async () => {
+    expect(
+      normalizeDatabaseUrlForRuntime(
+        "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+      )
+    ).toBe(
+      "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+    );
+
+    // Static asset extensions skip redirect DB lookups completely
+    expect(await db.findActiveRedirect("/favicon.png")).toBeNull();
+    expect(await db.findActiveRedirect("/favicon.ico")).toBeNull();
+
+    // Simulate Vercel read-only /var/task runtime (OMNIFLOW_LOCAL_DB_PATH unset, VERCEL=1)
+    const prevLocalPath = process.env.OMNIFLOW_LOCAL_DB_PATH;
+    const prevVercel = process.env.VERCEL;
+    delete process.env.OMNIFLOW_LOCAL_DB_PATH;
+    process.env.VERCEL = "1";
+
+    try {
+      const [settings, theme, brand] = await Promise.all([
+        db.getSiteSettings(),
+        db.getThemeConfig(),
+        db.getBrandAssets(),
+      ]);
+      expect(settings.companyName).toBe("OmniFlow");
+      expect(theme.defaultMode).toBe("dark");
+      expect(brand.brandName).toBe("OmniFlow");
+    } finally {
+      process.env.OMNIFLOW_LOCAL_DB_PATH = prevLocalPath;
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
     }
   });
 });
