@@ -9,7 +9,7 @@ import {
   type DeploymentEnvironment,
 } from "@/lib/env";
 
-export const OMNIFLOW_APP_VERSION = "0.2.0";
+export const OMNIFLOW_APP_VERSION = "1.0.0";
 
 export interface SystemHealthReport {
   status: "healthy" | "degraded" | "unhealthy";

@@ -1,61 +1,52 @@
-# OmniFlow — AI Automation & Business Solutions Platform
+# OmniFlow v1.0.0 — AI Automation & Business Solutions Platform
 
 **Positioning:** AI Automation & Business Solutions  
 **Tagline:** Automate the work. Accelerate the business.  
-**Founder:** Ahmed Ansari  
-**Target Markets:** United States, United Kingdom, Canada
+**Principal Architect & Founder:** Ahmed Ansari  
+**Target Markets:** United States (USD), United Kingdom (GBP), Canada (CAD)
 
-OmniFlow is a full-stack Next.js 15 agency website, interactive workflow demonstration suite, and role-based content/CRM administration platform engineered to run on **100% free-tier cloud infrastructure** (Vercel Hobby + Supabase PostgreSQL + Supabase Storage + Resend) with **zero dedicated VM or paid background servers required**.
-
----
-
-## Architecture & Security Highlights
-
-- **Strict Production Persistence (`src/lib/database/index.ts`, `src/lib/env.ts`):**
-  - **Production (`NODE_ENV=production`):** Requires Supabase PostgreSQL (`DATABASE_URL`) and Supabase Storage (`NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`). Silent fallback to temporary `/tmp` or local JSON files is strictly disabled so production writes can never be lost.
-  - **Local Development & Automated Tests:** Supports zero-setup local JSON persistence (`data/omniflow-db.json`) and `public/uploads/` when `DATABASE_URL` is omitted.
-- **Hardened Staff Authentication (`src/lib/auth/`, `src/lib/security/`):**
-  - Zero default production passwords (`ChangeMe_*` and weak credentials are rejected).
-  - Secure one-time Initial Super Admin Setup wizard (`/admin/setup`) protected by `ADMIN_SETUP_TOKEN` when the `users` table is empty.
-  - Forced password replacement on first bootstrap login (`/admin/account`), SHA-256 single-use account recovery (`/admin/recover`), and instant server-side session revocation via `users.session_version`.
-  - Granular RBAC across `SUPER_ADMIN`, `EDITOR`, and `AUTHOR` roles with self-demotion and last-Super-Admin lockout protection.
-- **Persistent Media Library (`src/features/media/storage.ts`):**
-  - Server-side binary magic-header verification + SVG XSS sanitization.
-  - Separate configurable per-file upload limit (`MEDIA_MAX_FILE_BYTES`, default `4 MB`) and total storage quota (`MEDIA_TOTAL_QUOTA_BYTES`, default `500 MB`).
-  - Live reference tracking across Brand, Pages, Services, Case Studies, Blog Posts, and Team profiles with `409 Conflict` deletion protection.
-- **Accurate Health & Readiness Probes (`/api/health`):**
-  - Separate liveness (`/api/health?probe=liveness`) and deep readiness (`/api/health`) checks verifying live PostgreSQL connectivity, schema migrations, storage bucket reachability, email configuration, and canonical HTTPS domain status without exposing secrets or internal paths.
+OmniFlow is a production-hardened Next.js 15 agency website, deterministic interactive workflow lab, and executive RBAC content/CRM back-office engineered to operate on **100% free-tier cloud infrastructure** (Vercel Hobby + Supabase PostgreSQL + Supabase Storage + Resend Free Tier) with **zero paid Redis, VPS, or dedicated background VMs required**.
 
 ---
 
-## Local Development Quick Start
+## Core Capabilities Across All 9 Upgrade Phases
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run static verification, integration tests, and production build:
-   ```bash
-   npm run verify
-   ```
-4. Start the local development server:
-   ```bash
-   npm run dev
-   ```
+1. **Production Reliability & Auth Security (Phase 1):**
+   - Strict production persistence (`DATABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`); silent fallback to `/tmp` or local JSON is blocked in `NODE_ENV=production`.
+   - Secure one-time Initial Super Admin Setup (`/admin/setup`), forced bootstrap password rotation, SHA-256 single-use recovery tokens (`/admin/recover`), and instant session revocation via `users.session_version`.
+2. **Light-First Indigo Signature + Midnight-Navy Dark Mode (Phase 2):**
+   - High-contrast `#F8FAFC` / `#FFFFFF` + `#4F46E5` Light-First default palette paired with `#090D16` Midnight-Navy Dark Mode (`0` WCAG AA contrast warnings), SSR `<ThemeStyleTag />`, and replaceable brand asset slots.
+3. **16-Section Narrative Homepage & 18 Public Routes (Phase 3):**
+   - Accessible sticky Mega-Menu Navbar, 5-column dark executive Footer, 16-section homepage architecture, and dedicated inner routes (`/services`, `/services/[slug]`, `/solutions`, `/how-it-works`, `/demos`, `/work`, `/case-studies`, `/case-studies/[slug]`, `/blog`, `/blog/[slug]`, `/about`, `/team`, `/faq`, `/contact`, and legal pages).
+   - **Strict Honesty Policy:** Zero fabricated client logos, testimonials, or unverified ROI claims; public testimonials remain auto-hidden until `isPublished && isAuthorized && isVerified`.
+4. **Interactive Automation Lab & Calculators (Phase 4):**
+   - Five deterministic, zero-login browser tools at `/demos` (*Lead Qualification*, *Grounded AI Support*, *Fault-Tolerant Workflow Simulator*, *USD/GBP/CAD Savings Calculator*, *Readiness Assessment*) with `.txt` brief export and `/contact?service=&context=` handoff.
+5. **Executive Admin Console, Kanban CRM & CMS Studio (Phase 5):**
+   - Grouped sidebar navigation, `Ctrl+K` / `⌘K` Quick Jump Command Palette, Dual-View Lead CRM (*Split Inspector* + *6-Column Kanban Board*), CMS Live Markdown Preview, Page Section Builder, and Live WCAG Contrast Telemetry.
+6. **Motion Choreography & Core Web Vitals Polish (Phase 6):**
+   - Non-blocking top architectural sweep (`LCP` unblocked, `CLS = 0`), GPU `scaleX` reading progress bar, hardware-aware progressive `[data-reveal]`, background-tab `Lenis` RAF pause, and `.cv-auto` off-screen paint deferral.
+7. **Technical SEO, Dynamic OpenGraph, RSS 2.0 & Consent Mode v2 (Phase 7):**
+   - Dynamic `1200×630` branded `/opengraph-image`, `/feed.xml` RSS 2.0 syndication, `/sitemap.xml`, `/robots.txt`, truthful Schema.org JSON-LD (`Organization`, `WebSite`, `Service`, `TechArticle`, `WebApplication`, `Article`, `FAQPage`, `BreadcrumbList`), and GDPR/UK PECR re-openable Cookie Preferences.
+8. **Defense-in-Depth Security & Fault Isolation (Phase 8):**
+   - Preview-compatible `Content-Security-Policy`, `24 KB` bounded JSON intake (`413`), `Idempotency-Key` lead replay deduplication, `4.5s` Resend `AbortSignal.timeout` + CRLF header sanitization, distributed rate-limiting, and isolated error boundaries.
+9. **Pre-Flight Readiness CLI & Master Handover (Phase 9):**
+   - Zero-dependency `npm run preflight` audit CLI (`scripts/preflight-check.mjs`) + complete Supabase/Vercel/Resend/DNS deployment runbook.
 
 ---
 
-## Database Migrations & Backups
+## Quick Start (Local Development & Verification)
 
-SQL migrations live in `supabase/migrations/` and are idempotent (`IF NOT EXISTS` / non-destructive):
+```bash
+cp .env.example .env
+npm install
+npm run preflight
+npm run verify
+npm run dev
+```
 
-1. `supabase/migrations/0001_omniflow_schema.sql` — Core 13 tables and Row-Level Security (RLS) policies.
-2. `supabase/migrations/0002_production_upgrade.sql` — Staff session revocation, forced first-login password rotation, hashed recovery tokens, serverless rate-limit buckets, migration tracking (`schema_migrations`), and transactional backup snapshots (`database_backups`).
+- **Public Website:** `http://localhost:3000`
+- **Interactive Demos Lab:** `http://localhost:3000/demos`
+- **Admin Console:** `http://localhost:3000/admin/login` (or `/admin/setup` when `users` table is empty)
+- **Health & Readiness Probe:** `http://localhost:3000/api/health`
 
-Super Admins can create verified SHA-256 database snapshots, download sanitized JSON backups, and perform safe transactional restores (with automatic pre-restore safety snapshots) from **`/admin/account`**.
-
-See **[`DEPLOYMENT_AND_HANDOVER.md`](./DEPLOYMENT_AND_HANDOVER.md)** for complete Supabase, Vercel, Resend, Custom Domain, and DNS configuration instructions.
+See **[`DEPLOYMENT_AND_HANDOVER.md`](./DEPLOYMENT_AND_HANDOVER.md)** for step-by-step Supabase SQL migration, Storage bucket, Vercel environment variables, Resend SPF/DKIM/DMARC, and custom domain launch instructions.
