@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+coverage/
+
+# Local runtime data & patch backups (never commit secrets or local mutable DB)
+data/
+patches/
+.patch-backups/
+.omniflow-patch-state.json
+public/uploads/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Home-directory caches (when workspace root is $HOME)
+.npm/
+.config/
+.cache/
+.local/
+.arena/
+.bash_history
+.bashrc
+.profile
+
+# Debug & OS files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+.patchers/
+patchers
+/patchers

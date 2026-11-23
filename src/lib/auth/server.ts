@@ -1,0 +1,120 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
+import type { PermissionAction, SafeUser } from "@/types/auth";
+import type { SiteSettings } from "@/types/content";
+import { db, toSafeUser } from "@/lib/database";
+import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { hasPermission } from "./rbac";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "./session";
+
+export function extractSessionTokenFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const pairs = cookieHeader.split(";");
+  for (const rawPair of pairs) {
+    const eqIdx = rawPair.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = rawPair.slice(0, eqIdx).trim();
+    if (key === SESSION_COOKIE_NAME) {
+      return decodeURIComponent(rawPair.slice(eqIdx + 1).trim());
+    }
+  }
+  return null;
+}
+
+export async function resolveAdminUserFromToken(
+  token: string | undefined | null
+): Promise<SafeUser | null> {
+  const session = verifySessionToken(token);
+  if (!session) return null;
+
+  // Always verify against live DB record so deactivated users or role changes take effect immediately
+  const liveUser = await db.findUserById(session.userId);
+  if (!liveUser || !liveUser.isActive) {
+    return null;
+  }
+  return toSafeUser(liveUser);
+}
+
+export async function getCurrentAdminUser(): Promise<SafeUser | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  return resolveAdminUserFromToken(token);
+}
+
+export async function requireAdminPageAuth(requiredAction?: PermissionAction): Promise<{
+  user: SafeUser;
+  settings: SiteSettings;
+  allowed: boolean;
+}> {
+  const user = await getCurrentAdminUser();
+  if (!user) {
+    redirect("/admin/login");
+  }
+  const settings = await db.getSiteSettings();
+  const allowed = requiredAction
+    ? hasPermission(user.role, requiredAction, settings.rolePolicies)
+    : true;
+
+  return { user, settings, allowed };
+}
+
+export type ApiAuthResult =
+  | {
+      ok: true;
+      user: SafeUser;
+      settings: SiteSettings;
+    }
+  | {
+      ok: false;
+      response: NextResponse;
+    };
+
+export async function requireAdminApiAuth(
+  request: Request,
+  requiredAction?: PermissionAction
+): Promise<ApiAuthResult> {
+  if (!verifySameOriginRequest(request)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Cross-origin request rejected." },
+        { status: 403 }
+      ),
+    };
+  }
+
+  let token = extractSessionTokenFromCookieHeader(request.headers.get("cookie"));
+  if (!token) {
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
+    } catch {
+      token = null;
+    }
+  }
+
+  const user = await resolveAdminUserFromToken(token);
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Authentication required. Please sign in to continue." },
+        { status: 401 }
+      ),
+    };
+  }
+
+  const settings = await db.getSiteSettings();
+  if (requiredAction && !hasPermission(user.role, requiredAction, settings.rolePolicies)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Insufficient role permissions for this action." },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ok: true, user, settings };
+}
