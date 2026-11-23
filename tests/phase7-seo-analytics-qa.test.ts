@@ -376,14 +376,44 @@ describe("Phase 7 — Technical SEO, Sitemap/Robots, JSON-LD, Redirects & Consen
     }
   });
 
-  it("7. upgrades Supabase Session Pooler (:5432) to Transaction Pooler (:6543) & uses os.tmpdir() on Vercel serverless", async () => {
+  it("7. upgrades Supabase Session Pooler (:5432) to Transaction Pooler (:6543) on serverless, preserves :5432 locally, & uses os.tmpdir() on Vercel", async () => {
+    // On Vercel serverless, :5432 upgrades to :6543 Transaction Pooler
     expect(
       normalizeDatabaseUrlForRuntime(
-        "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+        "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+        { serverless: true }
       )
     ).toBe(
       "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
     );
+
+    // On local workstations (where ISPs often block port 6543), :5432 is preserved
+    expect(
+      normalizeDatabaseUrlForRuntime(
+        "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+        { serverless: false }
+      )
+    ).toBe(
+      "postgresql://postgres.ref123:secret@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+    );
+
+    // During `next build` (NEXT_PHASE=phase-production-build), live external DB sockets are skipped
+    const prevPhase = process.env.NEXT_PHASE;
+    const prevDbUrl = process.env.DATABASE_URL;
+    process.env.NEXT_PHASE = "phase-production-build";
+    process.env.DATABASE_URL =
+      "postgresql://postgres.ref123:secret@10.255.255.1:6543/postgres";
+    try {
+      const start = Date.now();
+      const settings = await db.getSiteSettings();
+      expect(settings.companyName).toBe("OmniFlow");
+      expect(Date.now() - start).toBeLessThan(500);
+    } finally {
+      if (prevPhase === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = prevPhase;
+      if (prevDbUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = prevDbUrl;
+    }
 
     // Static asset extensions skip redirect DB lookups completely
     expect(await db.findActiveRedirect("/favicon.png")).toBeNull();

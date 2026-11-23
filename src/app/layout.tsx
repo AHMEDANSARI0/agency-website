@@ -21,6 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#0B0908",
   colorScheme: "dark light",

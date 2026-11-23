@@ -11,6 +11,8 @@ import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { AnalyticsConsentManager } from "@/components/analytics/AnalyticsConsentManager";
 import { buildOrganizationAndWebsiteJsonLd } from "@/features/seo/json-ld";
 
+export const dynamic = "force-dynamic";
+
 export default async function WebsiteLayout({
   children,
 }: {

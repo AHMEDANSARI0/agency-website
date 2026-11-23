@@ -36,6 +36,10 @@ function isServerlessRuntime(): boolean {
   );
 }
 
+function isNextProductionBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
 function getLocalDbFilePath(): string {
   if (process.env.OMNIFLOW_LOCAL_DB_PATH) {
     return path.resolve(process.env.OMNIFLOW_LOCAL_DB_PATH);
@@ -75,13 +79,19 @@ function isPlaceholderDatabaseUrl(url: string): boolean {
 }
 
 /**
- * On Supabase Pooler (*.pooler.supabase.com), port 5432 is Session Mode (capped at ~15 clients),
- * which saturates under concurrent serverless invocations (EMAXCONNSESSION).
- * Port 6543 is Transaction Mode (200+ clients) and works seamlessly with prepare: false.
+ * On Vercel Serverless, Supabase Session Pooler (:5432, ~15 client cap) saturates under concurrent
+ * Lambda invocations (EMAXCONNSESSION). Upgrading to Transaction Pooler (:6543, 200+ clients)
+ * works seamlessly with prepare: false. On local machines, port 5432 is preserved because
+ * residential ISPs frequently block non-standard port 6543.
  */
-export function normalizeDatabaseUrlForRuntime(rawUrl: string): string {
+export function normalizeDatabaseUrlForRuntime(
+  rawUrl: string,
+  options?: { serverless?: boolean }
+): string {
   const trimmed = rawUrl.trim();
+  const serverless = options?.serverless ?? isServerlessRuntime();
   if (
+    serverless &&
     process.env.OMNIFLOW_FORCE_SESSION_POOLER !== "true" &&
     /\.pooler\.supabase\.com:5432\b/i.test(trimmed)
   ) {
@@ -94,6 +104,9 @@ export function normalizeDatabaseUrlForRuntime(rawUrl: string): string {
 }
 
 function getPostgresClient(): ReturnType<typeof postgres> | null {
+  // Never open live external Postgres sockets during `next build` static compilation/export
+  if (isNextProductionBuildPhase()) return null;
+
   const rawUrl = process.env.DATABASE_URL?.trim() || "";
   if (isPlaceholderDatabaseUrl(rawUrl)) return null;
   const url = normalizeDatabaseUrlForRuntime(rawUrl);
@@ -104,7 +117,7 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
 
   if (!cachedSqlClient || cachedSqlUrl !== url) {
     if (cachedSqlClient) {
-      cachedSqlClient.end({ timeout: 1 }).catch(() => undefined);
+      cachedSqlClient.end({ timeout: 0 }).catch(() => undefined);
     }
     cachedSqlUrl = url;
     postgresBootstrapChecked = false;
@@ -114,9 +127,9 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
 
     cachedSqlClient = postgres(url, {
       max: serverless ? 1 : 3,
-      idle_timeout: serverless ? 5 : 20,
+      idle_timeout: serverless ? 5 : 15,
       max_lifetime: 60 * 5,
-      connect_timeout: 8,
+      connect_timeout: 4,
       prepare: false, // Required for Supabase PgBouncer Transaction Pooler (:6543)
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
@@ -176,6 +189,12 @@ function tripPostgresCircuitBreaker(err: unknown): void {
   );
   postgresFallbackUntil = Date.now() + (isTransientPoolCap ? 10_000 : 60_000);
 
+  if (cachedSqlClient) {
+    const staleClient = cachedSqlClient;
+    cachedSqlClient = null;
+    staleClient.end({ timeout: 0 }).catch(() => undefined);
+  }
+
   if (loggedFallbackNoticeForUrl !== url) {
     loggedFallbackNoticeForUrl = url;
     console.warn(
@@ -184,10 +203,36 @@ function tripPostgresCircuitBreaker(err: unknown): void {
 
     if (/db\.[a-z0-9-]+\.supabase\.co/i.test(url)) {
       console.warn(
-        "[OmniFlow DB] Tip: Supabase Direct hostnames (db.<project-ref>.supabase.co) use IPv6-only DNS. Use the Supabase Transaction Pooler URI (aws-0-<region>.pooler.supabase.com:6543) instead."
+        "[OmniFlow DB] Tip: Supabase Direct hostnames (db.<project-ref>.supabase.co) use IPv6-only DNS. Use the Supabase Pooler URI from Supabase Dashboard -> Connect -> Pooler instead."
       );
     }
   }
+}
+
+function withHardDbTimeout<T>(promise: Promise<T>, timeoutMs = 5_000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const timeoutErr = Object.assign(
+        new Error(`PostgreSQL connection timed out after ${timeoutMs}ms`),
+        { code: "CONNECT_TIMEOUT" }
+      );
+      reject(timeoutErr);
+    }, timeoutMs);
+    if (typeof timer.unref === "function") {
+      timer.unref();
+    }
+
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
 }
 
 async function runWithDbFallback<T>(
@@ -197,7 +242,7 @@ async function runWithDbFallback<T>(
   const sql = getPostgresClient();
   if (sql) {
     try {
-      const result = await pgOp(sql);
+      const result = await withHardDbTimeout(pgOp(sql), 5_000);
       if (result !== undefined) {
         return result;
       }
@@ -243,6 +288,7 @@ async function ensurePostgresBootstrapAdmin(
 }
 
 export function getActiveDatabaseMode(): DatabaseDriverMode {
+  if (isNextProductionBuildPhase()) return "local_file_fallback";
   const rawUrl = process.env.DATABASE_URL?.trim() || "";
   if (isPlaceholderDatabaseUrl(rawUrl)) return "local_file_fallback";
   const url = normalizeDatabaseUrlForRuntime(rawUrl);
