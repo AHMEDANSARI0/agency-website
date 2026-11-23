@@ -4,6 +4,7 @@ import "@/styles/globals.css";
 import { db } from "@/lib/database";
 import { ThemeStyleTag } from "@/features/themes/ThemeStyleTag";
 import { ThemeProvider } from "@/features/themes/ThemeProvider";
+import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -27,7 +28,7 @@ export const viewport: Viewport = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const [settings, brand] = await Promise.all([db.getSiteSettings(), db.getBrandAssets()]);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const baseUrl = getCanonicalSiteUrl();
 
   return {
     metadataBase: new URL(baseUrl),

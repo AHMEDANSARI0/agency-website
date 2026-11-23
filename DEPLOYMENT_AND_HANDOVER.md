@@ -29,8 +29,8 @@ OmniFlow is engineered to run at **$0/month** on reputable free tiers while scal
 2. Open **SQL Editor** -> paste the entire contents of `supabase/migrations/0001_omniflow_schema.sql` -> click **Run**.
    - This creates all 13 tables (`kv_configs`, `users`, `services`, `case_studies`, `blog_posts`, `faqs`, `testimonials`, `team_members`, `pages`, `leads`, `media_assets`, `redirects`, `audit_logs`), indexes, and Row-Level Security (RLS) policies.
 3. Open **Storage** -> create a **Public** bucket named `omniflow-media` (used for replaceable logos, favicons, OG images, blog covers, and PDFs).
-4. Copy from **Project Settings -> Database & API**:
-   - `DATABASE_URL` (Transaction Pooler URI, port `6543` or Session URI)
+4. Copy from **Project Settings -> Database & API** (or top **Connect** button):
+   - `DATABASE_URL`: **IMPORTANT — Use the IPv4 Session/Transaction Pooler URI** (`postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`), **NOT** the Direct Connection URI (`db.[ref].supabase.co:5432`). Supabase Direct hostnames are IPv6-only and fail DNS lookup (`ENOTFOUND`) on IPv4 Windows networks, residential ISPs, and standard serverless runtimes. (If `DATABASE_URL` is unreachable, OmniFlow automatically falls back to `data/omniflow-db.json` without crashing builds or pages.)
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` (keep server-only — never prefix with `NEXT_PUBLIC_`)
 

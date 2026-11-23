@@ -7,9 +7,15 @@ import type {
 import type { BrandAssetConfig } from "@/types/brand";
 
 export function getCanonicalSiteUrl(): string {
-  const raw =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
-  return raw.replace(/\/+$/, "");
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return "http://localhost:3000";
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    return parsed.origin + parsed.pathname.replace(/\/+$/, "");
+  } catch {
+    return "http://localhost:3000";
+  }
 }
 
 /**

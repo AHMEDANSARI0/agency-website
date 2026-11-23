@@ -3,13 +3,27 @@ import type { SessionPayload, SafeUser } from "@/types/auth";
 
 export const SESSION_COOKIE_NAME = "omniflow_session";
 
+let warnedLocalProdSecret = false;
+
 function getSigningSecret(): string {
-  const envSecret = process.env.AUTH_SECRET?.trim();
-  if (envSecret && envSecret.length >= 32) {
+  const envSecret = (
+    process.env.AUTH_SECRET?.trim() ||
+    process.env.SESSION_SECRET?.trim() ||
+    ""
+  );
+  if (envSecret.length >= 32) {
     return envSecret;
   }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET environment variable (min 32 characters) is required in production.");
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL === "1") {
+    throw new Error(
+      "AUTH_SECRET environment variable (min 32 characters) is required on Vercel production."
+    );
+  }
+  if (process.env.NODE_ENV === "production" && !warnedLocalProdSecret) {
+    warnedLocalProdSecret = true;
+    console.warn(
+      "[OmniFlow Auth] AUTH_SECRET in .env is missing or shorter than 32 characters — using local fallback signing key. Set a 32+ char AUTH_SECRET before deploying to production."
+    );
   }
   return "dev-only-omniflow-ephemeral-secret-key-do-not-use-in-prod-2026";
 }

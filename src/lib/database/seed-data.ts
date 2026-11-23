@@ -42,11 +42,21 @@ export interface OmniFlowDatabaseSnapshot {
 
 export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
   const now = "2026-11-22T12:00:00.000Z";
-  const bootstrapEmail = (process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@omniflow.example")
-    .trim()
-    .toLowerCase();
-  const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || "ChangeMe_StrongPass_2026!";
-  const bootstrapName = process.env.ADMIN_BOOTSTRAP_NAME || "Ahmed Ansari";
+  const bootstrapEmail = (
+    process.env.ADMIN_BOOTSTRAP_EMAIL?.trim() || "admin@omniflow.example"
+  ).toLowerCase();
+  const rawBootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() || "";
+  if (rawBootstrapPassword.length > 0 && rawBootstrapPassword.length < 8) {
+    console.warn(
+      "[OmniFlow Seed] ADMIN_BOOTSTRAP_PASSWORD in .env is shorter than 8 characters — using default bootstrap password (ChangeMe_StrongPass_2026!) so build/startup does not fail. Please set ADMIN_BOOTSTRAP_PASSWORD to at least 8 characters."
+    );
+  }
+  const bootstrapPassword =
+    rawBootstrapPassword.length >= 8
+      ? rawBootstrapPassword
+      : "ChangeMe_StrongPass_2026!";
+  const bootstrapName =
+    process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "Ahmed Ansari";
 
   const superAdmin: UserRecord = {
     id: "usr_founder_admin",

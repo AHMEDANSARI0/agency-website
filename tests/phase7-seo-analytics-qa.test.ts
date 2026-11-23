@@ -16,10 +16,12 @@ import sitemap from "@/app/sitemap";
 import {
   buildFaqPageJsonLd,
   buildOrganizationAndWebsiteJsonLd,
+  getCanonicalSiteUrl,
   serializeJsonLd,
 } from "@/features/seo/json-ld";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { db } from "@/lib/database";
+import { createInitialSeedSnapshot } from "@/lib/database/seed-data";
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omniflow-phase7-test-"));
 
@@ -328,5 +330,49 @@ describe("Phase 7 — Technical SEO, Sitemap/Robots, JSON-LD, Redirects & Consen
     const healthJson = await healthRes.json();
     expect(healthJson.status).toBe("ok");
     expect(healthJson.phase).toBe(7);
+  });
+
+  it("5. gracefully falls back to Local JSON Store when DATABASE_URL points to an unreachable/IPv6-only Supabase host", async () => {
+    const prevDbUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL =
+      "postgresql://postgres:testpass@db.nonexistent-project-ref-0000.supabase.co:5432/postgres";
+
+    try {
+      const [entries, pages, settings] = await Promise.all([
+        sitemap(),
+        db.listPages(),
+        db.getSiteSettings(),
+      ]);
+
+      expect(entries.length).toBeGreaterThan(15);
+      expect(pages.length).toBeGreaterThan(0);
+      expect(settings.companyName).toBe("OmniFlow");
+      expect(db.getMode()).toBe("local_file_fallback");
+    } finally {
+      if (prevDbUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = prevDbUrl;
+      }
+    }
+  });
+
+  it("6. tolerates short ADMIN_BOOTSTRAP_PASSWORD or malformed NEXT_PUBLIC_SITE_URL in .env without crashing builds", () => {
+    const prevPass = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+    const prevSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    process.env.ADMIN_BOOTSTRAP_PASSWORD = "short";
+    process.env.NEXT_PUBLIC_SITE_URL = "http://[::1]:bad:url";
+
+    try {
+      const snap = createInitialSeedSnapshot();
+      expect(snap.users[0].passwordHash.startsWith("scrypt$")).toBe(true);
+      expect(getCanonicalSiteUrl()).toBe("http://localhost:3000");
+    } finally {
+      if (prevPass === undefined) delete process.env.ADMIN_BOOTSTRAP_PASSWORD;
+      else process.env.ADMIN_BOOTSTRAP_PASSWORD = prevPass;
+
+      if (prevSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+      else process.env.NEXT_PUBLIC_SITE_URL = prevSiteUrl;
+    }
   });
 });

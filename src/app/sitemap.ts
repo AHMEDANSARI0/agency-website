@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
 import { db } from "@/lib/database";
 
+export const dynamic = "force-dynamic";
+
 const STATIC_PUBLIC_ROUTES: {
   path: string;
   priority: number;
