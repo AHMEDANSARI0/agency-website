@@ -3,7 +3,11 @@ import { Plus } from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleEyebrow,
+} from "@/components/ui/soale";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
   buildBreadcrumbJsonLd,
@@ -36,39 +40,42 @@ export default async function FaqPage() {
   ];
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <JsonLdScript data={structuredData} />
       <PageHeader
         breadcrumbs={[{ label: "FAQ" }]}
         badge="Answers & Transparency"
         title="Frequently Asked Questions"
         description="Straightforward answers on how we scope, secure, price, and hand over business automation systems."
+        actions={
+          <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
+            Ask a Direct Question
+          </SoaleArrowButton>
+        }
       />
 
-      <section className="bg-surface py-16 sm:py-22">
-        <Container className="max-w-4xl space-y-10">
+      <section className="py-16 sm:py-24">
+        <Container className="max-w-4xl space-y-12">
           {categories.map((category) => {
             const group = faqs.filter((f) => f.category === category);
             return (
               <div key={category} className="space-y-4">
-                <Badge variant="accent">{category}</Badge>
-                <div className="space-y-3">
+                <SoaleEyebrow>{category}</SoaleEyebrow>
+                <div className="space-y-3.5">
                   {group.map((faq, idx) => (
-                    <details
-                      key={faq.id}
-                      open={idx === 0}
-                      className="more rounded-card border border-[var(--of-border-card)] bg-surface-card px-6 py-5 shadow-card"
-                    >
-                      <summary className="flex items-center justify-between gap-4 text-left text-base font-bold text-ink-heading sm:text-lg">
-                        <span>{faq.question}</span>
-                        <span className="more-icon grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-surface-muted text-primary">
-                          <Plus className="h-4 w-4" />
-                        </span>
-                      </summary>
-                      <p className="mt-3 border-t border-line pt-3 text-sm leading-relaxed text-ink-body sm:text-base">
-                        {faq.answer}
-                      </p>
-                    </details>
+                    <SoaleCard key={faq.id} className="px-6 py-5">
+                      <details open={idx === 0} className="more">
+                        <summary className="flex items-center justify-between gap-4 text-left text-base font-semibold text-ink-heading sm:text-lg">
+                          <span>{faq.question}</span>
+                          <span className="more-icon grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-surface-muted text-primary">
+                            <Plus className="h-4 w-4" />
+                          </span>
+                        </summary>
+                        <p className="mt-3.5 border-t border-line pt-3.5 text-sm leading-relaxed text-ink-body sm:text-base">
+                          {faq.answer}
+                        </p>
+                      </details>
+                    </SoaleCard>
                   ))}
                 </div>
               </div>
@@ -84,6 +91,6 @@ export default async function FaqPage() {
         primaryLabel="Contact OmniFlow"
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }

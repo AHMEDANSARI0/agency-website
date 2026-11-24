@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { AccessDeniedCard } from "@/components/admin/AccessDeniedCard";
 import { CmsWorkspaceClient } from "@/features/admin/CmsWorkspaceClient";
 import { hasPermission } from "@/lib/auth/rbac";
@@ -67,14 +68,32 @@ export default async function AdminCmsPage({ searchParams }: AdminCmsPageProps) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="t-eyebrow text-primary">Content Operations</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-heading">
-          CMS Content Studio
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Manage Blog Insights (with live Markdown preview &amp; revision history), Case Studies &amp; Concept Blueprints, Services, FAQs, Verified Testimonials, and Team Profiles under strict honesty and role guardrails.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="t-eyebrow text-primary">Content Operations</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-heading">
+            CMS Content Studio
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Manage Blog Insights (with live Markdown preview &amp; revision history), Case Studies &amp; Concept Blueprints, 8 Core Services, FAQs, Verified Testimonials, and Team Profiles under strict honesty and role guardrails.
+          </p>
+        </div>
+        {canEditAny && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link
+              href="/admin/settings#pricing"
+              className="rounded-full border border-line-strong bg-surface-card px-3.5 py-1.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
+            >
+              Pricing &amp; Coming Soon Studio →
+            </Link>
+            <Link
+              href="/admin/theme"
+              className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-muted hover:text-ink-heading"
+            >
+              Theme Library →
+            </Link>
+          </div>
+        )}
       </div>
 
       <CmsWorkspaceClient

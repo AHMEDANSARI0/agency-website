@@ -1,18 +1,23 @@
+import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowRight,
   CheckCircle2,
   Database,
   FileCheck2,
-  Layers,
   ShieldCheck,
+  Sparkles,
   Workflow,
 } from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleChip,
+  SoaleSectionHeader,
+} from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +25,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "AI Automation & Business Services",
   description:
-    "Explore OmniFlow’s core automation services: Lead Management, Policy-Grounded AI Customer Support, Workflow Automation, and five specialized AI practice pillars.",
+    "Explore OmniFlow’s 8 core automation services: Lead Management, Policy-Grounded AI Customer Support, Workflow Automation, and five specialized AI practice pillars.",
 };
 
 export default async function ServicesIndexPage() {
@@ -30,204 +35,209 @@ export default async function ServicesIndexPage() {
     db.getSiteSettings(),
   ]);
 
-  const flagship = services.filter((s) => s.isFlagshipPriority);
-  const additional = services.filter((s) => !s.isFlagshipPriority);
+  const orderedServices = [...services].sort((a, b) => a.order - b.order);
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Services" }]}
-        badge="Capabilities & Systems Architecture"
+        badge="8 Specialized Automation Systems"
         title="Practical AI & Workflow Systems Built for Reliability"
-        description="Every OmniFlow engagement prioritizes deterministic validation, clear human escalation paths, and lean ongoing operating costs across US, UK, and Canadian teams."
+        description="Every OmniFlow engagement prioritizes deterministic validation, clear human escalation paths, and 100% client ownership across US, UK, and Canadian teams."
+        actions={
+          <>
+            <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
+              {settings.primaryCtaLabel}
+            </SoaleArrowButton>
+            <SoaleArrowButton href="/demos" variant="surface">
+              Test Live Interactive Demos
+            </SoaleArrowButton>
+          </>
+        }
       />
 
-      {/* Flagship Priority Services */}
-      <section className="border-b border-line bg-surface py-16 sm:py-22">
+      {/* Signature Soale Sticky Stacking .service-grid Deck (All 8 OmniFlow Services) */}
+      <section className="border-b border-line py-20 sm:py-28">
         <Container>
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div className="max-w-2xl">
-              <Badge variant="accent">Priority Implementation Focus</Badge>
-              <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-                Three Flagship Revenue &amp; Operations Systems
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-body sm:text-base">
-                Designed to solve the three highest-friction bottlenecks in service businesses, advisory practices, and boutique agencies.
-              </p>
-            </div>
-            <Link
-              href="/demos"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-            >
-              <span>Test live interactive demos</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <SoaleSectionHeader
+            align="split"
+            eyebrow="Full Practice Catalog (01 — 08)"
+            title="Three flagship revenue & ops cores plus five modular practice pillars."
+            description="Scroll through our 8 specialized implementations below — inspect the operational bottleneck eliminated, verified outcomes, and delivery architecture for each system."
+            action={
+              <SoaleArrowButton href="/pricing" variant="outline" size="sm">
+                View Engagement Scopes
+              </SoaleArrowButton>
+            }
+          />
 
-          <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {flagship.map((service, idx) => (
-              <article
-                key={service.id}
-                className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-7 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elevated"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Badge variant="accent">{service.badgeLabel}</Badge>
-                    <span className="font-mono text-xs font-semibold text-ink-muted">
-                      0{idx + 1}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-xl font-bold text-ink-heading">
-                    <Link href={`/services/${service.slug}`} className="hover:text-primary">
-                      {service.title}
-                    </Link>
-                  </h3>
-                  <p className="mt-2.5 text-sm leading-relaxed text-ink-body">
-                    {service.shortSummary}
-                  </p>
+          <div className="mt-14 space-y-8">
+            {orderedServices.map((service, idx) => {
+              const matchingPillar = pillars.find(
+                (p) => p.slug === service.slug
+              );
+              const stickyTopPx = 104 + Math.min(idx, 5) * 14;
 
-                  <div className="mt-5 border-t border-line pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      Key Outcomes
-                    </p>
-                    <ul className="mt-2.5 space-y-2">
-                      {service.benefits.slice(0, 3).map((b) => (
-                        <li key={b} className="flex items-start gap-2 text-xs text-ink-body sm:text-sm">
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
-                  <Link
-                    href={`/services/${service.slug}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                  >
-                    View full specification
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=services_flagship_${encodeURIComponent(service.slug)}`}
-                    className="font-mono text-xs text-ink-muted hover:text-ink-heading"
-                  >
-                    Book call →
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </Container>
-      </section>
-
-      {/* Five AI Practice Pillars */}
-      <section className="border-b border-line bg-surface-muted/45 py-16 sm:py-22">
-        <Container>
-          <div className="max-w-2xl">
-            <Badge>Practice Architecture</Badge>
-            <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-              Five Core AI &amp; Automation Capability Pillars
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-body sm:text-base">
-              Comprehensive engineering coverage across your revenue pipeline, client experience, internal operations, reporting, and custom internal tools.
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {additional.map((service) => {
-              const matchingPillar = pillars.find((p) => p.slug === service.slug);
               return (
-                <article
+                <div
                   key={service.id}
-                  className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40 hover:shadow-elevated"
+                  id={service.slug === "ai-sales-intelligence" ? "pillars" : undefined}
+                  style={
+                    { "--service-sticky-top": `${stickyTopPx}px` } as React.CSSProperties
+                  }
+                  className="lg:sticky lg:[top:var(--service-sticky-top)]"
                 >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge>
-                        {matchingPillar ? `Pillar 0${matchingPillar.number}` : service.badgeLabel}
-                      </Badge>
-                      <Layers className="h-4 w-4 text-primary" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-bold text-ink-heading">
-                      <Link href={`/services/${service.slug}`} className="hover:text-primary">
-                        {service.title}
-                      </Link>
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                      {service.shortSummary}
-                    </p>
-                  </div>
+                  <SoaleCard
+                    as="article"
+                    elevated={service.isFlagshipPriority}
+                    className="grid grid-cols-1 gap-8 p-6 sm:p-8 lg:grid-cols-[0.75fr_1fr] lg:gap-10 lg:p-10"
+                  >
+                    {/* Left Column (.service-grid 0.72fr) */}
+                    <div className="flex flex-col justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className="rounded-full bg-primary px-3 py-1 font-mono text-xs font-semibold text-primary-foreground">
+                            0{idx + 1}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-accent-subtle px-3 py-1 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
+                            {service.isFlagshipPriority && (
+                              <Sparkles className="h-3 w-3" />
+                            )}
+                            {matchingPillar
+                              ? `Pillar 0${matchingPillar.number} · ${service.badgeLabel}`
+                              : service.badgeLabel}
+                          </span>
+                        </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
-                    <Link
-                      href={`/services/${service.slug}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
-                    >
-                      Explore capability details
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                    <Link
-                      href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=services_pillar_${encodeURIComponent(service.slug)}`}
-                      className="font-mono text-xs text-ink-muted hover:text-ink-heading"
-                    >
-                      Book call →
-                    </Link>
-                  </div>
-                </article>
+                        <h2 className="soale-h3 mt-5 text-ink-heading">
+                          <Link
+                            href={`/services/${service.slug}`}
+                            className="transition-colors hover:text-primary"
+                          >
+                            {service.title}
+                          </Link>
+                        </h2>
+
+                        <p className="mt-3 text-sm leading-relaxed text-ink-body sm:text-base">
+                          {service.shortSummary}
+                        </p>
+                      </div>
+
+                      <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                        <SoaleArrowButton
+                          href={`/services/${service.slug}`}
+                          variant={service.isFlagshipPriority ? "primary" : "surface"}
+                          size="sm"
+                        >
+                          Full Specification
+                        </SoaleArrowButton>
+                        <Link
+                          href={`/contact?service=${encodeURIComponent(
+                            service.slug
+                          )}&intent=call&source=services_deck_${encodeURIComponent(
+                            service.slug
+                          )}`}
+                          className="px-2 font-mono text-xs font-semibold text-primary hover:underline"
+                        >
+                          Scope this workflow →
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Right Column (.service-grid 1fr — 22px Frame + 14px Service Chips) */}
+                    <div className="soale-media-frame flex flex-col justify-between border border-line p-5 sm:p-7">
+                      <div>
+                        <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-primary">
+                          Operational Outcomes &amp; Guardrails
+                        </p>
+
+                        <ul className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {service.benefits.slice(0, 4).map((benefit) => (
+                            <li
+                              key={benefit}
+                              className="flex items-start gap-2 rounded-2xl border border-line bg-surface p-3.5 text-xs leading-relaxed text-ink-heading"
+                            >
+                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                              <span>{benefit}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Signature Soale 14px .service-label Capability Chips */}
+                      <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
+                        {service.processSteps.slice(0, 4).map((step, sIdx) => (
+                          <SoaleChip key={step.title} className="!bg-surface">
+                            <span className="font-mono text-[0.68rem] text-primary">
+                              0{sIdx + 1}
+                            </span>
+                            <span>{step.title}</span>
+                          </SoaleChip>
+                        ))}
+                      </div>
+                    </div>
+                  </SoaleCard>
+                </div>
               );
             })}
           </div>
         </Container>
       </section>
 
-      {/* Engineering Guarantees Included in Every Service */}
-      <section className="bg-surface py-16 sm:py-20">
+      {/* Standard Engineering Deliverables Included in Every Service */}
+      <section className="bg-canvas-tertiary/40 py-20 sm:py-24">
         <Container>
-          <div className="max-w-2xl">
-            <Badge variant="accent">Standard Engineering Deliverables</Badge>
-            <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-              Included in Every OmniFlow Implementation
-            </h2>
-          </div>
+          <SoaleSectionHeader
+            eyebrow="Standard Engineering Deliverables"
+            title="Included in every OmniFlow implementation."
+            description="Regardless of which workflow you automate first, every project ships with deterministic contracts, staging tests, and complete handover."
+          />
 
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: FileCheck2,
                 title: "Written Scope & Schemas",
-                detail: "Explicit input validation rules, field mappings, and fallback paths documented before build.",
+                detail:
+                  "Explicit input validation rules, field mappings, and fallback paths documented before build.",
               },
               {
                 icon: ShieldCheck,
                 title: "Policy-Bounded AI Guardrails",
-                detail: "Strict separation between deterministic business logic and bounded AI classification.",
+                detail:
+                  "Strict separation between deterministic business logic and bounded AI classification.",
               },
               {
                 icon: Workflow,
                 title: "Staging Edge-Case Testing",
-                detail: "Verified against duplicate webhooks, malformed inputs, and third-party API timeouts.",
+                detail:
+                  "Verified against duplicate webhooks, malformed inputs, and third-party API timeouts.",
               },
               {
                 icon: Database,
                 title: "100% Ownership & Runbooks",
-                detail: "Full administrative access, repository/workflow ownership, and plain-English team guides.",
+                detail:
+                  "Full administrative access, repository/workflow ownership, and plain-English team guides.",
               },
-            ].map((item) => {
+            ].map((item, idx) => {
               const Icon = item.icon;
               return (
                 <div
                   key={item.title}
-                  className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card"
+                  data-reveal="card"
+                  style={{ "--d": idx } as React.CSSProperties}
                 >
-                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-accent-subtle text-primary">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <h3 className="mt-4 text-base font-bold text-ink-heading">{item.title}</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-ink-body sm:text-sm">
-                    {item.detail}
-                  </p>
+                  <SoaleCard className="h-full p-6">
+                    <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-accent-subtle text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 text-base font-semibold text-ink-heading">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-xs leading-relaxed text-ink-body sm:text-sm">
+                      {item.detail}
+                    </p>
+                  </SoaleCard>
                 </div>
               );
             })}
@@ -236,12 +246,12 @@ export default async function ServicesIndexPage() {
       </section>
 
       <PageConversionBanner
-        eyebrow="Custom Workflow Scoping"
-        title="Not sure which system fits your highest-friction bottleneck?"
-        description="Share your current tools and team workflow. We will recommend the leanest, most reliable starting point within one business day."
+        eyebrow="Not Sure Where to Start?"
+        title="Begin with one high-friction bottleneck"
+        description="Most clients start by automating inbound lead qualification or routine customer support triage, then expand once the time savings are proven."
         primaryLabel={settings.primaryCtaLabel}
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }

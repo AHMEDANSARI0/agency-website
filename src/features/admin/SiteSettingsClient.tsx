@@ -10,6 +10,8 @@ import {
   Trash2,
 } from "lucide-react";
 import type { NavItem, SiteSettings } from "@/types/content";
+import { resolvePricingConfig } from "@/features/pricing/default-pricing";
+import { PricingSettingsEditor } from "./PricingSettingsEditor";
 
 interface SiteSettingsClientProps {
   initialSettings: SiteSettings;
@@ -18,7 +20,10 @@ interface SiteSettingsClientProps {
 export function SiteSettingsClient({
   initialSettings,
 }: SiteSettingsClientProps) {
-  const [settings, setSettings] = useState<SiteSettings>(initialSettings);
+  const [settings, setSettings] = useState<SiteSettings>(() => ({
+    ...initialSettings,
+    pricingConfig: resolvePricingConfig(initialSettings),
+  }));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -66,10 +71,13 @@ export function SiteSettingsClient({
         });
         return;
       }
-      setSettings(json.settings);
+      setSettings({
+        ...json.settings,
+        pricingConfig: resolvePricingConfig(json.settings),
+      });
       setFeedback({
         type: "success",
-        text: "Updated global Navigation, Footer columns, and CTA settings.",
+        text: "Updated global Navigation, Footer columns, Pricing Studio, and CTA settings.",
       });
     } catch {
       setFeedback({ type: "error", text: "Network error saving settings." });
@@ -347,6 +355,17 @@ export function SiteSettingsClient({
           ))}
         </div>
       </div>
+
+      {/* Engagement Scopes & Pricing Studio */}
+      <PricingSettingsEditor
+        pricing={resolvePricingConfig(settings)}
+        onChange={(nextPricing) =>
+          setSettings({
+            ...settings,
+            pricingConfig: nextPricing,
+          })
+        }
+      />
 
       {/* Footer Link Columns */}
       <div className="grid gap-4 lg:grid-cols-3">

@@ -1,6 +1,6 @@
 import React from "react";
-import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Container } from "@/components/ui/Container";
+import { SoaleArrowButton, SoaleEyebrow } from "@/components/ui/soale";
 
 interface PageConversionBannerProps {
   eyebrow?: string;
@@ -22,40 +22,40 @@ export function PageConversionBanner({
   secondaryHref = "/demos",
 }: PageConversionBannerProps) {
   return (
-    <section className="bg-surface px-3 pb-12 pt-6 sm:px-5 sm:pb-16">
-      <div
-        className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-white/10 px-6 py-14 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-18"
-        style={{
-          background: "var(--of-gradient-cta-banner)",
-        }}
-      >
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-white/90">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span>{eyebrow}</span>
+    <section className="bg-canvas py-16 sm:py-22">
+      <Container>
+        <div className="on-dark relative overflow-hidden rounded-[28px] border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-6 py-14 text-center shadow-elevated sm:px-12 sm:py-20">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-85"
+            style={{
+              background:
+                "radial-gradient(60% 55% at 20% 16%, rgba(183, 122, 216, 0.18), transparent 70%), radial-gradient(50% 50% at 82% 84%, rgba(167, 143, 202, 0.14), transparent 72%)",
+            }}
+          />
+
+          <div className="relative z-10 mx-auto max-w-3xl">
+            <SoaleEyebrow className="mb-5">{eyebrow}</SoaleEyebrow>
+
+            <h2 className="soale-h2 mx-auto text-[var(--of-color-heading)]">
+              {title}
+            </h2>
+
+            <p className="soale-lead mx-auto mt-4 !text-[var(--of-color-body)]">
+              {description}
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <SoaleArrowButton href={primaryHref} variant="primary">
+                {primaryLabel}
+              </SoaleArrowButton>
+              <SoaleArrowButton href={secondaryHref} variant="outline">
+                {secondaryLabel}
+              </SoaleArrowButton>
+            </div>
+          </div>
         </div>
-
-        <h2 className="t-display mx-auto mt-4 max-w-3xl text-white">{title}</h2>
-
-        <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-          {description}
-        </p>
-
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href={primaryHref}
-            className="group inline-flex items-center gap-2 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover"
-          >
-            <span>{primaryLabel}</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-          <Link
-            href={secondaryHref}
-            className="inline-flex items-center gap-2 rounded-control border border-slate-600/80 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
-          >
-            <span>{secondaryLabel}</span>
-          </Link>
-        </div>
-      </div>
+      </Container>
     </section>
   );
 }

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleChip,
+} from "@/components/ui/soale";
 import { WORK_TYPE_META } from "@/features/case-studies/constants";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
@@ -23,86 +27,100 @@ export default async function CaseStudiesPage() {
   ]);
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Case Studies & Blueprints" }]}
         badge="Detailed System Breakdowns"
         title="Case Studies & Workflow Blueprints"
-        description="In-depth operational breakdowns covering the business bottleneck, system architecture, technologies used, and expected operational impact—transparently labeled by verification status."
+        description="In-depth operational breakdowns covering the business bottleneck, system architecture, technologies used, and verified operational checkpoints — transparently labeled by verification status."
       />
 
-      <section className="bg-surface py-16 sm:py-22">
+      <section className="py-16 sm:py-24">
         <Container className="space-y-8">
-          {items.map((cs) => {
+          {items.map((cs, idx) => {
             const meta = WORK_TYPE_META[cs.workType];
             const contextLabel =
               cs.clientPermissionGranted && cs.clientName
                 ? cs.clientName
                 : cs.businessType;
             return (
-              <article
+              <SoaleCard
                 key={cs.id}
-                className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40 hover:shadow-elevated sm:p-8"
+                as="article"
+                interactive
+                className="p-6 sm:p-9"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="accent">{meta.label}</Badge>
-                  <Badge variant="status">{cs.industry}</Badge>
-                  <span className="text-xs text-ink-muted">· {contextLabel}</span>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-subtle px-3.5 py-1 font-mono text-xs font-semibold text-primary">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      {meta.label}
+                    </span>
+                    <SoaleChip>{cs.industry}</SoaleChip>
+                    <span className="text-xs text-ink-muted">· {contextLabel}</span>
+                  </div>
+                  <span className="font-mono text-xs text-ink-muted">
+                    Blueprint 0{idx + 1}
+                  </span>
                 </div>
 
-                <h2 className="mt-4 text-2xl font-bold text-ink-heading">
-                  <Link href={`/case-studies/${cs.slug}`} className="hover:text-primary">
+                <h2 className="soale-h3 mt-5 text-ink-heading">
+                  <Link
+                    href={`/case-studies/${cs.slug}`}
+                    className="transition-colors hover:text-primary"
+                  >
                     {cs.title}
                   </Link>
                 </h2>
 
-                <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="rounded-xl border border-line bg-surface-muted p-4">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="rounded-[20px] border border-line bg-surface-muted/80 p-5">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       Operational Bottleneck
                     </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-body">
+                    <p className="mt-2 text-sm leading-relaxed text-ink-body">
                       {cs.problemSummary}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-primary/20 bg-accent-subtle/40 p-4">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
-                      Proposed Architecture
+                  <div className="rounded-[20px] border border-primary/25 bg-accent-subtle/65 p-5">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                      Proposed &amp; Engineered Architecture
                     </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-body">
+                    <p className="mt-2 text-sm leading-relaxed text-ink-heading">
                       {cs.proposedAutomation}
                     </p>
                   </div>
                 </div>
 
                 {cs.verifiedResults.length > 0 && (
-                  <ul className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {cs.verifiedResults.slice(0, 2).map((out) => (
-                      <li key={out} className="flex items-start gap-2 text-xs text-ink-body">
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  <ul className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {cs.verifiedResults.slice(0, 4).map((out) => (
+                      <li
+                        key={out}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-ink-body sm:text-sm"
+                      >
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         <span>{out}</span>
                       </li>
                     ))}
                   </ul>
                 )}
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-4">
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+                  <div className="flex flex-wrap gap-2">
                     {cs.technologiesUsed.map((tech) => (
-                      <Badge key={tech} variant="outline">
-                        {tech}
-                      </Badge>
+                      <SoaleChip key={tech}>{tech}</SoaleChip>
                     ))}
                   </div>
-                  <Link
+                  <SoaleArrowButton
                     href={`/case-studies/${cs.slug}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
+                    variant="primary"
+                    size="sm"
                   >
-                    Read full technical breakdown
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                    Read Full Breakdown
+                  </SoaleArrowButton>
                 </div>
-              </article>
+              </SoaleCard>
             );
           })}
         </Container>
@@ -115,6 +133,6 @@ export default async function CaseStudiesPage() {
         primaryLabel={settings.primaryCtaLabel}
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }

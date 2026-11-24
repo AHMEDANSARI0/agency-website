@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Briefcase, CheckCircle2, Globe2, Layers, Users } from "lucide-react";
+import {
+  Briefcase,
+  CheckCircle2,
+  Globe2,
+  Layers,
+  Users,
+} from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleChip,
+} from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
 export const metadata: Metadata = {
@@ -33,14 +42,21 @@ const SEGMENTS = [
       "Policy-grounded FAQ assistant for hours, service scope, and booking preparation",
     ],
     recommendedLinks: [
-      { label: "Lead Management & Qualification", href: "/services/lead-management" },
-      { label: "Policy-Grounded AI Support", href: "/services/ai-customer-support" },
+      {
+        label: "Lead Management & Qualification",
+        href: "/services/lead-management",
+      },
+      {
+        label: "Policy-Grounded AI Support",
+        href: "/services/ai-customer-support",
+      },
     ],
   },
   {
     id: "consultants",
     badge: "Consultants & Advisory Firms",
-    title: "Independent Consultants, Fractional Leaders & Specialist Practices",
+    title:
+      "Independent Consultants, Fractional Leaders & Specialist Practices",
     icon: Users,
     summary:
       "Protect billable hours by automating prospect qualification, pre-call discovery briefs, client onboarding intake, and routine document follow-ups.",
@@ -55,8 +71,14 @@ const SEGMENTS = [
       "Internal research & meeting-note synthesis grounded in your own methodology",
     ],
     recommendedLinks: [
-      { label: "AI Sales & Lead Intelligence", href: "/services/ai-sales-intelligence" },
-      { label: "End-to-End Workflow Automation", href: "/services/workflow-automation" },
+      {
+        label: "AI Sales & Lead Intelligence",
+        href: "/services/ai-sales-intelligence",
+      },
+      {
+        label: "End-to-End Workflow Automation",
+        href: "/services/workflow-automation",
+      },
     ],
   },
   {
@@ -87,16 +109,16 @@ export default async function SolutionsPage() {
   const settings = await db.getSiteSettings();
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Solutions" }]}
         badge="Industry Playbooks · USA · UK · Canada"
         title="Automation Tailored to How Service Teams Actually Operate"
-        description="We focus exclusively on high-touch B2B and B2C service operations—where speed of response, accuracy, and client trust matter far more than novelty."
+        description="We focus exclusively on high-touch B2B and B2C service operations — where speed of response, accuracy, and client trust matter far more than novelty."
       />
 
       {/* Quick Anchor Bar */}
-      <div className="border-b border-line bg-surface">
+      <div className="border-b border-line bg-surface-card/70">
         <Container className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
@@ -106,39 +128,42 @@ export default async function SolutionsPage() {
               <a
                 key={seg.id}
                 href={`#${seg.id}`}
-                className="rounded-full border border-line bg-surface-muted px-3.5 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:border-primary hover:text-primary"
+                className="rounded-full border border-line bg-surface px-4 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:border-primary hover:text-primary"
               >
                 {seg.badge}
               </a>
             ))}
           </div>
-          <Link
+          <SoaleArrowButton
             href="/demos?tab=readiness-assessment"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover"
+            variant="outline"
+            size="sm"
           >
-            <span>2-Min Readiness Diagnostic</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+            2-Min Readiness Diagnostic
+          </SoaleArrowButton>
         </Container>
       </div>
 
       {/* Sector Playbooks */}
-      <section className="border-b border-line bg-surface py-16 sm:py-22">
+      <section className="border-b border-line py-16 sm:py-24">
         <Container className="space-y-10">
           {SEGMENTS.map((seg) => {
             const Icon = seg.icon;
             return (
-              <article
+              <SoaleCard
                 key={seg.id}
-                id={seg.id}
-                className="scroll-mt-28 rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-10"
+                as="article"
+                className="scroll-mt-28 p-6 sm:p-10"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div
+                  id={seg.id}
+                  className="flex flex-wrap items-center justify-between gap-3"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-control border border-primary/20 bg-accent-subtle text-primary">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-accent-subtle text-primary">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <Badge variant="accent">{seg.badge}</Badge>
+                    <SoaleChip active>{seg.badge}</SoaleChip>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -146,7 +171,7 @@ export default async function SolutionsPage() {
                       <Link
                         key={rec.href}
                         href={rec.href}
-                        className="rounded-full border border-line bg-surface-muted px-3 py-1 text-xs font-medium text-ink-heading hover:border-primary hover:text-primary"
+                        className="rounded-full border border-line bg-surface-muted px-3.5 py-1.5 text-xs font-medium text-ink-heading transition-colors hover:border-primary hover:text-primary"
                       >
                         {rec.label} →
                       </Link>
@@ -154,19 +179,19 @@ export default async function SolutionsPage() {
                   </div>
                 </div>
 
-                <h2 className="mt-4 text-2xl font-bold text-ink-heading">{seg.title}</h2>
-                <p className="mt-2.5 max-w-3xl text-base leading-relaxed text-ink-body">
+                <h2 className="soale-h3 mt-5 text-ink-heading">{seg.title}</h2>
+                <p className="mt-3 max-w-3xl text-base leading-relaxed text-ink-body">
                   {seg.summary}
                 </p>
 
                 <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="rounded-control border border-line bg-surface-muted p-5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                  <div className="rounded-[20px] border border-line bg-surface-muted/80 p-5 sm:p-6">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       Typical Bottlenecks We Replace
                     </h3>
-                    <ul className="mt-3 space-y-2.5 text-sm text-ink-body">
+                    <ul className="mt-3.5 space-y-2.5 text-sm text-ink-body">
                       {seg.bottlenecks.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
+                        <li key={item} className="flex items-start gap-2.5">
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-status-warning" />
                           <span>{item}</span>
                         </li>
@@ -174,13 +199,13 @@ export default async function SolutionsPage() {
                     </ul>
                   </div>
 
-                  <div className="rounded-control border border-primary/20 bg-accent-subtle/45 p-5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
-                      High-ROI Workflows Implemented
+                  <div className="rounded-[20px] border border-primary/25 bg-accent-subtle/70 p-5 sm:p-6">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                      High-Impact Workflows Implemented
                     </h3>
-                    <ul className="mt-3 space-y-2.5 text-sm text-ink-body">
+                    <ul className="mt-3.5 space-y-2.5 text-sm text-ink-heading">
                       {seg.automations.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
+                        <li key={item} className="flex items-start gap-2.5">
                           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                           <span>{item}</span>
                         </li>
@@ -189,70 +214,59 @@ export default async function SolutionsPage() {
                   </div>
                 </div>
 
-                <div className="mt-7 flex flex-wrap items-center gap-3">
-                  <Link href={`/contact?service=${encodeURIComponent(seg.badge)}`}>
-                    <Button size="md">
-                      Discuss {seg.badge} Automation
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Link href="/demos">
-                    <Button variant="secondary" size="md">
-                      Try Live Simulator
-                    </Button>
-                  </Link>
+                <div className="mt-8 flex flex-wrap items-center gap-3.5">
+                  <SoaleArrowButton
+                    href={`/contact?service=${encodeURIComponent(seg.badge)}`}
+                    variant="primary"
+                  >
+                    Discuss {seg.badge} Automation
+                  </SoaleArrowButton>
+                  <SoaleArrowButton href="/demos" variant="surface">
+                    Try Live Simulator
+                  </SoaleArrowButton>
                 </div>
-              </article>
+              </SoaleCard>
             );
           })}
         </Container>
       </section>
 
       {/* Regional Alignment Block */}
-      <section className="bg-surface-muted/45 py-16">
+      <section className="bg-canvas-tertiary/40 py-16 sm:py-20">
         <Container>
-          <div className="grid items-center gap-8 rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8 lg:grid-cols-12">
-            <div className="lg:col-span-7">
+          <SoaleCard className="grid items-center gap-8 p-7 sm:p-10 lg:grid-cols-12">
+            <div className="lg:col-span-8">
               <div className="inline-flex items-center gap-2 text-primary">
                 <Globe2 className="h-4 w-4" />
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider">
                   Cross-Market Delivery
                 </span>
               </div>
-              <h2 className="mt-2 text-xl font-bold text-ink-heading sm:text-2xl">
-                Built for US, UK &amp; Canadian Regulatory and Timezone Realities
+              <h2 className="soale-h3 mt-3 text-ink-heading">
+                Aligned with {settings.targetMarkets.join(", ")} Business Hours
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                Whether your team operates in New York, London, Toronto, or distributed across regions, our workflows respect regional privacy consent norms, multi-currency reporting (USD, GBP, CAD), and overlapping EST/GMT review windows.
+              <p className="mt-2.5 text-sm leading-relaxed text-ink-body sm:text-base">
+                {settings.supportHours}. Multi-currency workflows, regional
+                privacy compliance, and clear English documentation come
+                standard.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 lg:col-span-5">
-              {[
-                { region: "USA", currency: "USD ($)", zone: "EST / CST / PST" },
-                { region: "United Kingdom", currency: "GBP (£)", zone: "GMT / BST" },
-                { region: "Canada", currency: "CAD ($)", zone: "EST / PST" },
-              ].map((m) => (
-                <div
-                  key={m.region}
-                  className="rounded-xl border border-line bg-surface-muted p-4 text-center"
-                >
-                  <p className="text-sm font-bold text-ink-heading">{m.region}</p>
-                  <p className="mt-1 font-mono text-xs text-primary">{m.currency}</p>
-                  <p className="mt-1 font-mono text-[0.68rem] text-ink-muted">{m.zone}</p>
-                </div>
-              ))}
+            <div className="flex lg:col-span-4 lg:justify-end">
+              <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
+                {settings.primaryCtaLabel}
+              </SoaleArrowButton>
             </div>
-          </div>
+          </SoaleCard>
         </Container>
       </section>
 
       <PageConversionBanner
-        eyebrow="Tailored Scoping"
-        title="Operate a specialist practice with unique compliance or routing rules?"
-        description="Tell us how enquiries and client tasks move through your firm today. We will design a deterministic architecture around your exact stack."
+        eyebrow="Tailored Architecture"
+        title="Don’t see your exact industry listed?"
+        description="If your team handles inbound leads, customer enquiries, or multi-tool handoffs, we can design a reliable workflow around your stack."
         primaryLabel={settings.primaryCtaLabel}
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }

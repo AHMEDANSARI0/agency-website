@@ -12,7 +12,7 @@ import {
   MessageSquareText,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { SoaleArrowButton } from "@/components/ui/soale";
 import { Badge } from "@/components/ui/Badge";
 import { trackAnalyticsEvent } from "@/components/analytics/AnalyticsConsentManager";
 
@@ -364,7 +364,7 @@ export function ContactForm({
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8"
+      className="soale-card p-6 sm:p-9"
     >
       {/* Intent Mode Selector: Book Discovery Call vs. Quick Written Enquiry */}
       <div
@@ -755,14 +755,17 @@ export function ContactForm({
       )}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <Button type="submit" size="lg" disabled={submitting} className="w-full sm:w-auto">
+        <SoaleArrowButton
+          type="submit"
+          disabled={submitting}
+          variant="primary"
+        >
           {submitting
             ? "Saving Your Request…"
             : enquiryMode === "discovery_call"
               ? "Request Free Discovery Call"
               : "Send Workflow Enquiry"}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        </SoaleArrowButton>
 
         <p className="text-xs text-ink-muted">
           1-business-day response · Private &amp; confidential · Zero obligation

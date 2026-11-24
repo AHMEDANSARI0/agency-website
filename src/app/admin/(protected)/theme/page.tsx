@@ -23,10 +23,10 @@ export default async function AdminThemePage() {
       <div>
         <p className="t-eyebrow text-primary">Design System Governance</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-ink-heading">
-          Theme &amp; Color Token Manager
+          Extended Theme Library &amp; Token Studio
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Control Dark &amp; Light semantic tokens, component overrides, WCAG AA contrast checks, custom presets, and one-click rollbacks.
+          Activate, duplicate, rename, edit, or reset Light &amp; Dark palettes, adjust Inter typography weights/line-heights, inspect real Soale components live, and restore the overwrite-protected Original Agency Theme in one click.
         </p>
       </div>
 

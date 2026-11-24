@@ -20,10 +20,10 @@ export default async function AdminSettingsPage() {
       <div>
         <p className="t-eyebrow text-primary">Global Site Architecture</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-ink-heading">
-          Navigation, Footer &amp; CTA Manager
+          Navigation, Pricing Scopes &amp; Global CTA Manager
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Configure company positioning, support hours, conversion CTAs, floating top navigation links, and footer columns across all public routes.
+          Configure company positioning, conversion CTAs, floating top navigation links, 4-tier Engagement Scopes &amp; Pricing (&ldquo;Coming Soon&rdquo; toggle), and footer columns across all public routes.
         </p>
       </div>
 

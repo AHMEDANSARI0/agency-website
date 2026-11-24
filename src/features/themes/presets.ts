@@ -1,4 +1,5 @@
 import type {
+  ArchivedThemeSnapshot,
   ThemeConfiguration,
   ThemeDesignTokens,
   ThemePreset,
@@ -470,6 +471,222 @@ export const OMNIFLOW_RED_GLASS_DARK: ThemeTokenSet = {
   },
 };
 
+export const OMNIFLOW_RED_GLASS_PRESET_ID = "omniflow-red-glass";
+
+export const ORIGINAL_AGENCY_ARCHIVED_PRESET_ID =
+  "original-agency-theme-archived";
+export const ORIGINAL_AGENCY_ARCHIVED_PRESET_NAME =
+  "Original Agency Theme — Archived";
+export const ORIGINAL_AGENCY_ARCHIVED_VERSION = "1.0.0-archived";
+
+export const SOALE_INSPIRED_PRESET_ID = "soale-inspired-premium-agency";
+export const SOALE_INSPIRED_PRESET_NAME = "Soale Inspired — Premium Agency";
+
+export const SOALE_INSPIRED_DESIGN_SYSTEM: ThemeDesignTokens = {
+  typography: "editorial",
+  buttonStyle: "rounded",
+  borderRadius: "generous",
+  spacing: "spacious",
+  animationIntensity: "full",
+};
+
+/**
+ * Soale Inspired — Premium Agency (Light Variant)
+ * - Warm off-white canvas (#F7F6F3), crisp white cards (#FFFFFF), warm stone muted layer (#EFECE6)
+ * - Deep charcoal primary text (#171518 — 16.8:1 AAA), readable secondary (#5E5A61 — 6.25:1 AA),
+ *   and WCAG AA-adapted muted text (#6B656F — 5.23:1 AA on #F7F6F3 & 5.65:1 AA on #FFFFFF)
+ * - Controlled royal violet (#6D199C — 8.56:1), deep plum (#1D0C49 — 17.48:1), and subtle burgundy (#7A1F4A)
+ */
+export const SOALE_PREMIUM_LIGHT: ThemeTokenSet = {
+  colors: {
+    primary: "#6D199C",
+    primaryHover: "#581380",
+    primaryActive: "#440D64",
+    primaryForeground: "#FFFFFF",
+    secondary: "#1D0C49",
+    secondaryForeground: "#FFFFFF",
+    accent: "#7A1F4A",
+    accentSubtle: "#F3ECF7",
+    background: "#F7F6F3",
+    surface: "#FFFFFF",
+    surfaceElevated: "#FFFFFF",
+    surfaceMuted: "#EFECE6",
+    heading: "#171518",
+    body: "#5E5A61",
+    muted: "#6B656F",
+    border: "#E5E1E7",
+    borderStrong: "#CAC3D0",
+    link: "#6D199C",
+    linkHover: "#4E1073",
+    linkActive: "#1D0C49",
+    success: "#157347",
+    warning: "#9A5B08",
+    error: "#C92A2A",
+  },
+  components: {
+    primaryButtonBg: "#6D199C",
+    navbarBg: "rgba(247, 246, 243, 0.84)",
+    navbarBorder: "rgba(229, 225, 231, 0.92)",
+    navbarText: "#171518",
+    footerBg: "#100E13",
+    footerText: "#C2BBC8",
+    cardBg: "#FFFFFF",
+    cardBorder: "#E5E1E7",
+    borderSecondary: "#EDEAEF",
+    tertiaryBg: "#EAE5DD",
+    glassBg: "rgba(255, 255, 255, 0.78)",
+    glassBorder: "rgba(229, 225, 231, 0.90)",
+    electricAccent: "#7A1F4A",
+    cyanAccent: "#1D0C49",
+    cyanSubtle: "rgba(109, 25, 156, 0.08)",
+    glowOpacity: 0.16,
+    inputBg: "#FFFFFF",
+    inputBorder: "#CFC9D6",
+    inputFocusRing: "#6D199C",
+    dropdownBg: "#FFFFFF",
+    modalBg: "#FFFFFF",
+    modalOverlay: "rgba(23, 21, 24, 0.56)",
+    badgeBg: "#F3ECF7",
+    badgeText: "#581380",
+    buttonDisabledBg: "#E5E1E7",
+    buttonDisabledText: "#6B656F",
+    gradientFrom: "#6D199C",
+    gradientVia: "#7A1F4A",
+    gradientTo: "#1D0C49",
+    gradientAngleDeg: 135,
+    gradientIntensity: 7,
+    shadowCard:
+      "0 1px 2px rgba(23, 21, 24, 0.04), 0 14px 34px -16px rgba(23, 21, 24, 0.07)",
+    shadowElevated:
+      "0 8px 24px -6px rgba(23, 21, 24, 0.08), 0 28px 56px -18px rgba(29, 12, 73, 0.12)",
+  },
+};
+
+/**
+ * Soale Inspired — Premium Agency (Dark Variant)
+ * - Deep velvet obsidian (#100E13), rich charcoal-plum surfaces (#17141C / #211C28)
+ * - Warm alabaster primary text (#F7F5F8 — 17.7:1 AAA), secondary (#C2BBC8 — 10.27:1 AAA),
+ *   and readable muted text (#A29AA8 — 7.06:1 AAA on #100E13 & 6.12:1 AA on #211C28)
+ * - Luminous orchid-violet (#B77AD8 — 6.2:1 AA; dark ink #140F1A button label — 6.1:1 AA)
+ */
+export const SOALE_PREMIUM_DARK: ThemeTokenSet = {
+  colors: {
+    primary: "#B77AD8",
+    primaryHover: "#C892E6",
+    primaryActive: "#A362C7",
+    primaryForeground: "#140F1A",
+    secondary: "#F7F5F8",
+    secondaryForeground: "#171518",
+    accent: "#A78FCA",
+    accentSubtle: "rgba(183, 122, 216, 0.13)",
+    background: "#100E13",
+    surface: "#17141C",
+    surfaceElevated: "#211C28",
+    surfaceMuted: "#1B1722",
+    heading: "#F7F5F8",
+    body: "#C2BBC8",
+    muted: "#A29AA8",
+    border: "#342D3A",
+    borderStrong: "#4C4256",
+    link: "#C593E2",
+    linkHover: "#DFB9F3",
+    linkActive: "#F7F5F8",
+    success: "#34D399",
+    warning: "#FBBF24",
+    error: "#F87171",
+  },
+  components: {
+    primaryButtonBg: "#B77AD8",
+    navbarBg: "rgba(23, 20, 28, 0.80)",
+    navbarBorder: "rgba(247, 245, 248, 0.10)",
+    navbarText: "#F7F5F8",
+    footerBg: "#0B090E",
+    footerText: "#C2BBC8",
+    cardBg: "#17141C",
+    cardBorder: "#342D3A",
+    borderSecondary: "#27212D",
+    tertiaryBg: "#241E2C",
+    glassBg: "rgba(23, 20, 28, 0.74)",
+    glassBorder: "rgba(247, 245, 248, 0.10)",
+    electricAccent: "#D08AA5",
+    cyanAccent: "#A78FCA",
+    cyanSubtle: "rgba(167, 143, 202, 0.12)",
+    glowOpacity: 0.2,
+    inputBg: "#141118",
+    inputBorder: "#3E3646",
+    inputFocusRing: "#B77AD8",
+    dropdownBg: "#1B1722",
+    modalBg: "#1B1722",
+    modalOverlay: "rgba(8, 6, 11, 0.76)",
+    badgeBg: "rgba(183, 122, 216, 0.15)",
+    badgeText: "#DFB9F3",
+    buttonDisabledBg: "#26202C",
+    buttonDisabledText: "#8E8596",
+    gradientFrom: "#6D199C",
+    gradientVia: "#7A1F4A",
+    gradientTo: "#1D0C49",
+    gradientAngleDeg: 135,
+    gradientIntensity: 14,
+    shadowCard:
+      "0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -16px rgba(0, 0, 0, 0.62)",
+    shadowElevated:
+      "0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 28px 60px -18px rgba(0, 0, 0, 0.78)",
+  },
+};
+
+export const SOALE_INSPIRED_PREMIUM_PRESET: ThemePreset = {
+  id: SOALE_INSPIRED_PRESET_ID,
+  name: SOALE_INSPIRED_PRESET_NAME,
+  description:
+    "Editorial warm off-white (#F7F6F3) and crisp white (#FFFFFF) paired with deep obsidian charcoal (#100E13 / #17141C), Inter display typography, and controlled royal violet & plum accents (#6D199C / #B77AD8).",
+  isBuiltIn: true,
+  version: "2.0.0",
+  defaultMode: "light",
+  designSystem: { ...SOALE_INSPIRED_DESIGN_SYSTEM },
+  light: SOALE_PREMIUM_LIGHT,
+  dark: SOALE_PREMIUM_DARK,
+  overrides: {},
+};
+
+/**
+ * Independent, immutable pre-redesign snapshot of the complete live agency theme:
+ * Captures Light & Dark color tokens, glass/surface/border/shadow/component styling,
+ * typography scale, spacing density, border radii, button geometry, and animation settings.
+ */
+export const ORIGINAL_AGENCY_ARCHIVED_DESIGN_SYSTEM: ThemeDesignTokens = {
+  typography: "architectural",
+  buttonStyle: "pill",
+  borderRadius: "balanced",
+  spacing: "comfortable",
+  animationIntensity: "full",
+};
+
+export const ORIGINAL_AGENCY_ARCHIVED_LIGHT: ThemeTokenSet = structuredClone(
+  OMNIFLOW_RED_GLASS_LIGHT
+);
+
+export const ORIGINAL_AGENCY_ARCHIVED_DARK: ThemeTokenSet = structuredClone(
+  OMNIFLOW_RED_GLASS_DARK
+);
+
+export const ORIGINAL_AGENCY_THEME_ARCHIVED_PRESET: ThemePreset = {
+  id: ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
+  name: ORIGINAL_AGENCY_ARCHIVED_PRESET_NAME,
+  description:
+    "Immutable versioned snapshot of the complete pre-Soale OmniFlow agency theme (Light & Dark variants, charcoal/off-white/glass/red tokens, architectural typography, pill controls, balanced radii, and full motion).",
+  isBuiltIn: true,
+  isArchivedOriginal: true,
+  isLocked: true,
+  version: ORIGINAL_AGENCY_ARCHIVED_VERSION,
+  sourcePresetId: OMNIFLOW_RED_GLASS_PRESET_ID,
+  defaultMode: "light",
+  designSystem: { ...ORIGINAL_AGENCY_ARCHIVED_DESIGN_SYSTEM },
+  light: ORIGINAL_AGENCY_ARCHIVED_LIGHT,
+  dark: ORIGINAL_AGENCY_ARCHIVED_DARK,
+  overrides: {},
+  archivedAt: "2026-11-22T00:00:00.000Z",
+};
+
 export const BUILT_IN_THEME_PRESETS: ThemePreset[] = [
   {
     id: "omniflow-light-signature",
@@ -525,14 +742,37 @@ export const BUILT_IN_THEME_PRESETS: ThemePreset[] = [
     light: OMNIFLOW_RED_GLASS_LIGHT,
     dark: OMNIFLOW_RED_GLASS_DARK,
   },
+  ORIGINAL_AGENCY_THEME_ARCHIVED_PRESET,
+  SOALE_INSPIRED_PREMIUM_PRESET,
 ];
-
-export const OMNIFLOW_RED_GLASS_PRESET_ID = "omniflow-red-glass";
 
 export const DEFAULT_THEME_PRESET_ID = "omniflow-light-signature";
 
+export function createArchivedOriginalThemeSnapshot(
+  source?: Partial<ThemeConfiguration> | null
+): ArchivedThemeSnapshot {
+  if (source?.archivedOriginalTheme) {
+    return structuredClone(source.archivedOriginalTheme);
+  }
+  return {
+    id: ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
+    name: ORIGINAL_AGENCY_ARCHIVED_PRESET_NAME,
+    description: ORIGINAL_AGENCY_THEME_ARCHIVED_PRESET.description,
+    version: ORIGINAL_AGENCY_ARCHIVED_VERSION,
+    sourcePresetId: OMNIFLOW_RED_GLASS_PRESET_ID,
+    defaultMode: "light",
+    designSystem: structuredClone(ORIGINAL_AGENCY_ARCHIVED_DESIGN_SYSTEM),
+    light: structuredClone(ORIGINAL_AGENCY_ARCHIVED_LIGHT),
+    dark: structuredClone(ORIGINAL_AGENCY_ARCHIVED_DARK),
+    overrides: {},
+    archivedAt: ORIGINAL_AGENCY_THEME_ARCHIVED_PRESET.archivedAt!,
+  };
+}
+
 export function createDefaultThemeConfiguration(): ThemeConfiguration {
-  const defaultPreset = BUILT_IN_THEME_PRESETS[0];
+  const defaultPreset =
+    BUILT_IN_THEME_PRESETS.find((p) => p.id === DEFAULT_THEME_PRESET_ID) ??
+    BUILT_IN_THEME_PRESETS[0];
   return {
     activePresetId: defaultPreset.id,
     defaultMode: "light",
@@ -548,6 +788,7 @@ export function createDefaultThemeConfiguration(): ThemeConfiguration {
       overrides: {},
     },
     previousPublished: null,
+    archivedOriginalTheme: createArchivedOriginalThemeSnapshot(),
     customPresets: [],
     updatedAt: new Date().toISOString(),
   };
@@ -580,6 +821,16 @@ export function normalizeStoredThemeConfig(
     return {
       config: createDefaultThemeConfiguration(),
       upgraded: true,
+    };
+  }
+
+  if (!raw.archivedOriginalTheme) {
+    return {
+      config: {
+        ...raw,
+        archivedOriginalTheme: createArchivedOriginalThemeSnapshot(raw),
+      },
+      upgraded: false,
     };
   }
 

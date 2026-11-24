@@ -312,11 +312,11 @@ export function InteractiveDemosHub({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* Top Executive Lab Telemetry & Transparency Bar */}
-      <div className="flex flex-col justify-between gap-4 rounded-card border border-primary/25 bg-accent-subtle/50 p-4 sm:flex-row sm:items-center sm:px-6">
+      <div className="soale-card flex flex-col justify-between gap-4 border-primary/25 bg-accent-subtle/55 p-4 sm:flex-row sm:items-center sm:px-6">
         <div className="flex items-start gap-3 sm:items-center">
-          <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground sm:mt-0">
+          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-primary text-primary-foreground sm:mt-0">
             <Info className="h-4 w-4" />
           </div>
           <p className="text-xs leading-relaxed text-ink-body">
@@ -329,7 +329,7 @@ export function InteractiveDemosHub({
           <button
             type="button"
             onClick={resetCurrentTab}
-            className="inline-flex items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:bg-surface-muted"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-4 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:border-primary/40"
           >
             <RotateCcw className="h-3.5 w-3.5 text-ink-muted" />
             <span>Reset Inputs</span>
@@ -337,7 +337,7 @@ export function InteractiveDemosHub({
           <button
             type="button"
             onClick={downloadDiagnosticBrief}
-            className="inline-flex items-center gap-1.5 rounded-control border border-primary/30 bg-surface px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent-subtle"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-surface px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent-subtle"
           >
             <Download className="h-3.5 w-3.5" />
             <span>Export Brief (.txt)</span>
@@ -349,7 +349,7 @@ export function InteractiveDemosHub({
       <div
         role="tablist"
         aria-label="OmniFlow interactive demonstrations"
-        className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
       >
         {TABS.map((tab, idx) => {
           const Icon = tab.icon;
@@ -368,9 +368,9 @@ export function InteractiveDemosHub({
               tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab.id)}
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
-              className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all ${
+              className={`flex flex-col items-start rounded-[20px] border p-4 text-left transition-all ${
                 selected
-                  ? "border-primary bg-[var(--of-btn-primary-bg,var(--of-color-primary))] text-primary-foreground shadow-glow"
+                  ? "border-primary bg-[var(--of-btn-primary-bg,var(--of-color-primary))] text-primary-foreground shadow-sm"
                   : "border-line bg-surface-card text-ink-body shadow-sm hover:border-primary/40 hover:text-ink-heading"
               }`}
             >
@@ -384,13 +384,13 @@ export function InteractiveDemosHub({
                 </span>
                 <Icon
                   className={`h-4 w-4 shrink-0 ${
-                    selected ? "text-white" : "text-primary"
+                    selected ? "text-primary-foreground" : "text-primary"
                   }`}
                 />
               </div>
               <span
                 className={`mt-1.5 text-sm font-bold ${
-                  selected ? "text-white" : "text-ink-heading"
+                  selected ? "text-primary-foreground" : "text-ink-heading"
                 }`}
               >
                 {tab.label}

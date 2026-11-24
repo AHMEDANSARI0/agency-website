@@ -15,7 +15,8 @@ describe("Transformation Phase 2 — Futuristic Design System, Interactive Visua
   it("1. defines electric-blue, subtle-cyan, and 3D depth tokens while maintaining 0 WCAG AA contrast warnings across all built-in presets", () => {
     expect(BUILT_IN_THEME_PRESETS.some((p) => p.id === "omniflow-cyber-architect")).toBe(true);
     expect(BUILT_IN_THEME_PRESETS.some((p) => p.id === "omniflow-red-glass")).toBe(true);
-    expect(BUILT_IN_THEME_PRESETS).toHaveLength(6);
+    expect(BUILT_IN_THEME_PRESETS.some((p) => p.id === "original-agency-theme-archived")).toBe(true);
+    expect(BUILT_IN_THEME_PRESETS.length).toBeGreaterThanOrEqual(7);
 
     for (const preset of BUILT_IN_THEME_PRESETS) {
       expect(

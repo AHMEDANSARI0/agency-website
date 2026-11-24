@@ -87,9 +87,19 @@ export interface ThemePreset {
     light?: ComponentTokenOverrides;
     dark?: ComponentTokenOverrides;
   };
+  designSystem?: ThemeDesignTokens;
+  defaultMode?: ThemeMode;
+  version?: string;
+  isArchivedOriginal?: boolean;
+  isLocked?: boolean;
+  sourcePresetId?: string;
+  archivedAt?: string;
 }
 
 export type TypographyScalePreset = "architectural" | "editorial" | "technical";
+export type HeadingWeightPreset = "400" | "500" | "600";
+export type BodyLineHeightPreset = "compact" | "relaxed" | "editorial";
+export type LetterSpacingPreset = "tight" | "normal" | "editorial";
 export type ButtonShapeStyle = "pill" | "rounded" | "sharp";
 export type RadiusDensityPreset = "compact" | "balanced" | "generous";
 export type SpacingDensityPreset = "compact" | "comfortable" | "spacious";
@@ -101,6 +111,9 @@ export interface ThemeDesignTokens {
   borderRadius: RadiusDensityPreset;
   spacing: SpacingDensityPreset;
   animationIntensity: MotionIntensityPreset;
+  headingWeight?: HeadingWeightPreset;
+  bodyLineHeight?: BodyLineHeightPreset;
+  letterSpacing?: LetterSpacingPreset;
 }
 
 export interface ThemeBundleState {
@@ -110,6 +123,36 @@ export interface ThemeBundleState {
     light?: ComponentTokenOverrides;
     dark?: ComponentTokenOverrides;
   };
+  designSystem?: ThemeDesignTokens;
+  defaultMode?: ThemeMode;
+}
+
+export interface ArchivedThemeSnapshot {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  sourcePresetId: string;
+  defaultMode: ThemeMode;
+  designSystem: ThemeDesignTokens;
+  light: ThemeTokenSet;
+  dark: ThemeTokenSet;
+  overrides: {
+    light?: ComponentTokenOverrides;
+    dark?: ComponentTokenOverrides;
+  };
+  archivedAt: string;
+}
+
+export interface ThemeVersionEntry {
+  versionId: string;
+  presetId: string;
+  label: string;
+  savedAt: string;
+  savedBy?: string;
+  defaultMode: ThemeMode;
+  designSystem?: ThemeDesignTokens;
+  snapshot: ThemeBundleState;
 }
 
 export interface ThemeConfiguration {
@@ -120,6 +163,8 @@ export interface ThemeConfiguration {
   draft: ThemeBundleState;
   previousPublished?: ThemeBundleState | null;
   savedPresetStates?: Record<string, ThemeBundleState>;
+  archivedOriginalTheme?: ArchivedThemeSnapshot;
+  versionHistory?: ThemeVersionEntry[];
   customPresets: ThemePreset[];
   updatedAt: string;
   updatedBy?: string;

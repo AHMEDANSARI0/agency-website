@@ -1,10 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Globe2, Mail, ShieldCheck } from "lucide-react";
+import { Globe2, Mail, ShieldCheck } from "lucide-react";
 import type { BrandAssetConfig } from "@/types/brand";
 import type { SiteSettings } from "@/types/content";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { Container } from "@/components/ui/Container";
+import { SoaleArrowButton } from "@/components/ui/soale";
 import { CookiePreferencesButton } from "@/components/analytics/CookiePreferencesButton";
 
 interface FooterProps {
@@ -16,56 +17,57 @@ export function Footer({ brand, settings }: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="on-dark border-t border-white/10 bg-[var(--of-surface-footer)] text-[var(--of-text-footer)]">
+    <footer className="on-dark border-t border-[var(--of-color-border)] bg-[var(--of-surface-footer)] text-[var(--of-text-footer)]">
       {/* Executive Operational Pre-Footer Strip */}
-      <div className="border-b border-white/10 bg-black/20">
+      <div className="border-b border-[var(--of-color-border)] bg-black/15">
         <Container className="flex flex-col items-start justify-between gap-5 py-7 lg:flex-row lg:items-center">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-white/90">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--of-color-body)]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-accent-subtle px-3.5 py-1.5 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--of-color-heading)]">
               <Globe2 className="h-3.5 w-3.5 text-primary" />
               {settings.targetMarkets.join(" · ")}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-slate-300">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-3.5 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-[var(--of-color-body)]">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               Deterministic Guardrails · 100% Client IP Ownership
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
+            <SoaleArrowButton
               href={settings.secondaryCtaHref}
-              className="inline-flex items-center gap-1.5 rounded-control border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-white/30 hover:text-white"
+              variant="outline"
+              size="sm"
             >
-              <span>{settings.secondaryCtaLabel}</span>
-            </Link>
-            <Link
+              {settings.secondaryCtaLabel}
+            </SoaleArrowButton>
+            <SoaleArrowButton
               href={settings.primaryCtaHref}
-              className="inline-flex items-center gap-1.5 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+              variant="primary"
+              size="sm"
             >
-              <span>{settings.primaryCtaLabel}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+              {settings.primaryCtaLabel}
+            </SoaleArrowButton>
           </div>
         </Container>
       </div>
 
-      {/* Main 5-Column Architectural Directory */}
-      <Container className="py-14 sm:py-20">
+      {/* Main 5-Column Soale Architectural Directory */}
+      <Container className="py-16 sm:py-20">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <BrandMark brand={brand} tone="inverse" />
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--of-color-body)]">
               {settings.positioning} — {settings.tagline}
             </p>
-            <div className="mt-5 space-y-2 text-xs text-slate-400">
-              <p className="font-mono uppercase tracking-[0.12em] text-slate-400">
+            <div className="mt-5 space-y-2 text-xs text-[var(--of-color-muted)]">
+              <p className="font-mono uppercase tracking-[0.12em]">
                 Principal Architect: {settings.founderName}
               </p>
-              <p className="inline-flex items-center gap-2 text-slate-300">
+              <p className="inline-flex items-center gap-2 text-[var(--of-color-body)]">
                 <Mail className="h-3.5 w-3.5 text-primary" />
                 <a
                   href={`mailto:${settings.contactEmail}`}
-                  className="hover:text-white hover:underline"
+                  className="transition-colors hover:text-[var(--of-color-heading)] hover:underline"
                 >
                   {settings.contactEmail}
                 </a>
@@ -74,7 +76,7 @@ export function Footer({ brand, settings }: FooterProps) {
           </div>
 
           <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-slate-400">
+            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Core Systems
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
@@ -84,7 +86,7 @@ export function Footer({ brand, settings }: FooterProps) {
                   <li key={item.id}>
                     <Link
                       href={item.href}
-                      className="text-slate-300 transition-colors hover:text-white"
+                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                     >
                       {item.label}
                     </Link>
@@ -94,14 +96,14 @@ export function Footer({ brand, settings }: FooterProps) {
           </div>
 
           <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-slate-400">
+            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Solutions &amp; Lab
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li>
                 <Link
                   href="/solutions"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Industry Playbooks
                 </Link>
@@ -109,15 +111,23 @@ export function Footer({ brand, settings }: FooterProps) {
               <li>
                 <Link
                   href="/how-it-works"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Delivery Methodology
                 </Link>
               </li>
               <li>
                 <Link
+                  href="/pricing"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                >
+                  Scopes &amp; Pricing
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/demos"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Interactive Demos Hub
                 </Link>
@@ -125,7 +135,7 @@ export function Footer({ brand, settings }: FooterProps) {
               <li>
                 <Link
                   href="/demos?tab=savings-calculator"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Savings Calculator
                 </Link>
@@ -133,7 +143,7 @@ export function Footer({ brand, settings }: FooterProps) {
               <li>
                 <Link
                   href="/demos?tab=readiness-assessment"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Readiness Assessment
                 </Link>
@@ -142,7 +152,7 @@ export function Footer({ brand, settings }: FooterProps) {
           </div>
 
           <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-slate-400">
+            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Company &amp; Proof
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
@@ -152,7 +162,7 @@ export function Footer({ brand, settings }: FooterProps) {
                   <li key={item.id}>
                     <Link
                       href={item.href}
-                      className="text-slate-300 transition-colors hover:text-white"
+                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                     >
                       {item.label}
                     </Link>
@@ -162,7 +172,7 @@ export function Footer({ brand, settings }: FooterProps) {
           </div>
 
           <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-slate-400">
+            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Governance
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
@@ -172,7 +182,7 @@ export function Footer({ brand, settings }: FooterProps) {
                   <li key={item.id}>
                     <Link
                       href={item.href}
-                      className="text-slate-300 transition-colors hover:text-white"
+                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                     >
                       {item.label}
                     </Link>
@@ -184,7 +194,7 @@ export function Footer({ brand, settings }: FooterProps) {
               <li>
                 <a
                   href="/feed.xml"
-                  className="text-slate-300 transition-colors hover:text-white"
+                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
                 >
                   Insights RSS Feed
                 </a>
@@ -193,12 +203,13 @@ export function Footer({ brand, settings }: FooterProps) {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-slate-800/80 pt-6 font-mono text-xs text-slate-400 sm:flex-row sm:items-center">
+        <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-[var(--of-color-border)] pt-6 font-mono text-xs text-[var(--of-color-muted)] sm:flex-row sm:items-center">
           <p>
             © {year} {settings.companyName}. All rights reserved.
           </p>
           <p>
-            Engineered for service businesses, consultants &amp; boutique agencies · Zero fabricated claims.
+            Engineered for service businesses, consultants &amp; boutique
+            agencies · Zero fabricated claims.
           </p>
         </div>
       </Container>

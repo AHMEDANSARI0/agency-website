@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SoaleArrowButton } from "@/components/ui/soale";
 import { BlogFilterList } from "@/components/sections/BlogFilterList";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
@@ -20,15 +21,20 @@ export default async function BlogIndexPage() {
   ]);
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Insights" }]}
         badge="Engineering Insights & Playbooks"
         title="Practical Guides on Reliable Business Automation"
-        description="Straightforward operational advice for service business owners, consultants, and agency leaders—written without AI hype."
+        description="Straightforward operational advice for service business owners, consultants, and agency leaders — written without AI hype."
+        actions={
+          <SoaleArrowButton href="/feed.xml" variant="outline" size="sm">
+            Subscribe via RSS
+          </SoaleArrowButton>
+        }
       />
 
-      <section className="bg-surface py-16 sm:py-22">
+      <section className="py-16 sm:py-24">
         <Container>
           <BlogFilterList posts={posts} />
         </Container>
@@ -41,6 +47,6 @@ export default async function BlogIndexPage() {
         primaryLabel={settings.primaryCtaLabel}
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }

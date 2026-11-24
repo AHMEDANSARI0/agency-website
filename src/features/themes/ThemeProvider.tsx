@@ -34,14 +34,32 @@ export function ThemeProvider({
   const [mode, setModeState] = useState<ThemeMode>(defaultMode);
   const [resolvedMode, setResolvedMode] = useState<ResolvedThemeMode>("light");
 
-  const applyToDom = useCallback((nextMode: ThemeMode) => {
-    const resolved = resolveTheme(nextMode);
-    setResolvedMode(resolved);
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-theme", resolved);
-      document.documentElement.classList.toggle("dark", resolved === "dark");
-    }
-  }, []);
+  const applyToDom = useCallback(
+    (nextMode: ThemeMode, animateTransition = false) => {
+      const resolved = resolveTheme(nextMode);
+      setResolvedMode(resolved);
+      if (typeof document !== "undefined") {
+        const root = document.documentElement;
+        const allowTransition =
+          animateTransition &&
+          typeof window !== "undefined" &&
+          !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (allowTransition) {
+          root.classList.add("theme-switching");
+        }
+        root.setAttribute("data-theme", resolved);
+        root.classList.toggle("dark", resolved === "dark");
+
+        if (allowTransition) {
+          window.setTimeout(() => {
+            root.classList.remove("theme-switching");
+          }, 210);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     try {
@@ -71,7 +89,7 @@ export function ThemeProvider({
       } catch {
         // Ignore storage errors in private mode
       }
-      applyToDom(next);
+      applyToDom(next, true);
     },
     [applyToDom]
   );

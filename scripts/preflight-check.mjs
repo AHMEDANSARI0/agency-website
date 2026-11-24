@@ -25,6 +25,7 @@ const REQUIRED_FILES = [
   "src/app/api/leads/route.ts",
   "src/app/(website)/page.tsx",
   "src/app/(website)/services/page.tsx",
+  "src/app/(website)/pricing/page.tsx",
   "src/app/(website)/solutions/page.tsx",
   "src/app/(website)/how-it-works/page.tsx",
   "src/app/(website)/demos/page.tsx",
@@ -35,6 +36,8 @@ const REQUIRED_FILES = [
   "src/app/(website)/team/page.tsx",
   "src/app/(website)/faq/page.tsx",
   "src/app/(website)/contact/page.tsx",
+  "src/components/layout/Navbar.tsx",
+  "src/components/ui/soale/index.ts",
   "src/app/admin/layout.tsx",
   "src/app/admin/login/page.tsx",
   "src/app/admin/setup/page.tsx",
@@ -128,6 +131,21 @@ if (
   pass("Security headers & Content-Security-Policy configured in next.config.ts");
 } else {
   fail("Missing Content-Security-Policy or X-Content-Type-Options in next.config.ts");
+}
+
+const presetsSrc = fs.readFileSync(
+  path.join(rootDir, "src/features/themes/presets.ts"),
+  "utf8"
+);
+if (
+  presetsSrc.includes("original-agency-theme-archived") &&
+  presetsSrc.includes("soale-inspired-premium-agency")
+) {
+  pass(
+    "Soale Inspired active theme & Original Agency Theme — Archived vault verified"
+  );
+} else {
+  fail("Missing required theme presets in src/features/themes/presets.ts");
 }
 
 // 5. Environment Variable Readiness

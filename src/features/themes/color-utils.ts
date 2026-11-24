@@ -16,7 +16,7 @@ import {
 export function sanitizeDesignSystemTokens(
   input?: Partial<ThemeDesignTokens> | null
 ): ThemeDesignTokens {
-  return {
+  const base: ThemeDesignTokens = {
     typography:
       input?.typography === "editorial" || input?.typography === "technical"
         ? input.typography
@@ -39,6 +39,32 @@ export function sanitizeDesignSystemTokens(
         ? input.animationIntensity
         : DEFAULT_DESIGN_SYSTEM_TOKENS.animationIntensity,
   };
+
+  if (
+    input?.headingWeight === "400" ||
+    input?.headingWeight === "500" ||
+    input?.headingWeight === "600"
+  ) {
+    base.headingWeight = input.headingWeight;
+  }
+
+  if (
+    input?.bodyLineHeight === "compact" ||
+    input?.bodyLineHeight === "relaxed" ||
+    input?.bodyLineHeight === "editorial"
+  ) {
+    base.bodyLineHeight = input.bodyLineHeight;
+  }
+
+  if (
+    input?.letterSpacing === "tight" ||
+    input?.letterSpacing === "normal" ||
+    input?.letterSpacing === "editorial"
+  ) {
+    base.letterSpacing = input.letterSpacing;
+  }
+
+  return base;
 }
 
 const HEX_REGEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -467,10 +493,20 @@ function tokenSetToCssDeclarations(
     ["--of-dark-island-body", dIsland.colors.body],
     ["--of-dark-island-text-muted", dIsland.colors.muted],
     ["--of-dark-island-border", dIsland.colors.border],
+    ["--of-dark-island-primary", dIsland.colors.primary],
+    ["--of-dark-island-primary-hover", dIsland.colors.primaryHover],
+    ["--of-dark-island-primary-active", dIsland.colors.primaryActive],
+    ["--of-dark-island-primary-fg", dIsland.colors.primaryForeground],
+    [
+      "--of-dark-island-btn-primary-bg",
+      dIsland.components.primaryButtonBg || dIsland.colors.primary,
+    ],
+    ["--of-dark-island-accent", dIsland.colors.accent],
+    ["--of-dark-island-accent-subtle", dIsland.colors.accentSubtle],
     ["--of-shadow-card", comp.shadowCard],
     ["--of-shadow-elevated", comp.shadowElevated],
     ["--of-shadow-glow", shadowGlow],
-    ["--of-spotlight-color", `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.10)`],
+    ["--of-spotlight-color", `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.08)`],
   ];
 
   const ds = sanitizeDesignSystemTokens(designSystem);
@@ -492,15 +528,40 @@ function tokenSetToCssDeclarations(
     ds.spacing === "compact"
       ? "clamp(3.25rem, 5vw, 4.5rem)"
       : ds.spacing === "spacious"
-        ? "clamp(5.75rem, 9vw, 8.25rem)"
+        ? "clamp(5.25rem, 8.5vw, 8rem)"
         : "clamp(4.5rem, 7vw, 6.75rem)";
 
   const headingTracking =
-    ds.typography === "editorial"
-      ? "-0.018em"
-      : ds.typography === "technical"
-        ? "-0.036em"
-        : "-0.028em";
+    ds.letterSpacing === "tight"
+      ? "-0.036em"
+      : ds.letterSpacing === "editorial"
+        ? "-0.018em"
+        : ds.letterSpacing === "normal"
+          ? "-0.026em"
+          : ds.typography === "editorial"
+            ? "-0.028em"
+            : ds.typography === "technical"
+              ? "-0.036em"
+              : "-0.028em";
+
+  const headingWeight =
+    ds.headingWeight === "400"
+      ? "400"
+      : ds.headingWeight === "500"
+        ? "500"
+        : "600";
+
+  const bodyLeading =
+    ds.bodyLineHeight === "compact"
+      ? "1.54"
+      : ds.bodyLineHeight === "editorial"
+        ? "1.74"
+        : "1.65";
+
+  const fontHeading =
+    ds.typography === "editorial" || ds.typography === "technical"
+      ? "var(--font-sans), Inter, system-ui, -apple-system, sans-serif"
+      : "var(--font-display), var(--font-sans), system-ui, sans-serif";
 
   const motionScale =
     ds.animationIntensity === "minimal"
@@ -510,11 +571,17 @@ function tokenSetToCssDeclarations(
         : "1";
 
   lines.push(
+    ["--of-font-heading", fontHeading],
+    ["--of-heading-weight", headingWeight],
+    ["--of-body-leading", bodyLeading],
     ["--of-radius-sm", radiusScale.sm],
     ["--of-radius-control", radiusScale.control],
     ["--of-radius-card", radiusScale.card],
     ["--of-radius-feature", radiusScale.feature],
     ["--of-radius-button", buttonRadius],
+    ["--of-radius-soale-btn", "1.0625rem"],
+    ["--of-radius-soale-card", "1.5rem"],
+    ["--of-radius-soale-chip", "0.875rem"],
     ["--of-section-py", sectionPy],
     ["--of-heading-tracking", headingTracking],
     ["--of-motion-scale", motionScale]
@@ -524,15 +591,19 @@ function tokenSetToCssDeclarations(
 }
 
 export function buildThemeCssVariables(config?: Partial<ThemeConfiguration> | null): string {
-  const activePreset = BUILT_IN_THEME_PRESETS.find(
-    (p) => p.id === config?.activePresetId
-  );
+  const allPresets = [
+    ...BUILT_IN_THEME_PRESETS,
+    ...(Array.isArray(config?.customPresets) ? config.customPresets : []),
+  ];
+  const activePreset = allPresets.find((p) => p.id === config?.activePresetId);
   const lightFallback = activePreset?.light ?? OMNIFLOW_LIGHT_TOKENS;
   const darkFallback = activePreset?.dark ?? OMNIFLOW_DARK_TOKENS;
 
   const safeLight = sanitizeTokenSet(config?.published?.light, lightFallback);
   const safeDark = sanitizeTokenSet(config?.published?.dark, darkFallback);
-  const safeDesign = sanitizeDesignSystemTokens(config?.designSystem);
+  const safeDesign = sanitizeDesignSystemTokens(
+    config?.designSystem ?? activePreset?.designSystem
+  );
 
   const lightCss = tokenSetToCssDeclarations(
     safeLight,

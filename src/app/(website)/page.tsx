@@ -1,34 +1,44 @@
 import React from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Briefcase,
   CheckCircle2,
   Clock,
   Cpu,
   Database,
-  FileCheck2,
   Globe2,
   Layers,
   Lock,
-  Plus,
-  Scale,
   ShieldCheck,
-  Sparkles,
-  Workflow,
+  Users,
 } from "lucide-react";
+import type { Metadata } from "next";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
-import { Badge } from "@/components/ui/Badge";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleChip,
+  SoaleEyebrow,
+  SoaleSectionHeader,
+} from "@/components/ui/soale";
 import { PinnedHero } from "@/components/sections/PinnedHero";
-import { LightUpText } from "@/components/animations/LightUpText";
-import { WorkflowDiagram } from "@/components/sections/WorkflowDiagram";
 import { HomeAutomationLabPreview } from "@/components/sections/HomeAutomationLabPreview";
 import { BeforeAfterWorkflowCompare } from "@/components/sections/BeforeAfterWorkflowCompare";
 import { IntegrationEcosystemVisualizer } from "@/components/sections/IntegrationEcosystemVisualizer";
-import { WORK_TYPE_META } from "@/features/case-studies/constants";
+import {
+  SoaleEditorialProof,
+  SoaleFaqAccordion,
+  SoalePricingSection,
+  SoaleProcessSection,
+  SoaleServicesShowcase,
+  SoaleWorkShowcase,
+} from "@/components/sections/soale";
+import { resolvePricingConfig } from "@/features/pricing/default-pricing";
 import { parseSafeMarkdown } from "@/features/blog/markdown";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
-import type { Metadata } from "next";
 import type { PageSectionBlock, PageSectionType } from "@/types/content";
 
 export const dynamic = "force-dynamic";
@@ -79,79 +89,108 @@ const ECOSYSTEM_ROW_2 = [
   "Xero",
   "Linear",
   "Cal.com",
-  "n8n / Custom TypeScript",
+  "TypeScript & Deterministic Workflows",
 ];
 
-const LEAK_ITEMS = [
+const OUTCOME_BENTO_CARDS = [
   {
-    num: "01",
-    leakTitle: "Slow, inconsistent lead follow-up",
-    leakDetail: "High-intent enquiries wait hours in shared inboxes before anyone qualifies scope or responds.",
-    outcomeTitle: "Sub-minute structured intake & routing",
-    outcomeDetail: "Every enquiry is validated, scored, logged to CRM, and summarized for the right owner automatically.",
+    code: "Outcome 01",
+    tag: "Speed-to-Lead",
+    title: "Sub-minute enquiry capture, fit scoring & CRM brief",
+    description:
+      "Every web form, booking request, or after-hours enquiry is validated, scored deterministically, committed to your CRM, and summarized on WhatsApp or email for the right owner.",
+    chips: ["24/7 Structured Intake", "Duplicate-Safe CRM Sync"],
+    href: "/services/lead-management",
   },
   {
-    num: "02",
-    leakTitle: "Repetitive policy & status questions",
-    leakDetail: "Senior staff answer the same onboarding, pricing-tier, and turnaround questions dozens of times a week.",
-    outcomeTitle: "Policy-grounded triage with human escalation",
-    outcomeDetail: "Routine questions get accurate SOP-backed answers; edge cases escalate cleanly with full context.",
+    code: "Outcome 02",
+    tag: "Support Guardrails",
+    title: "Policy-grounded AI replies with clean human escalation",
+    description:
+      "Routine client questions on turnaround, onboarding, and approved policies get instant accurate answers — while sensitive or custom requests escalate cleanly with full context.",
+    chips: ["Approved SOPs Only", "Zero Hallucinated Promises"],
+    href: "/services/ai-customer-support",
   },
   {
-    num: "03",
-    leakTitle: "Manual copy-paste across 5+ tools",
-    leakDetail: "Details get re-typed from forms into CRM, spreadsheets, Slack channels, and project boards.",
-    outcomeTitle: "Single-entry cross-system synchronization",
-    outcomeDetail: "Validated payloads propagate across your stack with idempotency keys and zero duplicate records.",
-  },
-  {
-    num: "04",
-    leakTitle: "Silent failures in brittle no-code chains",
-    leakDetail: "Unmonitored zaps fail silently when an API times out, dropping leads without anyone noticing.",
-    outcomeTitle: "Atomic persistence & dead-letter fallback",
-    outcomeDetail: "Enquiries commit to your database first with retry flags and owner alerts if external APIs hiccup.",
-  },
-  {
-    num: "05",
-    leakTitle: "Zero visibility into operational bottlenecks",
-    leakDetail: "Founders guess where leads stall or why client onboarding takes two weeks instead of two days.",
-    outcomeTitle: "Clean audit trails & operational telemetry",
-    outcomeDetail: "Timestamped stage transitions give leadership clear visibility into response speed and capacity.",
+    code: "Outcome 03",
+    tag: "Connected Ops",
+    title: "Eliminate manual copy-paste across 5+ disconnected tools",
+    description:
+      "Synchronize forms, CRM pipelines, client kickoff folders, billing webhooks, and executive status tracking with atomic persistence and dead-letter fallback queues.",
+    chips: ["Idempotent Webhooks", "Audit-Logged Handoffs"],
+    href: "/services/workflow-automation",
   },
 ];
 
-const DELIVERY_STAGES = [
+const CLIENT_PROFILES = [
   {
-    step: "Stage 01",
-    title: "Workflow & Bottleneck Audit",
-    duration: "Days 1–3",
+    id: "service-businesses",
+    badge: "Segment 01",
+    title: "Service Businesses & Clinics",
     summary:
-      "We map your current enquiry, support, or onboarding flow end-to-end — identifying where time leaks and what should stay human.",
-    deliverable: "Written Architecture & Guardrail Specification",
+      "Capture urgent enquiries 24/7, qualify job or appointment scope automatically, and eliminate missed after-hours calls.",
+    outcomes: [
+      "Instant enquiry response & booking handoff",
+      "Structured job/intake details before staff call back",
+      "Automated follow-up reminders so warm leads never stall",
+    ],
+    icon: Briefcase,
+    href: "/solutions#service-businesses",
   },
   {
-    step: "Stage 02",
-    title: "Deterministic Schema & Guardrails",
-    duration: "Days 4–7",
+    id: "consultants",
+    badge: "Segment 02",
+    title: "Consultants & Advisory Practices",
     summary:
-      "Before touching AI, we design strict validation rules, duplicate checks, fallback queues, and approved knowledge boundaries.",
-    deliverable: "Data Contracts & Escalation Matrix",
+      "Protect senior billable hours by automating discovery qualification, pre-call research briefs, and client onboarding checklists.",
+    outcomes: [
+      "Pre-call context brief delivered to Slack/WhatsApp",
+      "Policy-grounded answers to routine scope questions",
+      "1-click client folder & kickoff task provisioning",
+    ],
+    icon: Users,
+    href: "/solutions#consultants",
   },
   {
-    step: "Stage 03",
-    title: "Staged Build & Edge-Case QA",
-    duration: "Week 2–3",
+    id: "agencies",
+    badge: "Segment 03",
+    title: "Boutique & Growing Agencies",
     summary:
-      "We build and test against realistic edge cases — malformed inputs, API timeouts, and out-of-scope questions — in a staging sandbox.",
-    deliverable: "Verified Production-Ready Workflow",
+      "Standardize client intake, CRM pipeline hygiene, workspace setup, and recurring operational status digests without hiring extra admin.",
+    outcomes: [
+      "Zero manual re-entry between CRM, Notion & Slack",
+      "Consistent onboarding experience on every new retainer",
+      "Clear operational visibility across active accounts",
+    ],
+    icon: Layers,
+    href: "/solutions#agencies",
+  },
+];
+
+const GOVERNANCE_CARDS = [
+  {
+    code: "Guardrail 01",
+    title: "Deterministic Validation First",
+    summary:
+      "Every payload passes strict schema validation, spam filtering, and idempotency checks before touching your CRM or triggering AI.",
+    chip: "Zod + Atomic SQL Persistence",
+    icon: Database,
   },
   {
-    step: "Stage 04",
-    title: "Team Walkthrough & 100% Handover",
-    duration: "Launch & Beyond",
+    code: "Guardrail 02",
+    title: "Bounded AI + Human Approval",
     summary:
-      "Your team receives plain-English runbooks, full repository/configuration ownership, and post-launch operational tuning.",
-    deliverable: "Full Admin Access, Runbooks & Support",
+      "AI never invents discounts, legal commitments, or unapproved policies. High-judgment decisions pause cleanly for one-click team approval.",
+    chip: "Human-in-the-Loop Gates",
+    icon: Lock,
+  },
+  {
+    code: "Guardrail 03",
+    title: "100% Client IP & Repo Handover",
+    summary:
+      "You retain complete ownership of your workflows, code, prompts, and plain-English runbooks — zero black-box vendor lock-in.",
+    chip: "Full Admin Ownership",
+    icon: Cpu,
   },
 ];
 
@@ -175,7 +214,9 @@ const CANONICAL_HOME_TYPES: PageSectionType[] = [
   "cta_banner",
 ];
 
-function normalizeHomeSections(rawSections?: PageSectionBlock[]): PageSectionBlock[] {
+function normalizeHomeSections(
+  rawSections?: PageSectionBlock[]
+): PageSectionBlock[] {
   if (!rawSections || rawSections.length === 0) {
     return CANONICAL_HOME_TYPES.map((type, idx) => ({
       id: `default_${type}`,
@@ -187,7 +228,6 @@ function normalizeHomeSections(rawSections?: PageSectionBlock[]): PageSectionBlo
     }));
   }
 
-  // Upgrade legacy 11-section home documents seamlessly while preserving visibility/custom rich_text blocks
   const hasNewPhase3Sections = rawSections.some(
     (s) =>
       s.type === "trust_strip" ||
@@ -244,1204 +284,742 @@ export default async function HomePage() {
     db.listTeamMembers(true),
   ]);
 
-  const flagshipServices = services.filter((s) => s.isFlagshipPriority);
-  const practiceServices = services.filter((s) => !s.isFlagshipPriority);
   const founder = team.find((m) => m.isFounder) ?? team[0];
+  const pricingConfig = resolvePricingConfig(settings);
   const orderedSections = normalizeHomeSections(homePage?.sections);
+  const hasFounderIntroVisible = orderedSections.some(
+    (s) => s.type === "founder_intro"
+  );
 
-  const renderSection = (block: PageSectionBlock) => {
-    switch (block.type) {
-      /* =====================================================================
-       * 01. EXECUTIVE ARCHITECTURAL HERO
-       * ===================================================================== */
-      case "hero":
-        return (
-          <div key={block.id}>
-            <PinnedHero
-              companyName={settings.companyName}
-              tagline={settings.tagline}
-              primaryCtaLabel={settings.primaryCtaLabel}
-              primaryCtaHref={settings.primaryCtaHref}
-              secondaryCtaLabel={settings.secondaryCtaLabel}
-              secondaryCtaHref={settings.secondaryCtaHref}
-            />
-          </div>
-        );
+  return (
+    <div className="bg-canvas text-ink-body">
+      {orderedSections.map((section) => {
+        switch (section.type) {
+          /* 1. SOALE EDITORIAL HERO + LIVE 7-STEP COMMAND SHOWCASE */
+          case "hero":
+            return (
+              <PinnedHero
+                key={section.id}
+                companyName={settings.companyName}
+                tagline={settings.tagline}
+                primaryCtaLabel={settings.primaryCtaLabel}
+                primaryCtaHref={settings.primaryCtaHref}
+                secondaryCtaLabel={settings.secondaryCtaLabel}
+                secondaryCtaHref={settings.secondaryCtaHref}
+              />
+            );
 
-      /* =====================================================================
-       * 02. ENGINEERING STANDARDS & INTEGRATION STACK STRIP
-       * ===================================================================== */
-      case "trust_strip":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-14 sm:py-20">
-            <Container>
-              {/* 4 Business & Operational Standards Cards (Honest Proof — Zero Fake Client Logos) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  {
-                    icon: ShieldCheck,
-                    label: "Faster Customer Responses",
-                    detail: "Every enquiry and routine question receives an accurate, sub-minute response 24/7.",
-                  },
-                  {
-                    icon: Lock,
-                    label: "Safe, Guardrailed AI",
-                    detail: "Answers stay strictly within your approved policies—sensitive cases escalate to your team.",
-                  },
-                  {
-                    icon: Database,
-                    label: "100% Client Ownership",
-                    detail: "Your business owns every workflow, credential, database schema, and plain-English runbook.",
-                  },
-                  {
-                    icon: Globe2,
-                    label: "US · UK · Canada Overlap",
-                    detail: "Direct Principal communication aligned with overlapping EST and GMT business hours.",
-                  },
-                ].map((pillar) => {
-                  const Icon = pillar.icon;
-                  return (
-                    <div
-                      key={pillar.label}
-                      data-reveal=""
-                      className="card-3d rounded-card border border-[var(--of-border-card)] bg-surface-card p-5"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent-subtle text-primary">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <h2 className="text-sm font-bold text-ink-heading">{pillar.label}</h2>
-                      </div>
-                      <p className="mt-2.5 text-xs leading-relaxed text-ink-body">
-                        {pillar.detail}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Purpose Statement */}
-              <div className="mt-14 sm:mt-16">
-                <p className="t-eyebrow mb-4">Why Growing Teams Choose OmniFlow</p>
-                <LightUpText
-                  text="Stop paying skilled staff to copy-paste between disconnected apps. We connect your enquiries, CRM, customer support, and operations into dependable automated systems."
-                  accentWords={["enquiries,", "CRM,", "dependable", "automated"]}
-                  className="max-w-5xl text-[clamp(1.65rem,3.3vw,2.85rem)] font-semibold leading-[1.18] tracking-tight"
-                />
-              </div>
-              {/* Interactive Connected Ecosystem Architecture */}
-              <div data-reveal="" className="mt-14">
-                <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-                  <div>
-                    <Badge variant="accent">Connected Integration Ecosystem</Badge>
-                    <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-                      Works seamlessly with the business software you already run.
-                    </h2>
-                  </div>
-                  <p className="font-mono text-xs text-primary">
-                    REST · Webhooks · SQL · CRM · Messaging
-                  </p>
-                </div>
-
-                <IntegrationEcosystemVisualizer />
-              </div>
-            </Container>
-
-            {/* Connected Ecosystem Marquee */}
-            <div className="mt-12 overflow-hidden border-t border-line pt-8">
-              <div className="space-y-3">
-                <div className="flex w-max animate-marquee gap-3">
-                  {[...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1].map(
-                    (tool, idx) => (
-                      <span
-                        key={`r1-${idx}`}
-                        className="inline-flex items-center gap-2.5 rounded-full border border-line bg-surface-card px-4 py-2 font-mono text-xs font-medium text-ink-heading shadow-sm"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                        {tool}
-                      </span>
-                    )
-                  )}
-                </div>
-
-                <div className="flex w-max animate-marquee-reverse gap-3">
-                  {[...ECOSYSTEM_ROW_2, ...ECOSYSTEM_ROW_2, ...ECOSYSTEM_ROW_2].map(
-                    (tool, idx) => (
-                      <span
-                        key={`r2-${idx}`}
-                        className="inline-flex items-center gap-2.5 rounded-full border border-line bg-surface-card px-4 py-2 font-mono text-xs text-ink-body shadow-sm"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                        {tool}
-                      </span>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        );
-
-      /* =====================================================================
-       * 03. OPERATIONAL BOTTLENECKS VS. ENGINEERED OUTCOMES
-       * ===================================================================== */
-      case "problems_outcomes":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              <div data-reveal="" className="max-w-3xl">
-                <Badge>01 · Interactive Before &amp; After Transformation</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  See how manual bottlenecks become connected workflows.
-                </h2>
-                <p className="mt-4 text-base leading-relaxed text-ink-body sm:text-lg">
-                  Select a business process below to compare fragmented manual handoffs against an automated OmniFlow system.
-                </p>
-              </div>
-
-              {/* Interactive Before / After Workflow Visualizer */}
-              <div data-reveal="" className="mt-10">
-                <BeforeAfterWorkflowCompare />
-              </div>
-
-              {/* 5 High-Impact Bottleneck Diagnostics */}
-              <div className="mt-10 space-y-3">
-                {LEAK_ITEMS.map((item) => (
-                  <div
-                    key={item.num}
-                    data-reveal=""
-                    className="grid grid-cols-1 gap-4 rounded-card border border-[var(--of-border-card)] bg-surface-card p-5 shadow-card lg:grid-cols-12 lg:items-center lg:p-6"
-                  >
-                    <div className="lg:col-span-5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="rounded-md bg-surface-muted px-2 py-0.5 font-mono text-xs font-semibold text-ink-muted">
-                          {item.num} · Manual Bottleneck
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-base font-bold text-ink-heading">
-                        {item.leakTitle}
-                      </h3>
-                      <p className="mt-1 text-sm leading-relaxed text-ink-body">
-                        {item.leakDetail}
-                      </p>
-                    </div>
-
-                    <div className="hidden justify-center lg:col-span-1 lg:flex">
-                      <div className="grid h-9 w-9 place-items-center rounded-full border border-primary/25 bg-accent-subtle text-primary">
-                        <ArrowRight className="h-4 w-4" />
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-primary/20 bg-accent-subtle/45 p-4 lg:col-span-6">
-                      <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
-                        Engineered OmniFlow System
-                      </span>
-                      <p className="mt-1 text-sm font-bold text-ink-heading">
-                        {item.outcomeTitle}
-                      </p>
-                      <p className="mt-1 text-xs leading-relaxed text-ink-body sm:text-sm">
-                        {item.outcomeDetail}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 04. THREE FLAGSHIP PRIORITY SYSTEMS
-       * ===================================================================== */
-      case "flagship_systems":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-28">
-            <Container>
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div className="max-w-2xl">
-                  <Badge variant="accent">02 · Priority Revenue &amp; Delivery Systems</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Three flagship systems built for immediate operational leverage.
-                  </h2>
-                  <p className="mt-3 text-base leading-relaxed text-ink-body">
-                    Most engagements start with one of these three high-impact bottlenecks — scoped clearly, verified against edge cases, and handed over cleanly.
-                  </p>
-                </div>
-                <Link
-                  href="/services"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  <span>Compare all 8 services</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-
-              <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {flagshipServices.map((service, idx) => (
-                  <article
-                    key={service.id}
-                    data-reveal=""
-                    className="spot card-3d flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-7"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="accent">{service.badgeLabel}</Badge>
-                        <span className="font-mono text-xs font-semibold text-ink-muted">
-                          0{idx + 1}
-                        </span>
-                      </div>
-
-                      <h3 className="mt-5 text-xl font-bold tracking-tight text-ink-heading sm:text-2xl">
-                        <Link
-                          href={`/services/${service.slug}`}
-                          className="hover:text-primary"
-                        >
-                          {service.title}
-                        </Link>
-                      </h3>
-
-                      <p className="mt-3 text-sm leading-relaxed text-ink-body">
-                        {service.shortSummary}
-                      </p>
-
-                      <ul className="mt-6 space-y-2.5 border-t border-line pt-5">
-                        {service.benefits.slice(0, 3).map((benefit) => (
-                          <li
-                            key={benefit}
-                            className="flex items-start gap-2.5 text-xs leading-relaxed text-ink-body sm:text-sm"
-                          >
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                            <span>{benefit}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="mt-7 flex items-center justify-between border-t border-line pt-4">
-                      <Link
-                        href={`/services/${service.slug}`}
-                        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                      >
-                        <span>See how it works</span>
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                      </Link>
-                      <Link
-                        href={`/contact?service=${encodeURIComponent(service.slug)}&intent=call&source=home_flagship_${encodeURIComponent(service.slug)}`}
-                        className="font-mono text-xs text-ink-muted hover:text-ink-heading"
-                      >
-                        Book call →
-                      </Link>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 05. FIVE CORE AI & AUTOMATION PRACTICE PILLARS
-       * ===================================================================== */
-      case "services_overview":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              <div className="max-w-3xl">
-                <Badge>03 · Full Practice Architecture</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  Five specialized AI &amp; automation capability pillars.
-                </h2>
-                <p className="mt-3 text-base leading-relaxed text-ink-body">
-                  Beyond initial intake and support triage, OmniFlow designs cohesive operational infrastructure across sales intelligence, client experience, internal ops, analytics, and custom systems.
-                </p>
-              </div>
-
-              <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {pillars.map((pillar) => {
-                  const linkedService = practiceServices.find((s) => s.slug === pillar.slug);
-                  return (
-                    <Link
-                      key={pillar.id}
-                      href={`/services/${pillar.slug}`}
-                      className="group flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40 hover:shadow-elevated"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="rounded-md bg-accent-subtle px-2.5 py-1 font-mono text-xs font-bold text-primary">
-                            Pillar 0{pillar.number}
-                          </span>
-                          <Layers className="h-4 w-4 text-ink-muted group-hover:text-primary" />
-                        </div>
-                        <h3 className="mt-4 text-lg font-bold text-ink-heading group-hover:text-primary">
-                          {pillar.name}
-                        </h3>
-                        <p className="mt-1 text-xs font-medium text-primary">
-                          {pillar.capabilities.slice(0, 2).join(" · ")}
-                        </p>
-                        <p className="mt-2.5 text-sm leading-relaxed text-ink-body">
-                          {linkedService?.shortSummary || pillar.shortSummary}
-                        </p>
-                      </div>
-
-                      <div className="mt-5 flex items-center justify-between border-t border-line pt-3.5 text-xs font-semibold text-primary">
-                        <span>Explore pillar blueprint</span>
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </div>
-                    </Link>
-                  );
-                })}
-
-                {/* Capability Summary CTA Card */}
-                <div className="flex flex-col justify-between rounded-card border border-primary/25 bg-accent-subtle/50 p-6">
-                  <div>
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                      Not sure where to start?
-                    </span>
-                    <h3 className="mt-3 text-lg font-bold text-ink-heading">
-                      Take the 2-Minute Automation Readiness Diagnostic
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                      Benchmark your current documentation, CRM structure, and enquiry volume to find the highest-leverage starting workflow.
+          /* 2. QUIET INTEGRATION ECOSYSTEM MARQUEE & CREDIBILITY STRIP */
+          case "trust_strip":
+            return (
+              <section
+                key={section.id}
+                aria-label="Connected platforms and regional alignment"
+                className="border-y border-line bg-canvas-tertiary/60 py-10"
+              >
+                <Container>
+                  <div className="flex flex-col items-start justify-between gap-4 pb-6 sm:flex-row sm:items-center">
+                    <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                      Engineered to connect cleanly with your existing stack
                     </p>
-                  </div>
-                  <div className="mt-6">
-                    <Link
-                      href="/demos?tab=readiness-assessment"
-                      className="inline-flex items-center gap-2 rounded-control bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary-hover"
-                    >
-                      <span>Run Readiness Assessment</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 06. LIVE INTERACTIVE AUTOMATION LAB PREVIEW
-       * ===================================================================== */
-      case "interactive_demos_preview":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-28">
-            <Container>
-              <div className="mb-10 max-w-3xl">
-                <Badge variant="accent">04 · Proof Over Promise</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  Inspect how our systems think before booking a call.
-                </h2>
-                <p className="mt-3 text-base leading-relaxed text-ink-body">
-                  Most agencies hide behind vague decks. Try our deterministic scoring, fail-safe queue handling, and multi-currency capacity calculator directly in your browser.
-                </p>
-              </div>
-
-              <HomeAutomationLabPreview />
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 07. END-TO-END DETERMINISTIC EXECUTION TRACE
-       * ===================================================================== */
-      case "workflow_demo":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              <div className="mb-10 grid items-end gap-6 lg:grid-cols-12">
-                <div className="lg:col-span-7">
-                  <Badge>05 · Pipeline Architecture</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Nine seconds of structured prep. One clear human decision.
-                  </h2>
-                </div>
-                <p className="text-sm leading-relaxed text-ink-body lg:col-span-5">
-                  Click through each stage below to inspect the exact payload validation, qualification rules, atomic CRM transaction, and owner handoff brief.
-                </p>
-              </div>
-              <WorkflowDiagram />
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 08. 4-STAGE ENGINEERING DELIVERY METHODOLOGY
-       * ===================================================================== */
-      case "how_it_works":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-28">
-            <Container>
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div className="max-w-2xl">
-                  <Badge variant="accent">06 · Delivery Methodology</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Scoped in milestones. Verified before launch.
-                  </h2>
-                  <p className="mt-3 text-base leading-relaxed text-ink-body">
-                    We never deploy black-box automations onto live client channels without written schemas, staging tests, and team sign-off.
-                  </p>
-                </div>
-                <Link
-                  href="/how-it-works"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  <span>Full delivery guide</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-
-              <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {DELIVERY_STAGES.map((stage) => (
-                  <div
-                    key={stage.step}
-                    className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-bold uppercase tracking-wider text-primary">
-                          {stage.step}
-                        </span>
-                        <span className="rounded-full bg-surface-muted px-2.5 py-0.5 font-mono text-[0.68rem] text-ink-muted">
-                          {stage.duration}
-                        </span>
-                      </div>
-                      <h3 className="mt-4 text-lg font-bold text-ink-heading">
-                        {stage.title}
-                      </h3>
-                      <p className="mt-2.5 text-sm leading-relaxed text-ink-body">
-                        {stage.summary}
-                      </p>
-                    </div>
-
-                    <div className="mt-6 border-t border-line pt-3.5">
-                      <p className="font-mono text-[0.68rem] uppercase tracking-wider text-ink-muted">
-                        Milestone Deliverable
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-ink-heading">
-                        {stage.deliverable}
-                      </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                      <Globe2 className="h-3.5 w-3.5 text-primary" />
+                      <span>
+                        Serving {settings.targetMarkets.join(" · ")} (EST &amp;
+                        GMT Overlap)
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </Container>
 
-              {/* Trust & Partnership Guarantees: Communication, Ownership & Support */}
-              <div className="mt-8 grid grid-cols-1 gap-5 rounded-card border border-line bg-surface-muted/50 p-6 lg:grid-cols-3">
-                <div className="rounded-xl border border-line bg-surface-card p-5">
-                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
-                    Client Communication
-                  </p>
-                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
-                    Direct Principal Collaboration
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
-                    You communicate directly with the system architect—with concise milestone walkthroughs and overlapping EST/GMT availability.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-line bg-surface-card p-5">
-                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
-                    Project Ownership
-                  </p>
-                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
-                    Zero Vendor Lock-In
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
-                    All workflows, accounts, API connections, and plain-English operating runbooks are handed over to your business in full.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-line bg-surface-card p-5">
-                  <p className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-primary">
-                    Maintenance &amp; Support
-                  </p>
-                  <h3 className="mt-1.5 text-sm font-bold text-ink-heading">
-                    Post-Launch Tuning or Self-Run
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-body">
-                    Includes post-launch stabilization monitoring, with optional lightweight ongoing support as your enquiry volume grows.
-                  </p>
-                </div>
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 09. INDUSTRY PLAYBOOKS (SERVICE BUSINESSES, CONSULTANTS, AGENCIES)
-       * ===================================================================== */
-      case "industry_use_cases":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              <div className="max-w-3xl">
-                <Badge>07 · Sector Playbooks (US · UK · Canada)</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  Engineered for businesses that run on client relationships.
-                </h2>
-              </div>
-
-              <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {[
-                  {
-                    title: "Service Businesses",
-                    regionNote: "Commercial, Field & Multi-Location Operators",
-                    desc: "Capture missed after-hours enquiries, validate job scope upfront, eliminate duplicate CRM entries, and route ready-to-book quotes immediately.",
-                    outcomes: [
-                      "24/7 structured enquiry capture",
-                      "Postcode/region & urgency routing",
-                      "Automated follow-up sequences",
-                    ],
-                    href: "/solutions#service-businesses",
-                  },
-                  {
-                    title: "Consultants & Advisory Firms",
-                    regionNote: "Management, Financial, Legal & Specialist Practices",
-                    desc: "Protect partner billable hours with automated discovery qualification, pre-call dossier briefs, document checklists, and SOP-grounded FAQ handling.",
-                    outcomes: [
-                      "Fit & timeline scoring before calls",
-                      "Automated client intake checklists",
-                      "Zero ungrounded AI advice",
-                    ],
-                    href: "/solutions#consultants",
-                  },
-                  {
-                    title: "Small & Boutique Agencies",
-                    regionNote: "Digital, Creative, Recruitment & Growth Teams",
-                    desc: "Filter low-fit requests from retainer opportunities, provision client onboarding workspaces on deal-won, and automate weekly KPI digests.",
-                    outcomes: [
-                      "Retainer vs. one-off triage",
-                      "1-click kickoff provisioning",
-                      "Cross-tool status aggregation",
-                    ],
-                    href: "/solutions#agencies",
-                  },
-                ].map((segment) => (
-                  <article
-                    key={segment.title}
-                    className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-7 shadow-card"
-                  >
-                    <div>
-                      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
-                        {segment.regionNote}
-                      </p>
-                      <h3 className="mt-2 text-xl font-bold text-ink-heading">
-                        {segment.title}
-                      </h3>
-                      <p className="mt-3 text-sm leading-relaxed text-ink-body">
-                        {segment.desc}
-                      </p>
-                      <ul className="mt-5 space-y-2 border-t border-line pt-4">
-                        {segment.outcomes.map((out) => (
-                          <li key={out} className="flex items-center gap-2 text-xs font-medium text-ink-heading">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            <span>{out}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="mt-6 pt-2">
-                      <Link
-                        href={segment.href}
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                      >
-                        <span>Inspect sector playbook</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 10. SAFETY, GUARDRAILS & DATA OWNERSHIP ARCHITECTURE
-       * ===================================================================== */
-      case "architecture_governance":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-24">
-            <Container>
-              <div className="grid items-center gap-10 lg:grid-cols-12">
-                <div className="lg:col-span-6">
-                  <Badge variant="accent">08 · Governance &amp; Safety Architecture</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Why OmniFlow workflows never guess with your reputation.
-                  </h2>
-                  <p className="mt-4 text-base leading-relaxed text-ink-body">
-                    Deploying open-ended chatbots on client channels is an operational liability. We separate deterministic business rules from bounded AI classification so your brand stays accurate and compliant.
-                  </p>
-                  <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {[
-                      {
-                        icon: FileCheck2,
-                        title: "Approved Knowledge Only",
-                        desc: "Support assistants cite only your verified policies, pricing tiers, and SLAs.",
-                      },
-                      {
-                        icon: Workflow,
-                        title: "Confidence Escalation",
-                        desc: "Ambiguous, custom-contract, or sensitive queries route straight to a human owner.",
-                      },
-                      {
-                        icon: Cpu,
-                        title: "Idempotent Transactions",
-                        desc: "Webhook retries never create duplicate contacts, invoices, or tasks.",
-                      },
-                      {
-                        icon: Scale,
-                        title: "Zero Vendor Lock-In",
-                        desc: "Your business owns all credentials, repositories, schemas, and runbooks.",
-                      },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div
-                          key={item.title}
-                          className="rounded-xl border border-line bg-surface-muted/60 p-4"
+                <div className="relative overflow-hidden py-1.5">
+                  <div className="animate-marquee flex w-max gap-3 px-4">
+                    {[...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1].map(
+                      (tool, idx) => (
+                        <span
+                          key={`r1-${tool}-${idx}`}
+                          className="soale-chip shrink-0 !bg-surface-card"
                         >
-                          <Icon className="h-4 w-4 text-primary" />
-                          <h3 className="mt-2 text-sm font-bold text-ink-heading">
-                            {item.title}
-                          </h3>
-                          <p className="mt-1 text-xs leading-relaxed text-ink-body">
-                            {item.desc}
-                          </p>
-                        </div>
-                      );
-                    })}
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          {tool}
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <div className="animate-marquee-reverse mt-3 flex w-max gap-3 px-4">
+                    {[...ECOSYSTEM_ROW_2, ...ECOSYSTEM_ROW_2].map(
+                      (tool, idx) => (
+                        <span
+                          key={`r2-${tool}-${idx}`}
+                          className="soale-chip shrink-0 !bg-surface-card"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                          {tool}
+                        </span>
+                      )
+                    )}
                   </div>
                 </div>
+              </section>
+            );
 
-                {/* Deterministic Decision Matrix Card */}
-                <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card sm:p-8 lg:col-span-6">
-                  <div className="flex items-center justify-between border-b border-line pb-4">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-heading">
-                      Guardrail Execution Matrix
-                    </span>
-                    <Badge variant="status">Production Standard</Badge>
-                  </div>
-
-                  <div className="mt-5 space-y-3">
-                    {[
-                      {
-                        event: "Schema & Email Validation",
-                        mode: "100% Deterministic",
-                        badgeClass: "bg-accent-subtle text-primary",
-                      },
-                      {
-                        event: "CRM Record & Audit Timestamp",
-                        mode: "Atomic SQL Commit",
-                        badgeClass: "bg-accent-subtle text-primary",
-                      },
-                      {
-                        event: "Approved FAQ / Turnaround Query",
-                        mode: "Policy-Grounded Draft",
-                        badgeClass: "bg-surface-muted text-ink-heading",
-                      },
-                      {
-                        event: "Custom Pricing / Refund / Legal Edge Case",
-                        mode: "Mandatory Human Escalation",
-                        badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-                      },
-                    ].map((row) => (
-                      <div
-                        key={row.event}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-xs"
+          /* 3. SOALE ASYMMETRIC OUTCOME BENTO CARDS + BEFORE/AFTER COMPARE */
+          case "problems_outcomes":
+            return (
+              <section
+                key={section.id}
+                id="outcomes"
+                className="py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="Operational Outcomes"
+                    title="Replace manual inbox bottlenecks with deterministic execution."
+                    description="Where most teams lose hours to delayed follow-ups, repetitive policy questions, and fragile copy-paste routines — OmniFlow installs structured, auditable systems."
+                    action={
+                      <SoaleArrowButton
+                        href="/contact?intent=call"
+                        variant="outline"
                       >
-                        <span className="font-semibold text-ink-heading">{row.event}</span>
-                        <span className={`rounded-full px-2.5 py-1 font-mono text-[0.68rem] font-semibold ${row.badgeClass}`}>
-                          {row.mode}
-                        </span>
+                        Audit Your Workflow
+                      </SoaleArrowButton>
+                    }
+                  />
+
+                  {/* 3-Card Soale Outcome Bento Grid */}
+                  <div className="mt-14 grid grid-cols-1 gap-7 lg:grid-cols-12">
+                    {OUTCOME_BENTO_CARDS.map((card, idx) => (
+                      <div
+                        key={card.code}
+                        data-reveal="card"
+                        style={
+                          { "--d": idx } as React.CSSProperties
+                        }
+                        className={
+                          idx === 0 ? "lg:col-span-5" : idx === 1 ? "lg:col-span-4" : "lg:col-span-3"
+                        }
+                      >
+                        <SoaleCard
+                          as="article"
+                          interactive
+                          className="group flex h-full flex-col justify-between p-6 sm:p-7"
+                        >
+                          <div>
+                            <div className="soale-media-frame mb-6 border border-line p-5">
+                              <div className="soale-media-zoom flex items-center justify-between gap-3">
+                                <span className="rounded-full bg-primary px-3 py-1 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary-foreground">
+                                  {card.code}
+                                </span>
+                                <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+                                  {card.tag}
+                                </span>
+                              </div>
+                              <div className="mt-4 space-y-2">
+                                {card.chips.map((chip) => (
+                                  <div
+                                    key={chip}
+                                    className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-medium text-ink-heading"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                    <span>{chip}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <h3 className="soale-h3 text-ink-heading">
+                              <Link
+                                href={card.href}
+                                className="transition-colors hover:text-primary"
+                              >
+                                {card.title}
+                              </Link>
+                            </h3>
+                            <p className="mt-3 text-sm leading-relaxed text-ink-body">
+                              {card.description}
+                            </p>
+                          </div>
+
+                          <div className="mt-6 border-t border-line pt-4">
+                            <Link
+                              href={card.href}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
+                            >
+                              <span>Inspect system architecture</span>
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
+                        </SoaleCard>
                       </div>
                     ))}
                   </div>
 
-                  <p className="mt-5 font-mono text-[0.7rem] text-ink-muted">
-                    Every automated step is logged with input payload, rule matched, and outcome status.
-                  </p>
-                </div>
-              </div>
-            </Container>
-          </section>
-        );
+                  {/* Interactive Before vs. After Workflow Compare */}
+                  <div data-reveal="card" className="mt-12">
+                    <BeforeAfterWorkflowCompare />
+                  </div>
+                </Container>
+              </section>
+            );
 
-      /* =====================================================================
-       * 11. TRANSPARENT ECONOMICS & COST-CONTROLLED STACK
-       * ===================================================================== */
-      case "roi_framing":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              <div className="max-w-3xl">
-                <Badge>09 · Lean Operational Economics</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  Built to reduce SaaS bloat — not add another runaway bill.
-                </h2>
-                <p className="mt-3 text-base leading-relaxed text-ink-body">
-                  We design lean, cost-controlled architectures first. Before recommending any paid third-party tool, we document exact task volumes, free-tier quotas, and ongoing operating costs transparently.
-                </p>
-              </div>
+          /* 4. SELECTED WORK & BLUEPRINTS (SOALE TOP-BORDERED TABS + FROSTED HOVER CARDS) */
+          case "case_studies_highlight":
+            return (
+              <section
+                key={section.id}
+                id="work"
+                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoaleWorkShowcase caseStudies={caseStudies} />
+                </Container>
+              </section>
+            );
 
-              <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="rounded-card border border-line bg-surface-card p-6 shadow-card">
-                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                    Status Quo #1
-                  </span>
-                  <h3 className="mt-2 text-lg font-bold text-ink-heading">
-                    Manual Inbox &amp; Spreadsheet Triage
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                    Hidden payroll drain as principals and account managers spend 5–12 hours weekly copying data, chasing missing context, and following up late.
-                  </p>
-                </div>
+          /* 5. 8 SPECIALIZED AUTOMATION SYSTEMS SHOWCASE */
+          case "flagship_systems":
+            return (
+              <section
+                key={section.id}
+                id="capabilities"
+                className="cv-auto py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoaleServicesShowcase services={services} />
+                </Container>
+              </section>
+            );
 
-                <div className="rounded-card border border-line bg-surface-card p-6 shadow-card">
-                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                    Status Quo #2
-                  </span>
-                  <h3 className="mt-2 text-lg font-bold text-ink-heading">
-                    Fragile Per-Task Automation Sprawl
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                    Dozens of undocumented multi-step zaps that charge per task, lack version control, duplicate CRM contacts, and break silently on edge cases.
-                  </p>
-                </div>
+          /* 6. COMPLEMENTARY 5 PRACTICE PILLARS ARCHITECTURAL MATRIX */
+          case "services_overview":
+            return (
+              <section
+                key={section.id}
+                id="pillars"
+                className="cv-auto border-t border-line bg-canvas-tertiary/35 py-20 sm:py-24"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="5 Architectural Pillars"
+                    title="Modular capabilities designed to compound as your operations grow."
+                    description="Adopt a single workflow first or connect sales intelligence, customer experience, operations, analytics, and custom AI systems over time."
+                    action={
+                      <SoaleArrowButton href="/services#pillars" variant="surface">
+                        Full Capabilities Matrix
+                      </SoaleArrowButton>
+                    }
+                  />
 
-                <div className="rounded-card border border-primary/35 bg-surface-card p-6 shadow-elevated">
-                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                    The OmniFlow Standard
-                  </span>
-                  <h3 className="mt-2 text-lg font-bold text-ink-heading">
-                    Lean, Documented Engineering
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                    Clean webhook orchestration, relational persistence, and bounded AI calls only when needed — keeping monthly infrastructure predictable and owned by you.
-                  </p>
-                  <Link
-                    href="/demos?tab=savings-calculator"
-                    className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
-                  >
-                    <span>Estimate reclaimed hours (USD / GBP / CAD)</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 12. REFERENCE ARCHITECTURES & VERIFIED WORK
-       * ===================================================================== */
-      case "case_studies_highlight":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-28">
-            <Container>
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div className="max-w-2xl">
-                  <Badge variant="accent">10 · Reference Architectures &amp; Work</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Transparently labeled blueprints and system implementations.
-                  </h2>
-                  <p className="mt-3 text-base leading-relaxed text-ink-body">
-                    Every published item carries an explicit verification badge distinguishing authorized client deployments from internal reference architectures — never fabricated metrics.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    href="/case-studies"
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                  >
-                    <span>All case studies</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {caseStudies.slice(0, 3).map((cs) => {
-                  const meta = WORK_TYPE_META[cs.workType];
-                  return (
-                    <article
-                      key={cs.id}
-                      data-reveal=""
-                      className="spot card-3d flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge>{meta.label}</Badge>
-                          <Badge variant="outline">{cs.industry}</Badge>
-                        </div>
-                        <h3 className="mt-4 text-xl font-bold leading-snug text-ink-heading">
-                          <Link
-                            href={`/case-studies/${cs.slug}`}
-                            className="hover:text-primary"
-                          >
-                            {cs.title}
-                          </Link>
-                        </h3>
-                        <p className="mt-3 text-sm leading-relaxed text-ink-body">
-                          {cs.problemSummary}
-                        </p>
-                      </div>
-
-                      <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
-                        <span className="font-mono text-[0.68rem] text-ink-muted">
-                          {cs.technologiesUsed.slice(0, 2).join(" · ")}
-                        </span>
-                        <Link
-                          href={`/case-studies/${cs.slug}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover"
+                  <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-5">
+                    {pillars.map((pillar, idx) => (
+                      <div
+                        key={pillar.id}
+                        data-reveal="card"
+                        style={{ "--d": idx } as React.CSSProperties}
+                      >
+                        <SoaleCard
+                          interactive
+                          className="flex h-full flex-col justify-between p-5"
                         >
-                          <span>Inspect blueprint</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Link>
+                          <div>
+                            <span className="font-mono text-xs font-semibold text-primary">
+                              Pillar 0{pillar.number}
+                            </span>
+                            <h3 className="mt-2 text-base font-semibold leading-snug text-ink-heading">
+                              {pillar.name}
+                            </h3>
+                            <p className="mt-2 text-xs leading-relaxed text-ink-body">
+                              {pillar.shortSummary}
+                            </p>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-3.5">
+                            {pillar.capabilities.slice(0, 2).map((cap) => (
+                              <span
+                                key={cap}
+                                className="rounded-lg bg-surface-muted px-2.5 py-1 text-[0.7rem] font-medium text-ink-heading"
+                              >
+                                {cap}
+                              </span>
+                            ))}
+                          </div>
+                        </SoaleCard>
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 13. PRINCIPAL-LED ENGINEERING (AHMED ANSARI)
-       * ===================================================================== */
-      case "founder_intro":
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20 sm:py-24">
-            <Container>
-              {founder && (
-                <div className="grid items-center gap-8 rounded-card border border-[var(--of-border-card)] bg-surface-card p-8 shadow-card lg:grid-cols-12 lg:p-10">
-                  <div className="lg:col-span-8">
-                    <Badge variant="accent">11 · Principal-Led Accountability</Badge>
-                    <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-                      Work directly with {founder.name}, {founder.role}
-                    </h2>
-                    <p className="mt-3 text-base leading-relaxed text-ink-body">
-                      {founder.bio} Every architecture audit, guardrail specification, and production deployment is led with direct senior accountability — never handed off to unaccountable subcontractors.
-                    </p>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {founder.focusAreas.map((area) => (
-                        <Badge key={area} variant="outline">
-                          {area}
-                        </Badge>
-                      ))}
-                    </div>
+                    ))}
                   </div>
+                </Container>
+              </section>
+            );
 
-                  <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface-muted p-6 lg:col-span-4">
-                    <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                      Operating Coverage
-                    </p>
-                    <p className="text-sm font-semibold text-ink-heading">
-                      {founder.regionsServed.join(" · ")}
-                    </p>
-                    <p className="text-xs leading-relaxed text-ink-body">
-                      Discovery reviews and milestone walkthroughs scheduled across overlapping EST and GMT business hours.
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2.5 pt-1">
-                      <Link
-                        href="/about"
-                        className="rounded-control border border-line-strong bg-surface px-4 py-2 text-xs font-semibold text-ink-heading hover:bg-surface-card"
-                      >
-                        About {settings.companyName}
-                      </Link>
-                      <Link
-                        href="/team"
-                        className="rounded-control bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
-                      >
-                        Leadership Profile
-                      </Link>
-                    </div>
+          /* 7. INTERACTIVE SANDBOX PREVIEW */
+          case "interactive_demos_preview":
+            return (
+              <section
+                key={section.id}
+                id="live-sandbox"
+                className="cv-auto py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="Interactive Automation Lab"
+                    title="Test real deterministic scoring & grounded AI triage right now."
+                    description="Explore live simulations powered by our actual validation, scoring, and fallback rules before scheduling a discovery call."
+                    action={
+                      <SoaleArrowButton href="/demos" variant="primary">
+                        Open All 5 Live Tools
+                      </SoaleArrowButton>
+                    }
+                  />
+                  <div data-reveal="card" className="mt-12">
+                    <HomeAutomationLabPreview />
                   </div>
-                </div>
-              )}
-            </Container>
-          </section>
-        );
+                </Container>
+              </section>
+            );
 
-      /* =====================================================================
-       * 14. LATEST ENGINEERING BRIEFINGS & PLAYBOOKS
-       * ===================================================================== */
-      case "insights_preview":
-        if (blogPosts.length === 0) return null;
-        return (
-          <section key={block.id} className="border-b border-line bg-surface py-20 sm:py-24">
-            <Container>
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div className="max-w-2xl">
-                  <Badge>12 · Engineering Briefings &amp; Insights</Badge>
-                  <h2 className="t-display mt-3 text-ink-heading">
-                    Practical guides on reliable business automation.
-                  </h2>
-                </div>
-                <Link
-                  href="/blog"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  <span>Browse all insights</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
+          /* 8. CONNECTED INTEGRATION ECOSYSTEM VISUALIZER */
+          case "workflow_demo":
+            return (
+              <section
+                key={section.id}
+                id="ecosystem"
+                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="Connected Orchestration"
+                    title="One reliable operational core across your CRM, inbox, and databases."
+                    description="Click any operational domain below to inspect how OmniFlow synchronizes events with signed webhooks, duplicate locks, and audit logs."
+                    action={
+                      <SoaleArrowButton href="/solutions" variant="surface">
+                        Industry Playbooks
+                      </SoaleArrowButton>
+                    }
+                  />
+                  <div data-reveal="card" className="mt-12">
+                    <IntegrationEcosystemVisualizer />
+                  </div>
+                </Container>
+              </section>
+            );
 
-              <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {blogPosts.slice(0, 3).map((post) => (
-                  <article
-                    key={post.id}
-                    className="flex flex-col justify-between rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40 hover:shadow-elevated"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge>{post.category}</Badge>
-                        <span className="inline-flex items-center gap-1 font-mono text-xs text-ink-muted">
-                          <Clock className="h-3.5 w-3.5" />
-                          {post.readingTimeMinutes} min
-                        </span>
+          /* 9. 10-STAGE SCROLL-LINKED SOALE PROCESS PILLS */
+          case "how_it_works":
+            return (
+              <section
+                key={section.id}
+                id="process"
+                className="cv-auto py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoaleProcessSection />
+                </Container>
+              </section>
+            );
+
+          /* 10. WHO WE HELP — 3-COLUMN SOALE BENTO CARDS */
+          case "industry_use_cases":
+            return (
+              <section
+                key={section.id}
+                id="solutions-fit"
+                className="cv-auto border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="Who We Partner With"
+                    title="Tailored for high-touch teams where responsiveness drives revenue."
+                    description="Whether you run a multi-location service business, an advisory practice, or a boutique agency, we design around your exact daily workflow."
+                    action={
+                      <SoaleArrowButton href="/solutions" variant="outline">
+                        Explore Solutions
+                      </SoaleArrowButton>
+                    }
+                  />
+
+                  <div className="mt-12 grid grid-cols-1 gap-7 lg:grid-cols-3">
+                    {CLIENT_PROFILES.map((profile, idx) => {
+                      const Icon = profile.icon;
+                      return (
+                        <div
+                          key={profile.id}
+                          data-reveal="card"
+                          style={{ "--d": idx } as React.CSSProperties}
+                        >
+                          <SoaleCard
+                            interactive
+                            className="flex h-full flex-col justify-between p-6 sm:p-7"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="grid h-11 w-11 place-items-center rounded-[15px] bg-accent-subtle text-primary">
+                                  <Icon className="h-5 w-5" />
+                                </span>
+                                <SoaleChip>{profile.badge}</SoaleChip>
+                              </div>
+
+                              <h3 className="soale-h3 mt-5 text-ink-heading">
+                                {profile.title}
+                              </h3>
+                              <p className="mt-2.5 text-sm leading-relaxed text-ink-body">
+                                {profile.summary}
+                              </p>
+
+                              <ul className="mt-5 space-y-2 border-t border-line pt-4">
+                                {profile.outcomes.map((item) => (
+                                  <li
+                                    key={item}
+                                    className="flex items-start gap-2 text-xs leading-relaxed text-ink-body"
+                                  >
+                                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="mt-6 border-t border-line pt-4">
+                              <SoaleArrowButton
+                                href={profile.href}
+                                variant="surface"
+                                size="sm"
+                              >
+                                View Playbook
+                              </SoaleArrowButton>
+                            </div>
+                          </SoaleCard>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Container>
+              </section>
+            );
+
+          /* 11. ARCHITECTURE & GOVERNANCE GUARDRAILS BENTO */
+          case "architecture_governance":
+            return (
+              <section
+                key={section.id}
+                id="architecture_governance"
+                className="cv-auto py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="center"
+                    eyebrow="Safety, Governance & Ownership"
+                    title="Reliability engineered in — never bolted on after launch."
+                    description="Fragile no-code chains and unconstrained prompts create risk. Every OmniFlow system enforces deterministic schemas, human approval gates, and complete client ownership."
+                  />
+
+                  <div className="mt-12 grid grid-cols-1 gap-7 lg:grid-cols-3">
+                    {GOVERNANCE_CARDS.map((card, idx) => {
+                      const Icon = card.icon;
+                      return (
+                        <div
+                          key={card.code}
+                          data-reveal="card"
+                          style={{ "--d": idx } as React.CSSProperties}
+                        >
+                          <SoaleCard className="flex h-full flex-col justify-between p-6 sm:p-7">
+                            <div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                                  {card.code}
+                                </span>
+                                <Icon className="h-5 w-5 text-primary" />
+                              </div>
+                              <h3 className="soale-h3 mt-4 text-ink-heading">
+                                {card.title}
+                              </h3>
+                              <p className="mt-3 text-sm leading-relaxed text-ink-body">
+                                {card.summary}
+                              </p>
+                            </div>
+
+                            <div className="mt-6 border-t border-line pt-4">
+                              <SoaleChip>
+                                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                                {card.chip}
+                              </SoaleChip>
+                            </div>
+                          </SoaleCard>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Container>
+              </section>
+            );
+
+          /* 12. SOALE 4-TIER CUSTOM-SCOPED / COMING SOON PRICING ARCHITECTURE */
+          case "roi_framing":
+            return (
+              <section
+                key={section.id}
+                id="roi_framing"
+                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoalePricingSection pricing={pricingConfig} />
+                </Container>
+              </section>
+            );
+
+          /* 13. EDITORIAL PROOF / PRINCIPAL ARCHITECTURE SHOWCASE */
+          case "founder_intro":
+            return (
+              <section
+                key={section.id}
+                id="leadership"
+                className="cv-auto py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleEditorialProof
+                    testimonials={testimonials}
+                    founder={founder}
+                    companyName={settings.companyName}
+                  />
+                </Container>
+              </section>
+            );
+
+          case "testimonials":
+            if (hasFounderIntroVisible || testimonials.length === 0) {
+              return null;
+            }
+            return (
+              <section
+                key={section.id}
+                id="testimonials"
+                className="cv-auto py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleEditorialProof
+                    testimonials={testimonials}
+                    founder={founder}
+                    companyName={settings.companyName}
+                  />
+                </Container>
+              </section>
+            );
+
+          /* 14. EDITORIAL INSIGHTS & ENGINEERING GUIDES */
+          case "insights_preview":
+            return (
+              <section
+                key={section.id}
+                id="insights"
+                className="cv-auto border-t border-line py-20 sm:py-28"
+              >
+                <Container>
+                  <SoaleSectionHeader
+                    align="split"
+                    eyebrow="Engineering Insights & Guides"
+                    title="Practical playbooks on deterministic workflows, CRM hygiene, and AI safety."
+                    description="Actionable architecture notes written for founders, operations leads, and technical decision-makers."
+                    action={
+                      <SoaleArrowButton href="/blog" variant="surface">
+                        Read All Articles
+                      </SoaleArrowButton>
+                    }
+                  />
+
+                  <div className="mt-12 grid grid-cols-1 gap-7 lg:grid-cols-3">
+                    {blogPosts.slice(0, 3).map((post, idx) => (
+                      <div
+                        key={post.id}
+                        data-reveal="card"
+                        style={{ "--d": idx } as React.CSSProperties}
+                      >
+                        <SoaleCard
+                          as="article"
+                          interactive
+                          className="group flex h-full flex-col justify-between p-5 sm:p-6"
+                        >
+                          <div>
+                            <div className="soale-media-frame aspect-[16/9] border border-line">
+                              <div className="soale-media-zoom flex h-full w-full flex-col justify-between bg-gradient-to-br from-accent-subtle via-surface to-surface-muted p-5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <SoaleChip>{post.category}</SoaleChip>
+                                  <span className="inline-flex items-center gap-1 font-mono text-[0.68rem] text-ink-muted">
+                                    <Clock className="h-3 w-3 text-primary" />
+                                    {post.readingTimeMinutes} min read
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-xs font-medium text-ink-heading">
+                                  <BookOpen className="h-4 w-4 text-primary" />
+                                  <span>{post.authorName}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <h3 className="soale-h4 mt-5 text-ink-heading">
+                              <Link
+                                href={`/blog/${post.slug}`}
+                                className="transition-colors hover:text-primary"
+                              >
+                                {post.title}
+                              </Link>
+                            </h3>
+                            <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-ink-body">
+                              {post.excerpt}
+                            </p>
+                          </div>
+
+                          <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
+                            <span className="font-mono text-[0.7rem] text-ink-muted">
+                              {post.publishedAt
+                                ? new Date(post.publishedAt).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    }
+                                  )
+                                : "Published Guide"}
+                            </span>
+                            <Link
+                              href={`/blog/${post.slug}`}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform"
+                            >
+                              <span>Read guide</span>
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
+                        </SoaleCard>
                       </div>
-                      <h3 className="mt-4 text-lg font-bold leading-snug text-ink-heading">
-                        <Link href={`/blog/${post.slug}`} className="hover:text-primary">
-                          {post.title}
-                        </Link>
-                      </h3>
-                      <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-ink-body">
-                        {post.excerpt}
+                    ))}
+                  </div>
+                </Container>
+              </section>
+            );
+
+          /* 15. SOALE SPLIT 2-COLUMN FAQ ACCORDION */
+          case "faq_section":
+            return (
+              <section
+                key={section.id}
+                id="faq"
+                className="cv-auto border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28 lg:py-32"
+              >
+                <Container>
+                  <SoaleFaqAccordion
+                    faqs={faqs.slice(0, 6)}
+                    contactEmail={settings.contactEmail}
+                  />
+                </Container>
+              </section>
+            );
+
+          /* 16. SIGNATURE SOALE CLOSING CONVERSION BANNER (.on-dark) */
+          case "cta_banner":
+            return (
+              <section
+                key={section.id}
+                aria-label="Schedule a discovery call"
+                className="py-16 sm:py-24"
+              >
+                <Container>
+                  <div className="on-dark relative overflow-hidden rounded-[28px] border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-6 py-14 text-center shadow-elevated sm:px-12 sm:py-20">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 opacity-85"
+                      style={{
+                        background:
+                          "radial-gradient(60% 55% at 22% 18%, rgba(183, 122, 216, 0.18), transparent 70%), radial-gradient(50% 50% at 80% 82%, rgba(167, 143, 202, 0.14), transparent 72%)",
+                      }}
+                    />
+
+                    <div className="relative z-10 mx-auto max-w-3xl">
+                      <SoaleEyebrow className="mb-5">
+                        Ready When Your Team Is
+                      </SoaleEyebrow>
+                      <h2 className="soale-h1 text-[var(--of-color-heading)]">
+                        Start with one bottleneck. Leave with a clear, written
+                        automation plan.
+                      </h2>
+                      <p className="soale-lead mx-auto mt-5 !text-[var(--of-color-body)]">
+                        Walk us through where enquiries, support threads, or
+                        handoffs slow your team down. You will receive honest
+                        architectural guidance — whether we build together or
+                        not.
+                      </p>
+
+                      <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+                        <SoaleArrowButton
+                          href={settings.primaryCtaHref}
+                          variant="primary"
+                        >
+                          {settings.primaryCtaLabel}
+                        </SoaleArrowButton>
+                        <SoaleArrowButton
+                          href={settings.secondaryCtaHref}
+                          variant="outline"
+                        >
+                          {settings.secondaryCtaLabel}
+                        </SoaleArrowButton>
+                      </div>
+
+                      <p className="mt-5 font-mono text-xs text-[var(--of-color-muted)]">
+                        {settings.supportHours} · 100% Client-Owned Systems
                       </p>
                     </div>
+                  </div>
+                </Container>
+              </section>
+            );
 
-                    <div className="mt-6 flex items-center justify-between border-t border-line pt-4 text-xs">
-                      <span className="text-ink-muted">By {post.authorName}</span>
-                      <Link
-                        href={`/blog/${post.slug}`}
-                        className="inline-flex items-center gap-1 font-semibold text-primary hover:text-primary-hover"
-                      >
-                        <span>Read briefing</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
+          /* 17. CUSTOM ADMIN RICH TEXT BLOCK */
+          case "rich_text": {
+            const markdown =
+              typeof section.config?.markdown === "string"
+                ? section.config.markdown
+                : "";
+            const blocks = parseSafeMarkdown(markdown);
+            return (
+              <section key={section.id} className="py-16 sm:py-20">
+                <Container>
+                  <SoaleCard className="mx-auto max-w-4xl p-7 sm:p-10">
+                    {section.title && (
+                      <h2 className="soale-h2 text-ink-heading">
+                        {section.title}
+                      </h2>
+                    )}
+                    {section.subtitle && (
+                      <p className="soale-lead mt-3">{section.subtitle}</p>
+                    )}
+                    <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-body">
+                      {blocks.map((blk, i) =>
+                        blk.type === "p" ? (
+                          <p key={i}>{blk.text}</p>
+                        ) : blk.type === "h2" ? (
+                          <h3
+                            key={i}
+                            className="soale-h3 pt-2 text-ink-heading"
+                          >
+                            {blk.text}
+                          </h3>
+                        ) : null
+                      )}
                     </div>
-                  </article>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
+                  </SoaleCard>
+                </Container>
+              </section>
+            );
+          }
 
-      /* =====================================================================
-       * 15. VERIFIED CLIENT FEEDBACK GATE (STRICT TRUTHFULNESS GATE)
-       * ===================================================================== */
-      case "testimonials":
-        if (testimonials.length === 0) return null;
-        return (
-          <section key={block.id} className="border-b border-line bg-surface-muted/45 py-20">
-            <Container>
-              <Badge variant="accent">Verified Client Feedback</Badge>
-              <h2 className="t-display mt-3 text-ink-heading">Authorized Client Reviews</h2>
-              <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-                {testimonials.map((t) => (
-                  <blockquote
-                    key={t.id}
-                    className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-7 shadow-card"
-                  >
-                    <p className="text-base italic leading-relaxed text-ink-body">
-                      “{t.quote}”
-                    </p>
-                    <footer className="mt-4 font-mono text-xs font-semibold text-ink-heading">
-                      {t.authorName} · {t.authorRole}, {t.companyName} ({t.country})
-                    </footer>
-                  </blockquote>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 16A. EXECUTIVE FAQ ACCORDION
-       * ===================================================================== */
-      case "faq_section":
-        return (
-          <section key={block.id} className="bg-surface py-20 sm:py-24">
-            <Container className="max-w-4xl">
-              <div>
-                <Badge>13 · Common Questions</Badge>
-                <h2 className="t-display mt-3 text-ink-heading">
-                  Straight answers before you scope a project.
-                </h2>
-              </div>
-
-              <div className="mt-10 space-y-3">
-                {faqs.slice(0, 6).map((faq) => (
-                  <details
-                    key={faq.id}
-                    className="more rounded-card border border-[var(--of-border-card)] bg-surface-card px-6 py-4 shadow-card"
-                  >
-                    <summary className="flex items-center justify-between gap-4 text-left text-base font-semibold text-ink-heading sm:text-lg">
-                      <span>{faq.question}</span>
-                      <span className="more-icon grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-surface-muted text-primary">
-                        <Plus className="h-4 w-4" />
-                      </span>
-                    </summary>
-                    <p className="mt-3 max-w-3xl border-t border-line pt-3 text-sm leading-relaxed text-ink-body">
-                      {faq.answer}
-                    </p>
-                  </details>
-                ))}
-              </div>
-
-              <div className="mt-8">
-                <Link
-                  href="/faq"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  <span>Browse full FAQ library</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </Container>
-          </section>
-        );
-
-      /* =====================================================================
-       * 16B. EXECUTIVE CONSULTATION & AUDIT CONVERSION BANNER
-       * ===================================================================== */
-      case "cta_banner":
-        return (
-          <section key={block.id} className="bg-surface px-3 pb-12 pt-4 sm:px-5 sm:pb-16">
-            <div
-              className="on-dark relative mx-auto max-w-7xl overflow-hidden rounded-[24px] border border-white/10 px-6 py-16 text-center shadow-elevated sm:rounded-[28px] sm:px-12 sm:py-20"
-              style={{
-                background: "var(--of-gradient-cta-banner)",
-              }}
-            >
-              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/15 px-3.5 py-1 font-mono text-xs uppercase tracking-[0.14em] text-white/90">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span>Free 25-Minute Discovery Call</span>
-              </div>
-
-              <h2 className="t-display mx-auto mt-4 max-w-3xl text-white">
-                Ready to eliminate manual busywork and respond faster?
-              </h2>
-
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Book a free discovery call or share your current bottleneck. Within one business day, we will map what to automate, what tools connect cleanly, and what stays human.
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-                <Link
-                  href={settings.primaryCtaHref}
-                  className="group inline-flex items-center gap-2 rounded-control bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-glow transition-all hover:bg-primary-hover"
-                >
-                  <span>{settings.primaryCtaLabel}</span>
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-                <Link
-                  href={settings.secondaryCtaHref || "/demos"}
-                  className="inline-flex items-center gap-2 rounded-control border border-slate-600/80 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
-                >
-                  <span>{settings.secondaryCtaLabel || "Explore Live Demos"}</span>
-                </Link>
-              </div>
-
-              <p className="mt-6 font-mono text-xs text-slate-400">
-                USA · United Kingdom · Canada · Private enquiry · Zero obligation
-              </p>
-            </div>
-          </section>
-        );
-
-      /* =====================================================================
-       * CUSTOM CMS MARKDOWN SECTION BLOCK
-       * ===================================================================== */
-      case "rich_text": {
-        const md =
-          typeof block.config?.markdown === "string"
-            ? block.config.markdown
-            : "";
-        const mdBlocks = parseSafeMarkdown(md);
-        return (
-          <section key={block.id} className="border-t border-line bg-surface py-16 sm:py-20">
-            <Container className="max-w-4xl">
-              <Badge>Architecture Note</Badge>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
-                {block.title}
-              </h2>
-              {block.subtitle && (
-                <p className="mt-2 text-base text-ink-muted">{block.subtitle}</p>
-              )}
-              {mdBlocks.length > 0 && (
-                <div className="mt-6 space-y-4 text-base leading-relaxed text-ink-body">
-                  {mdBlocks.map((mb, idx) => {
-                    if (mb.type === "h2") {
-                      return (
-                        <h3
-                          key={idx}
-                          className="pt-4 text-xl font-bold text-ink-heading"
-                        >
-                          {mb.text}
-                        </h3>
-                      );
-                    }
-                    if (mb.type === "h3") {
-                      return (
-                        <h4
-                          key={idx}
-                          className="pt-2 text-lg font-semibold text-ink-heading"
-                        >
-                          {mb.text}
-                        </h4>
-                      );
-                    }
-                    if (mb.type === "ul") {
-                      return (
-                        <ul
-                          key={idx}
-                          className="list-disc space-y-1.5 pl-6 text-ink-body"
-                        >
-                          {mb.items.map((li, liIdx) => (
-                            <li key={liIdx}>{li}</li>
-                          ))}
-                        </ul>
-                      );
-                    }
-                    if (mb.type === "blockquote") {
-                      return (
-                        <blockquote
-                          key={idx}
-                          className="border-l-2 border-primary pl-4 italic text-ink-heading"
-                        >
-                          {mb.text}
-                        </blockquote>
-                      );
-                    }
-                    return <p key={idx}>{mb.text}</p>;
-                  })}
-                </div>
-              )}
-            </Container>
-          </section>
-        );
-      }
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <>
-      {orderedSections.map((block, idx) => {
-        const rendered = renderSection(block);
-        if (!rendered) return null;
-        return (
-          <div key={block.id} className={idx >= 2 ? "cv-auto" : undefined}>
-            {rendered}
-          </div>
-        );
+          default:
+            return null;
+        }
       })}
-    </>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import type {
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
 import { createDefaultThemeConfiguration } from "@/features/themes/presets";
+import { DEFAULT_PRICING_CONFIG } from "@/features/pricing/default-pricing";
 import { isProductionEnvironment } from "@/lib/env";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
@@ -173,6 +174,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
         { id: "ft-l3", label: "Cookie Policy", href: "/cookie-policy", isVisible: true, order: 3 },
       ],
     },
+    pricingConfig: structuredClone(DEFAULT_PRICING_CONFIG),
     analytics: {
       ga4MeasurementId: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID || "",
       requireCookieConsent: true,

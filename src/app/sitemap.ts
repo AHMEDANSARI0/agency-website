@@ -11,6 +11,7 @@ const STATIC_PUBLIC_ROUTES: {
 }[] = [
   { path: "/", priority: 1.0, changeFrequency: "weekly" },
   { path: "/services", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/pricing", priority: 0.85, changeFrequency: "monthly" },
   { path: "/solutions", priority: 0.85, changeFrequency: "weekly" },
   { path: "/how-it-works", priority: 0.85, changeFrequency: "monthly" },
   { path: "/demos", priority: 0.9, changeFrequency: "weekly" },

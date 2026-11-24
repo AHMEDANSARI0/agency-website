@@ -1,7 +1,7 @@
 import React from "react";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/layout/Breadcrumbs";
-import { Badge } from "@/components/ui/Badge";
+import { SoaleEyebrow } from "@/components/ui/soale";
 
 interface PageHeaderProps {
   breadcrumbs: BreadcrumbItem[];
@@ -19,26 +19,22 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <section className="relative overflow-hidden border-b border-line bg-surface bg-hero-glow pb-14 pt-28 sm:pb-18 sm:pt-32 lg:pb-20 lg:pt-36">
-      <div
-        aria-hidden="true"
-        className="bg-grid-subtle pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]"
-      />
-      <Container className="relative">
+    <section className="soale-ambient-wash relative overflow-hidden border-b border-line bg-canvas pb-14 pt-28 sm:pb-20 sm:pt-32 lg:pb-24 lg:pt-36">
+      <Container className="relative z-10">
         <Breadcrumbs items={breadcrumbs} />
-        <div className="max-w-3xl">
+        <div className="mt-2 max-w-3xl">
           {badge && (
-            <div className="mb-4">
-              <Badge variant="accent" className="font-mono uppercase tracking-[0.12em]">
-                {badge}
-              </Badge>
+            <div className="mb-5">
+              <SoaleEyebrow>{badge}</SoaleEyebrow>
             </div>
           )}
-          <h1 className="t-display text-ink-heading">{title}</h1>
-          <p className="mt-5 text-[clamp(1rem,1.3vw,1.15rem)] leading-relaxed text-ink-body">
-            {description}
-          </p>
-          {actions && <div className="mt-7 flex flex-wrap items-center gap-3">{actions}</div>}
+          <h1 className="soale-h1 text-ink-heading">{title}</h1>
+          <p className="soale-lead mt-5">{description}</p>
+          {actions && (
+            <div className="mt-8 flex flex-wrap items-center gap-3.5">
+              {actions}
+            </div>
+          )}
         </div>
       </Container>
     </section>

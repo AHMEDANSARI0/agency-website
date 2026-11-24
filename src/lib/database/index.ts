@@ -109,6 +109,8 @@ function getLocalDbFilePath(): string {
 
 let inMemoryFallbackSnapshot: OmniFlowDatabaseSnapshot | null = null;
 let inMemorySnapshotPath = "";
+let inMemorySnapshotMtimeMs = -1;
+let inMemorySnapshotSize = -1;
 let cachedSqlClient: ReturnType<typeof postgres> | null = null;
 let cachedSqlUrl = "";
 let postgresFallbackUntil = 0;
@@ -700,7 +702,11 @@ function upgradeSnapshotIfNeeded(
 function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
   const filePath = getLocalDbFilePath();
   if (!fs.existsSync(filePath)) {
-    if (inMemoryFallbackSnapshot && inMemorySnapshotPath === filePath) {
+    if (
+      inMemoryFallbackSnapshot &&
+      inMemorySnapshotPath === filePath &&
+      inMemorySnapshotMtimeMs === -2
+    ) {
       return inMemoryFallbackSnapshot;
     }
     const initial = createInitialSeedSnapshot();
@@ -708,11 +714,23 @@ function readLocalSnapshot(): OmniFlowDatabaseSnapshot {
     return initial;
   }
   try {
+    const stat = fs.statSync(filePath);
+    if (
+      inMemoryFallbackSnapshot &&
+      inMemorySnapshotPath === filePath &&
+      inMemorySnapshotMtimeMs === stat.mtimeMs &&
+      inMemorySnapshotSize === stat.size
+    ) {
+      return inMemoryFallbackSnapshot;
+    }
     const raw = fs.readFileSync(filePath, "utf8");
     const parsed = JSON.parse(raw) as OmniFlowDatabaseSnapshot;
     const ready = upgradeSnapshotIfNeeded(parsed);
+    const afterStat = fs.statSync(filePath);
     inMemoryFallbackSnapshot = ready;
     inMemorySnapshotPath = filePath;
+    inMemorySnapshotMtimeMs = afterStat.mtimeMs;
+    inMemorySnapshotSize = afterStat.size;
     return ready;
   } catch {
     if (inMemoryFallbackSnapshot && inMemorySnapshotPath === filePath) {
@@ -734,8 +752,12 @@ function writeLocalSnapshot(snapshot: OmniFlowDatabaseSnapshot): void {
     const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf8");
     fs.renameSync(tempPath, filePath);
+    const stat = fs.statSync(filePath);
+    inMemorySnapshotMtimeMs = stat.mtimeMs;
+    inMemorySnapshotSize = stat.size;
   } catch {
-    // Dev/build fallback only; strict production never reaches writeLocalSnapshot
+    inMemorySnapshotMtimeMs = -2;
+    inMemorySnapshotSize = -1;
   }
 }
 
@@ -999,7 +1021,7 @@ export const db = {
           }
           return config;
         },
-        () => readLocalSnapshot().themeConfig
+        () => normalizeStoredThemeConfig(readLocalSnapshot().themeConfig).config
       )
     );
   },

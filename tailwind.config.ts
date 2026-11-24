@@ -79,6 +79,9 @@ const config: Config = {
         control: "var(--of-radius-control)",
         card: "var(--of-radius-card)",
         feature: "var(--of-radius-feature)",
+        "soale-btn": "var(--of-radius-soale-btn, 1.0625rem)",
+        "soale-card": "var(--of-radius-soale-card, 1.5rem)",
+        "soale-chip": "var(--of-radius-soale-chip, 0.875rem)",
       },
       spacing: {
         "section-sm": "var(--of-section-py-sm)",
@@ -86,8 +89,13 @@ const config: Config = {
         "section-lg": "var(--of-section-py-lg)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "-apple-system", "sans-serif"],
-        display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        display: [
+          "var(--of-font-heading, var(--font-sans))",
+          "Inter",
+          "system-ui",
+          "sans-serif",
+        ],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
     },

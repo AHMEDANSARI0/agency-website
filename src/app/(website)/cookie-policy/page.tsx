@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SoaleCard } from "@/components/ui/soale";
 import { CookiePreferencesButton } from "@/components/analytics/CookiePreferencesButton";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default async function CookiePolicyPage() {
   const settings = await db.getSiteSettings();
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Cookie Policy" }]}
         badge="Privacy & Storage Controls"
@@ -23,36 +24,47 @@ export default async function CookiePolicyPage() {
         description={`Effective Date: November 22, 2026 · ${settings.companyName}`}
       />
 
-      <section className="bg-surface py-14 sm:py-20">
+      <section className="py-16 sm:py-24">
         <Container className="max-w-3xl">
-          <div className="space-y-8 rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 text-sm leading-relaxed text-ink-body shadow-card sm:p-10 sm:text-base">
+          <SoaleCard className="space-y-8 p-6 text-sm leading-relaxed text-ink-body sm:p-10 sm:text-base">
             <div>
-              <h2 className="text-xl font-bold text-ink-heading">
+              <h2 className="soale-h4 text-ink-heading">
                 1. Essential Functional Storage
               </h2>
-              <p className="mt-2">
-                {settings.companyName} uses minimal browser storage strictly required for core functionality:
+              <p className="mt-2.5">
+                {settings.companyName} uses minimal browser storage strictly
+                required for core functionality:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-5">
                 <li>
-                  <strong className="text-ink-heading">Theme Preference (`omniflow-theme-mode`):</strong>{" "}
-                  Remembers whether you selected Light, Dark, or System display mode.
+                  <strong className="text-ink-heading">
+                    Theme Preference (`omniflow-theme-mode`):
+                  </strong>{" "}
+                  Remembers whether you selected Light, Dark, or System display
+                  mode.
                 </li>
                 <li>
-                  <strong className="text-ink-heading">Admin Session Cookie (`omniflow_session`):</strong>{" "}
-                  Set strictly for authenticated administrators (`HttpOnly`, `SameSite=Lax`). Regular public visitors do not receive authentication cookies.
+                  <strong className="text-ink-heading">
+                    Admin Session Cookie (`omniflow_session`):
+                  </strong>{" "}
+                  Set strictly for authenticated administrators (`HttpOnly`,
+                  `SameSite=Lax`). Regular public visitors do not receive
+                  authentication cookies.
                 </li>
               </ul>
             </div>
 
             <div>
-              <h2 className="text-xl font-bold text-ink-heading">
+              <h2 className="soale-h4 text-ink-heading">
                 2. Optional Analytics Cookies
               </h2>
-              <p className="mt-2">
-                Optional analytics scripts are disabled by default and never load prior to explicit visitor consent where consent is required. You can clear browser storage or adjust consent preferences at any time without losing access to public content.
+              <p className="mt-2.5">
+                Optional analytics scripts are disabled by default and never
+                load prior to explicit visitor consent where consent is
+                required. You can clear browser storage or adjust consent
+                preferences at any time without losing access to public content.
               </p>
-              <div className="mt-4">
+              <div className="mt-5">
                 <CookiePreferencesButton variant="button" />
               </div>
             </div>
@@ -68,9 +80,9 @@ export default async function CookiePolicyPage() {
                 Contact OmniFlow →
               </Link>
             </div>
-          </div>
+          </SoaleCard>
         </Container>
       </section>
-    </>
+    </div>
   );
 }

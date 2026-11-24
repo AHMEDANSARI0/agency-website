@@ -36,6 +36,32 @@ export interface NavItem {
   order: number;
 }
 
+export interface PricingPackageItem {
+  id: string;
+  name: string;
+  badge?: string;
+  isPopular?: boolean;
+  targetAudience: string;
+  projectPriceLabel: string;
+  retainerPriceLabel: string;
+  comingSoonNote: string;
+  summary: string;
+  deliverables: string[];
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+export interface PricingConfig {
+  comingSoonMode: boolean;
+  sectionEyebrow: string;
+  sectionTitle: string;
+  sectionSubtitle: string;
+  projectToggleLabel: string;
+  retainerToggleLabel: string;
+  statusBannerText: string;
+  packages: PricingPackageItem[];
+}
+
 export interface SiteSettings {
   companyName: string;
   positioning: string;
@@ -56,6 +82,7 @@ export interface SiteSettings {
     company: NavItem[];
     legal: NavItem[];
   };
+  pricingConfig?: PricingConfig;
   analytics: {
     ga4MeasurementId: string;
     requireCookieConsent: boolean;

@@ -3,6 +3,7 @@ import { ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SoaleArrowButton, SoaleCard } from "@/components/ui/soale";
 import { InteractiveDemosHub } from "@/features/demos/InteractiveDemosHub";
 import type { DemoTabId } from "@/features/demos/engine";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
@@ -45,52 +46,67 @@ export default async function DemosPage({ searchParams }: DemosPageProps) {
   ]);
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <JsonLdScript data={[demosSchema, breadcrumbSchema]} />
       <PageHeader
         breadcrumbs={[{ label: "Interactive Demos" }]}
         badge="Live Interactive Lab · Zero Login Required"
         title="Test How OmniFlow Systems Think, Qualify & Guardrail"
         description="Explore five deterministic interactive tools built to demonstrate how OmniFlow structures lead scoring, grounded support answers, fault-tolerant workflows, and operational savings across US, UK, and Canadian teams."
+        actions={
+          <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
+            {settings.primaryCtaLabel}
+          </SoaleArrowButton>
+        }
       />
 
       {/* Transparency & Deterministic Lab Strip */}
-      <div className="border-b border-line bg-surface">
-        <Container className="grid grid-cols-1 gap-4 py-5 sm:grid-cols-3">
+      <div className="border-b border-line bg-canvas-tertiary/45 py-8">
+        <Container className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {[
             {
               icon: Zap,
               title: "Instant Browser Execution",
-              detail: "Runs deterministically with zero external paid AI calls or login walls.",
+              detail:
+                "Runs deterministically with zero external paid AI calls or login walls.",
             },
             {
               icon: ShieldCheck,
               title: "Guardrail Transparency",
-              detail: "See exactly when a query matches approved SOPs vs. escalates to a human.",
+              detail:
+                "See exactly when a query matches approved SOPs vs. escalates to a human.",
             },
             {
               icon: Sparkles,
               title: "Multi-Market Support",
-              detail: "Test realistic US (USD), UK (GBP), and Canadian (CAD) team scenarios.",
+              detail:
+                "Test realistic US (USD), UK (GBP), and Canadian (CAD) team scenarios.",
             },
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.title} className="flex items-start gap-3">
-                <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-subtle text-primary">
+              <SoaleCard
+                key={item.title}
+                className="flex items-start gap-3.5 p-4 sm:p-5"
+              >
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-accent-subtle text-primary">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-ink-heading">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-ink-body">{item.detail}</p>
+                  <p className="text-xs font-semibold text-ink-heading sm:text-sm">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-body">
+                    {item.detail}
+                  </p>
                 </div>
-              </div>
+              </SoaleCard>
             );
           })}
         </Container>
       </div>
 
-      <section className="bg-surface py-12 sm:py-16">
+      <section className="py-14 sm:py-20">
         <Container>
           <InteractiveDemosHub initialTab={initialTab} />
         </Container>
@@ -105,6 +121,6 @@ export default async function DemosPage({ searchParams }: DemosPageProps) {
         secondaryLabel="Explore All 8 Services"
         secondaryHref="/services"
       />
-    </>
+    </div>
   );
 }

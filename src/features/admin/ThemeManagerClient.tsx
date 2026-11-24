@@ -3,16 +3,25 @@
 import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
+  Copy,
+  History,
   Palette,
+  Pencil,
   RotateCcw,
   Save,
   Sliders,
   Sparkles,
+  Trash2,
+  X,
 } from "lucide-react";
 import type {
+  BodyLineHeightPreset,
   ButtonShapeStyle,
   ComponentTokenOverrides,
+  HeadingWeightPreset,
+  LetterSpacingPreset,
   MotionIntensityPreset,
   RadiusDensityPreset,
   ResolvedThemeMode,
@@ -26,10 +35,11 @@ import type {
 } from "@/types/theme";
 import {
   evaluateThemeContrast,
-  getContrastRatio,
   isValidCssColor,
   sanitizeDesignSystemTokens,
 } from "@/features/themes/color-utils";
+import { ORIGINAL_AGENCY_ARCHIVED_PRESET_ID } from "@/features/themes/presets";
+import { ThemeLivePreviewStage } from "./theme/ThemeLivePreviewStage";
 
 interface ThemeManagerClientProps {
   initialConfig: ThemeConfiguration;
@@ -75,7 +85,7 @@ const OVERRIDE_KEYS: Array<{
 ];
 
 function toHexInputFallback(color: string): string {
-  return /^#[0-9a-fA-F]{6}$/.test(color.trim()) ? color.trim() : "#4F46E5";
+  return /^#[0-9a-fA-F]{6}$/.test(color.trim()) ? color.trim() : "#6D199C";
 }
 
 export function ThemeManagerClient({
@@ -85,6 +95,8 @@ export function ThemeManagerClient({
   const [config, setConfig] = useState<ThemeConfiguration>(initialConfig);
   const [editingMode, setEditingMode] = useState<ResolvedThemeMode>("light");
   const [customPresetName, setCustomPresetName] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -168,6 +180,43 @@ export function ThemeManagerClient({
     });
   }
 
+  async function postThemeAction(
+    payload: Record<string, unknown>,
+    successMessage: string
+  ) {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        themeConfig?: ThemeConfiguration;
+      };
+      if (!res.ok || !data.themeConfig) {
+        setFeedback({
+          type: "error",
+          text: data.error || "Theme action could not be completed.",
+        });
+        return false;
+      }
+      setConfig(data.themeConfig);
+      setFeedback({ type: "success", text: successMessage });
+      return true;
+    } catch {
+      setFeedback({
+        type: "error",
+        text: "Network error while communicating with Theme API.",
+      });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveTheme(publish: boolean) {
     setBusy(true);
     setFeedback(null);
@@ -201,7 +250,7 @@ export function ThemeManagerClient({
       setFeedback({
         type: "success",
         text: publish
-          ? "Theme tokens published live across the public website!"
+          ? "Theme tokens & Inter typography settings published live across the public website!"
           : "Draft tokens saved without changing the live public theme.",
       });
     } catch {
@@ -214,152 +263,36 @@ export function ThemeManagerClient({
     }
   }
 
-  async function applyPreset(presetId: string, publishNow: boolean) {
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/admin/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "apply_preset",
-          presetId,
-          publish: publishNow,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        themeConfig?: ThemeConfiguration;
-      };
-      if (!res.ok || !data.themeConfig) {
-        setFeedback({
-          type: "error",
-          text: data.error || "Failed to load preset.",
-        });
-        setBusy(false);
-        return;
-      }
-      setConfig(data.themeConfig);
-      setFeedback({
-        type: "success",
-        text: publishNow
-          ? "Preset loaded and published live!"
-          : "Preset loaded into draft editor.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRestoreBundleDefaults(presetId?: string) {
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/admin/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "reset_preset_defaults",
-          presetId: presetId || config.activePresetId,
-          publish: false,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        themeConfig?: ThemeConfiguration;
-      };
-      if (!res.ok || !data.themeConfig) {
-        setFeedback({
-          type: "error",
-          text: data.error || "Unable to restore bundle default colors.",
-        });
-        setBusy(false);
-        return;
-      }
-      setConfig(data.themeConfig);
-      setFeedback({
-        type: "success",
-        text: "Restored bundle default Light & Dark colors in draft. Click Publish Theme Live to apply publicly.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRollback() {
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/admin/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "rollback" }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        themeConfig?: ThemeConfiguration;
-      };
-      if (!res.ok || !data.themeConfig) {
-        setFeedback({
-          type: "error",
-          text: data.error || "No previous published snapshot available.",
-        });
-        setBusy(false);
-        return;
-      }
-      setConfig(data.themeConfig);
-      setFeedback({
-        type: "success",
-        text: "Restored previous published theme snapshot.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleSaveCustomPreset(e: React.FormEvent) {
     e.preventDefault();
     if (!customPresetName.trim()) return;
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const res = await fetch("/api/admin/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "save_custom_preset",
-          name: customPresetName.trim(),
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        themeConfig?: ThemeConfiguration;
-      };
-      if (res.ok && data.themeConfig) {
-        setConfig(data.themeConfig);
-        setCustomPresetName("");
-        setFeedback({
-          type: "success",
-          text: "Saved current tokens as a reusable custom preset.",
-        });
-      }
-    } finally {
-      setBusy(false);
+    const ok = await postThemeAction(
+      {
+        action: "save_custom_preset",
+        name: customPresetName.trim(),
+      },
+      `Saved "${customPresetName.trim()}" as a reusable custom preset.`
+    );
+    if (ok) {
+      setCustomPresetName("");
     }
   }
 
-  const previewCardBg =
-    activeOverrides.cardBg && isValidCssColor(activeOverrides.cardBg)
-      ? activeOverrides.cardBg
-      : activeTokens.components.cardBg;
-  const previewPrimaryBg =
-    activeOverrides.primaryButtonBg &&
-    isValidCssColor(activeOverrides.primaryButtonBg)
-      ? activeOverrides.primaryButtonBg
-      : activeTokens.components.primaryButtonBg &&
-          isValidCssColor(activeTokens.components.primaryButtonBg)
-        ? activeTokens.components.primaryButtonBg
-        : activeTokens.colors.primary;
+  async function handleCommitRename(presetId: string) {
+    if (!renameDraft.trim() || renameDraft.trim().length < 2) return;
+    const ok = await postThemeAction(
+      {
+        action: "rename_preset",
+        presetId,
+        name: renameDraft.trim(),
+      },
+      `Renamed custom preset to "${renameDraft.trim()}".`
+    );
+    if (ok) {
+      setRenamingId(null);
+      setRenameDraft("");
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -393,8 +326,8 @@ export function ThemeManagerClient({
             }
             className="rounded-control border border-line bg-surface-input px-3 py-1.5 text-xs font-semibold text-ink-heading"
           >
-            <option value="light">Light Mode First (Clean Neutral — Recommended)</option>
-            <option value="dark">Dark Mode First (Sophisticated Charcoal)</option>
+            <option value="light">Light Mode First (Warm Off-White — Recommended)</option>
+            <option value="dark">Dark Mode First (Obsidian Charcoal)</option>
             <option value="system">Automatic / Match Visitor OS Preference</option>
           </select>
         </div>
@@ -403,18 +336,32 @@ export function ThemeManagerClient({
           <button
             type="button"
             disabled={busy}
-            onClick={() => handleRestoreBundleDefaults()}
+            onClick={() =>
+              postThemeAction(
+                {
+                  action: "reset_preset_defaults",
+                  presetId: config.activePresetId,
+                  publish: false,
+                },
+                "Restored factory default Light, Dark & typography tokens in draft."
+              )
+            }
             className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-4 py-2 text-xs font-medium text-ink-heading hover:bg-surface-muted"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>Restore Bundle Defaults</span>
+            <span>Reset Preset Defaults</span>
           </button>
 
           {config.previousPublished && (
             <button
               type="button"
               disabled={busy}
-              onClick={handleRollback}
+              onClick={() =>
+                postThemeAction(
+                  { action: "rollback" },
+                  "Rolled back published theme configuration to previous snapshot."
+                )
+              }
               className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-4 py-2 text-xs font-medium text-ink-heading hover:bg-surface-muted"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -444,15 +391,81 @@ export function ThemeManagerClient({
         </div>
       </div>
 
-      {/* Presets Strip */}
+      {/* Archived Original Theme Vault */}
+      <div className="flex flex-col justify-between gap-4 rounded-card border border-line-strong bg-surface-muted/60 p-5 lg:flex-row lg:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-primary/35 bg-accent-subtle px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
+              Archived Original · Overwrite Protected
+            </span>
+            <span className="font-mono text-[11px] text-ink-muted">
+              {config.archivedOriginalTheme?.version || "1.0.0-archived"}
+            </span>
+          </div>
+          <h2 className="mt-1.5 text-sm font-semibold text-ink-heading">
+            {config.archivedOriginalTheme?.name || "Original Agency Theme — Archived"}
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Immutable pre-redesign snapshot (Light &amp; Dark palettes, glass surfaces, typography, spacing, radii &amp; shadows). Saving edits automatically forks a safe working copy so the archive is never overwritten.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              postThemeAction(
+                { action: "restore_archived_theme", publish: false },
+                'Loaded "Original Agency Theme — Archived" into draft preview.'
+              )
+            }
+            className="rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-heading hover:bg-surface-card"
+          >
+            Preview Archived
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              postThemeAction(
+                {
+                  action: "duplicate_preset",
+                  presetId: ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
+                  activate: true,
+                },
+                "Duplicated Archived Original Theme into an editable custom preset."
+              )
+            }
+            className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-heading hover:bg-surface-card"
+          >
+            <Copy className="h-3 w-3" />
+            <span>Duplicate to Edit</span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              postThemeAction(
+                { action: "restore_archived_theme", publish: true },
+                'Restored and published "Original Agency Theme — Archived" live across the website.'
+              )
+            }
+            className="rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
+          >
+            Restore &amp; Activate Original
+          </button>
+        </div>
+      </div>
+
+      {/* Extended Theme Library */}
       <section className="rounded-card border border-line bg-surface-card p-6 shadow-card">
         <div className="flex flex-col justify-between gap-3 border-b border-line pb-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-base font-semibold text-ink-heading">
-              Built-In &amp; Custom Theme Presets
+              Extended Theme Library ({allPresets.length} Presets)
             </h2>
             <p className="text-xs text-ink-muted">
-              Load a curated palette into your draft or publish immediately.
+              Activate, duplicate, rename, edit, reset, or save custom Light &amp; Dark palettes without losing prior work.
             </p>
           </div>
           <form onSubmit={handleSaveCustomPreset} className="flex gap-2">
@@ -468,72 +481,217 @@ export function ThemeManagerClient({
               disabled={busy || !customPresetName.trim()}
               className="rounded-control border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted disabled:opacity-50"
             >
-              + Save Preset
+              + Save New Preset
             </button>
           </form>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {allPresets.map((preset) => {
             const isActive = config.activePresetId === preset.id;
+            const isRenaming = renamingId === preset.id;
+            const canRenameOrDelete = !preset.isBuiltIn && !preset.isLocked;
+
             return (
               <div
                 key={preset.id}
-                className={`flex flex-col justify-between rounded-control border p-4 ${
+                className={`flex flex-col justify-between rounded-control border p-4 transition-colors ${
                   isActive
                     ? "border-primary bg-accent-subtle/40"
                     : "border-line bg-surface"
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-ink-heading">
-                      {preset.name}
-                    </h3>
-                    <div className="flex gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      {isRenaming ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={renameDraft}
+                            onChange={(e) => setRenameDraft(e.target.value)}
+                            aria-label="New preset name"
+                            className="w-full rounded border border-primary bg-surface-input px-2 py-1 text-xs font-semibold text-ink-heading"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => handleCommitRename(preset.id)}
+                            title="Save preset name"
+                            className="rounded border border-line p-1 text-status-success hover:bg-surface-muted"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRenamingId(null);
+                              setRenameDraft("");
+                            }}
+                            title="Cancel rename"
+                            className="rounded border border-line p-1 text-ink-muted hover:bg-surface-muted"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-sm font-semibold text-ink-heading">
+                            {preset.name}
+                          </h3>
+                          {isActive && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-primary-foreground">
+                              Active
+                            </span>
+                          )}
+                          {preset.isArchivedOriginal && (
+                            <span className="rounded-full border border-line-strong bg-surface-muted px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-ink-heading">
+                              Locked Archive
+                            </span>
+                          )}
+                          {!preset.isBuiltIn && (
+                            <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-ink-muted">
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dual Light + Dark Swatch Pills */}
+                    <div
+                      className="flex shrink-0 items-center gap-1"
+                      title="Light & Dark Swatch Preview"
+                    >
                       {[
+                        preset.light.colors.background,
+                        preset.light.colors.primary,
                         preset.dark.colors.background,
                         preset.dark.colors.primary,
-                        preset.dark.colors.heading,
-                        preset.light.colors.background,
                       ].map((hex, i) => (
                         <span
                           key={i}
-                          className="h-4 w-4 rounded-full border border-white/20"
+                          className="h-4 w-4 rounded-full border border-black/15 dark:border-white/20"
                           style={{ backgroundColor: hex }}
                         />
                       ))}
                     </div>
                   </div>
+
                   <p className="mt-2 text-xs text-ink-muted">{preset.description}</p>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => applyPreset(preset.id, false)}
-                    className="rounded-full border border-line-strong px-3 py-1 text-xs font-medium text-ink-heading hover:bg-surface-muted"
+                    onClick={() =>
+                      postThemeAction(
+                        {
+                          action: "apply_preset",
+                          presetId: preset.id,
+                          publish: false,
+                        },
+                        `Loaded "${preset.name}" into draft editor.`
+                      )
+                    }
+                    className="rounded-full border border-line-strong px-2.5 py-1 text-[11px] font-medium text-ink-heading hover:bg-surface-muted"
                   >
-                    Load Draft
+                    Edit Draft
                   </button>
+
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => applyPreset(preset.id, true)}
-                    className="rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+                    onClick={() =>
+                      postThemeAction(
+                        {
+                          action: "apply_preset",
+                          presetId: preset.id,
+                          publish: true,
+                        },
+                        `Activated and published "${preset.name}" live!`
+                      )
+                    }
+                    className="rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-3 py-1 text-[11px] font-semibold text-primary-foreground hover:bg-primary-hover"
                   >
-                    Apply &amp; Publish
+                    Activate Live
                   </button>
-                  {isActive && preset.isBuiltIn && (
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      postThemeAction(
+                        {
+                          action: "duplicate_preset",
+                          presetId: preset.id,
+                          activate: true,
+                        },
+                        `Duplicated "${preset.name}" into an editable custom preset.`
+                      )
+                    }
+                    title={`Duplicate ${preset.name}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-ink-muted hover:text-ink-heading"
+                  >
+                    <Copy className="h-3 w-3" />
+                    <span>Duplicate</span>
+                  </button>
+
+                  {preset.isBuiltIn && !preset.isArchivedOriginal && isActive && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => handleRestoreBundleDefaults(preset.id)}
+                      onClick={() =>
+                        postThemeAction(
+                          {
+                            action: "reset_preset_defaults",
+                            presetId: preset.id,
+                            publish: false,
+                          },
+                          `Reset "${preset.name}" to factory defaults.`
+                        )
+                      }
                       className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-ink-muted hover:text-ink-heading"
                     >
-                      Reset Defaults
+                      Reset
                     </button>
+                  )}
+
+                  {canRenameOrDelete && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setRenamingId(preset.id);
+                          setRenameDraft(preset.name);
+                        }}
+                        title="Rename custom preset"
+                        className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-ink-muted hover:text-ink-heading"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span>Rename</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          postThemeAction(
+                            {
+                              action: "delete_custom_preset",
+                              presetId: preset.id,
+                            },
+                            `Deleted custom preset "${preset.name}".`
+                          )
+                        }
+                        title="Delete custom preset"
+                        className="inline-flex items-center rounded-full border border-line p-1 text-ink-muted hover:border-status-error hover:text-status-error"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -542,22 +700,21 @@ export function ThemeManagerClient({
         </div>
       </section>
 
-      {/* Controlled Design System Architecture Tokens */}
+      {/* Controlled Design System & Inter Typography Tokens */}
       <section className="rounded-card border border-line bg-surface-card p-6 shadow-card">
         <div className="flex items-center gap-2 border-b border-line pb-4">
           <Sliders className="h-5 w-5 text-primary" />
           <div>
             <h2 className="text-base font-semibold text-ink-heading">
-              Design System Architecture Tokens
+              Inter Typography &amp; Architecture Tokens
             </h2>
             <p className="text-xs text-ink-muted">
-              Controlled typography tracking, button geometry, border-radius
-              density, section rhythm, and motion intensity.
+              Fine-tune Inter heading weight, letter-spacing, body line-height, button geometry, card radius density, section rhythm, and motion intensity.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="block text-xs font-semibold text-ink-muted">
               Typography Preset
@@ -572,9 +729,69 @@ export function ThemeManagerClient({
               }
               className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
             >
-              <option value="architectural">Architectural (-0.028em)</option>
-              <option value="editorial">Editorial (-0.018em)</option>
-              <option value="technical">Technical (-0.036em)</option>
+              <option value="editorial">Soale Inter Editorial (Recommended)</option>
+              <option value="architectural">Architectural Display</option>
+              <option value="technical">Technical Tight</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Heading Font Weight
+            </label>
+            <select
+              aria-label="Heading font weight"
+              value={designSystem.headingWeight ?? "600"}
+              onChange={(e) =>
+                updateDesignSystem({
+                  headingWeight: e.target.value as HeadingWeightPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="600">600 — Semibold Crisp (Default)</option>
+              <option value="500">500 — Medium Editorial</option>
+              <option value="400">400 — Regular Light Display</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Heading Letter-Spacing
+            </label>
+            <select
+              aria-label="Heading letter spacing"
+              value={designSystem.letterSpacing ?? "normal"}
+              onChange={(e) =>
+                updateDesignSystem({
+                  letterSpacing: e.target.value as LetterSpacingPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="tight">Tight (-0.036em)</option>
+              <option value="normal">Balanced (-0.026em)</option>
+              <option value="editorial">Open Editorial (-0.018em)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink-muted">
+              Body Line-Height
+            </label>
+            <select
+              aria-label="Body line height"
+              value={designSystem.bodyLineHeight ?? "relaxed"}
+              onChange={(e) =>
+                updateDesignSystem({
+                  bodyLineHeight: e.target.value as BodyLineHeightPreset,
+                })
+              }
+              className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
+            >
+              <option value="compact">Compact (1.54)</option>
+              <option value="relaxed">Balanced Reading (1.65)</option>
+              <option value="editorial">Spacious Editorial (1.74)</option>
             </select>
           </div>
 
@@ -592,8 +809,8 @@ export function ThemeManagerClient({
               }
               className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
             >
-              <option value="pill">Pill Capsule (Default)</option>
-              <option value="rounded">Rounded Control (10px)</option>
+              <option value="rounded">Soale Rounded (Recommended)</option>
+              <option value="pill">Pill Capsule</option>
               <option value="sharp">Architectural Sharp (6px)</option>
             </select>
           </div>
@@ -612,9 +829,9 @@ export function ThemeManagerClient({
               }
               className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
             >
+              <option value="generous">Generous Soale (22–24px)</option>
+              <option value="balanced">Balanced (16px)</option>
               <option value="compact">Compact (10px)</option>
-              <option value="balanced">Balanced (16px Default)</option>
-              <option value="generous">Generous (22px)</option>
             </select>
           </div>
 
@@ -632,9 +849,9 @@ export function ThemeManagerClient({
               }
               className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
             >
-              <option value="compact">Compact Rhythm</option>
-              <option value="comfortable">Comfortable (Default)</option>
               <option value="spacious">Spacious Executive</option>
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact Rhythm</option>
             </select>
           </div>
 
@@ -652,7 +869,7 @@ export function ThemeManagerClient({
               }
               className="mt-1.5 w-full rounded-control border border-line bg-surface-input px-3 py-2 text-xs font-medium text-ink-heading"
             >
-              <option value="full">Full Hardware Motion</option>
+              <option value="full">Full GPU Hardware Motion</option>
               <option value="subtle">Subtle Transitions</option>
               <option value="minimal">Minimal (Static First)</option>
             </select>
@@ -678,19 +895,19 @@ export function ThemeManagerClient({
         </div>
       )}
 
-      {/* Token Editor + Live Preview Split */}
+      {/* Token Editor + Real Component Live Preview Split */}
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="space-y-6 rounded-card border border-line bg-surface-card p-6 shadow-card xl:col-span-7">
-          <div className="flex items-center justify-between border-b border-line pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
             <div className="flex items-center gap-2">
               <Palette className="h-5 w-5 text-primary" />
               <h2 className="text-base font-semibold text-ink-heading">
-                Semantic &amp; Component Tokens
+                Semantic &amp; Component Color Tokens
               </h2>
             </div>
 
             <div className="inline-flex rounded-full border border-line bg-surface p-1">
-              {(["dark", "light"] as const).map((m) => (
+              {(["light", "dark"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -804,210 +1021,96 @@ export function ThemeManagerClient({
 
         {/* Live Interactive Preview Stage */}
         <div className="xl:col-span-5">
-          <div className="sticky top-24 space-y-4 rounded-card border border-line bg-surface-card p-5 shadow-card">
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-xs uppercase tracking-wider text-ink-muted">
-                Live {editingMode.toUpperCase()} Draft Preview
-              </p>
-              <span className="font-mono text-[11px] text-primary">
-                Zero reload required
-              </span>
-            </div>
-
-            <div
-              className="overflow-hidden rounded-[22px] border p-6 transition-colors"
-              style={{
-                backgroundColor: activeTokens.colors.background,
-                borderColor: activeTokens.colors.border,
-                color: activeTokens.colors.body,
-              }}
-            >
-              {/* Simulated Floating Top Pill */}
-              <div
-                className="mx-auto mb-6 flex max-w-xs items-center justify-between rounded-full border px-4 py-2 text-xs shadow-sm"
-                style={{
-                  backgroundColor:
-                    activeOverrides.navbarBg || activeTokens.components.navbarBg,
-                  borderColor: activeTokens.components.navbarBorder,
-                  color:
-                    activeTokens.components.navbarText || activeTokens.colors.heading,
-                }}
-              >
-                <span className="font-medium">
-                  OmniFlow<span style={{ color: previewPrimaryBg }}>.</span>
-                </span>
-                <span className="opacity-75">Services · Demos</span>
-              </div>
-
-              <p
-                className="font-mono text-[11px] uppercase tracking-[0.16em]"
-                style={{ color: activeTokens.colors.muted }}
-              >
-                01 — Preview Stage
-              </p>
-              <h3
-                className="mt-2 text-2xl font-medium tracking-tight"
-                style={{ color: activeTokens.colors.heading }}
-              >
-                Automate the work.{" "}
-                <em style={{ color: previewPrimaryBg }}>Accelerate growth.</em>
-              </h3>
-              <p
-                className="mt-2 text-xs leading-relaxed"
-                style={{ color: activeTokens.colors.body }}
-              >
-                Verify heading contrast, card surfaces, input borders, and button states
-                before publishing to visitors.
-              </p>
-
-              {/* Simulated Card */}
-              <div
-                className="mt-5 border p-4 transition-all"
-                style={{
-                  backgroundColor: previewCardBg,
-                  borderColor: activeTokens.components.cardBorder,
-                  borderRadius:
-                    designSystem.borderRadius === "compact"
-                      ? "10px"
-                      : designSystem.borderRadius === "generous"
-                        ? "22px"
-                        : "16px",
-                }}
-              >
-                <span
-                  className="inline-block rounded-full px-2.5 py-0.5 font-mono text-[10px]"
-                  style={{
-                    backgroundColor:
-                      activeOverrides.badgeBg || activeTokens.components.badgeBg,
-                    color: activeTokens.components.badgeText,
-                  }}
-                >
-                  Flagship System · {designSystem.typography}
-                </span>
-                <p
-                  className="mt-2 text-sm font-medium"
-                  style={{
-                    color: activeTokens.colors.heading,
-                    letterSpacing:
-                      designSystem.typography === "editorial"
-                        ? "-0.018em"
-                        : designSystem.typography === "technical"
-                          ? "-0.036em"
-                          : "-0.028em",
-                  }}
-                >
-                  Lead Qualification &amp; Routing
-                </p>
-                <input
-                  type="text"
-                  readOnly
-                  value="Sample input field preview"
-                  className="mt-3 w-full rounded-lg border px-3 py-1.5 text-xs"
-                  style={{
-                    backgroundColor: activeTokens.components.inputBg,
-                    borderColor: activeTokens.components.inputBorder,
-                    color: activeTokens.colors.heading,
-                  }}
-                />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span
-                    className="inline-flex px-4 py-1.5 text-xs font-medium transition-all"
-                    style={{
-                      backgroundColor: previewPrimaryBg,
-                      color: activeTokens.colors.primaryForeground,
-                      borderRadius:
-                        designSystem.buttonStyle === "sharp"
-                          ? "6px"
-                          : designSystem.buttonStyle === "rounded"
-                            ? "10px"
-                            : "9999px",
-                    }}
-                  >
-                    Primary CTA →
-                  </span>
-                  <span
-                    className="inline-flex px-4 py-1.5 text-xs font-medium transition-all"
-                    style={{
-                      backgroundColor: activeTokens.colors.secondary,
-                      color: activeTokens.colors.secondaryForeground,
-                      borderRadius:
-                        designSystem.buttonStyle === "sharp"
-                          ? "6px"
-                          : designSystem.buttonStyle === "rounded"
-                            ? "10px"
-                            : "9999px",
-                    }}
-                  >
-                    Secondary Pill
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Live WCAG Contrast Scorecard */}
-            <div className="rounded-xl border border-line bg-surface-muted/60 p-3.5">
-              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                WCAG 2.1 Live Contrast Telemetry ({editingMode.toUpperCase()})
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  {
-                    label: "Heading / Canvas",
-                    ratio: getContrastRatio(
-                      activeTokens.colors.heading,
-                      activeTokens.colors.background
-                    ),
-                    minTarget: 4.5,
-                  },
-                  {
-                    label: "Body / Card",
-                    ratio: getContrastRatio(activeTokens.colors.body, previewCardBg),
-                    minTarget: 4.5,
-                  },
-                  {
-                    label: "Muted / Canvas",
-                    ratio: getContrastRatio(
-                      activeTokens.colors.muted,
-                      activeTokens.colors.background
-                    ),
-                    minTarget: 3.0,
-                  },
-                  {
-                    label: "CTA Text / Primary",
-                    ratio: getContrastRatio(
-                      activeTokens.colors.primaryForeground,
-                      previewPrimaryBg
-                    ),
-                    minTarget: 3.0,
-                  },
-                ].map((pair) => {
-                  const passNormalAA = pair.ratio !== null && pair.ratio >= 4.5;
-                  const passTarget = pair.ratio !== null && pair.ratio >= pair.minTarget;
-                  const passAAA = pair.ratio !== null && pair.ratio >= 7;
-                  return (
-                    <div
-                      key={pair.label}
-                      className="flex items-center justify-between rounded-lg border border-line bg-surface px-2.5 py-1.5"
-                    >
-                      <span className="truncate text-[11px] text-ink-body">
-                        {pair.label}
-                      </span>
-                      <span
-                        className={`ml-2 shrink-0 font-mono text-[11px] font-bold ${
-                          passTarget ? "text-status-success" : "text-status-warning"
-                        }`}
-                      >
-                        {pair.ratio ? `${pair.ratio}:1` : "—"}{" "}
-                        {passAAA ? "AAA" : passNormalAA ? "AA" : passTarget ? "UI AA" : "LOW"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <ThemeLivePreviewStage
+            editingMode={editingMode}
+            onSelectMode={setEditingMode}
+            activeTokens={activeTokens}
+            activeOverrides={activeOverrides}
+            designSystem={designSystem}
+          />
         </div>
       </div>
+
+      {/* Published Version History Vault */}
+      {config.versionHistory && config.versionHistory.length > 0 && (
+        <section className="rounded-card border border-line bg-surface-card p-6 shadow-card">
+          <div className="flex items-center gap-2 border-b border-line pb-4">
+            <History className="h-5 w-5 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold text-ink-heading">
+                Published Theme Version History ({config.versionHistory.length})
+              </h2>
+              <p className="text-xs text-ink-muted">
+                Every published change is versioned automatically for 1-click audit recovery.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 divide-y divide-line">
+            {config.versionHistory.map((ver) => (
+              <div
+                key={ver.versionId}
+                className="flex flex-wrap items-center justify-between gap-3 py-3 text-xs"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-ink-heading">
+                      {ver.label}
+                    </span>
+                    <span className="rounded bg-surface-muted px-2 py-0.5 font-mono text-[10px] text-ink-muted">
+                      {ver.versionId}
+                    </span>
+                    <span className="font-mono text-[11px] uppercase text-primary">
+                      {ver.defaultMode}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                    Saved {new Date(ver.savedAt).toLocaleString()}{" "}
+                    {ver.savedBy ? `by ${ver.savedBy}` : ""}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      postThemeAction(
+                        {
+                          action: "restore_version",
+                          versionId: ver.versionId,
+                          publish: false,
+                        },
+                        `Loaded snapshot "${ver.versionId}" into draft editor.`
+                      )
+                    }
+                    className="rounded-full border border-line-strong px-3 py-1 text-[11px] font-medium text-ink-heading hover:bg-surface-muted"
+                  >
+                    Load Draft
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      postThemeAction(
+                        {
+                          action: "restore_version",
+                          versionId: ver.versionId,
+                          publish: true,
+                        },
+                        `Restored & published snapshot "${ver.versionId}".`
+                      )
+                    }
+                    className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground hover:bg-primary-hover"
+                  >
+                    Restore &amp; Publish
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

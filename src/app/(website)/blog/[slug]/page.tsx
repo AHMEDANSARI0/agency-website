@@ -2,12 +2,16 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clock } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { db } from "@/lib/database";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import {
+  SoaleArrowButton,
+  SoaleCard,
+  SoaleChip,
+  SoaleEyebrow,
+} from "@/components/ui/soale";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
   buildArticleJsonLd,
@@ -43,7 +47,7 @@ function InlineFormatted({ text }: { text: string }) {
           return (
             <code
               key={i}
-              className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink-heading"
+              className="rounded-lg bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink-heading"
             >
               {tok.value}
             </code>
@@ -55,11 +59,16 @@ function InlineFormatted({ text }: { text: string }) {
   );
 }
 
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await db.getBlogPostBySlug(slug);
   if (!post || post.status !== "published") {
-    return { title: "Article Not Found", robots: { index: false, follow: false } };
+    return {
+      title: "Article Not Found",
+      robots: { index: false, follow: false },
+    };
   }
   const baseUrl = getCanonicalSiteUrl();
   return {
@@ -100,7 +109,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
   ];
 
   return (
-    <>
+    <div className="bg-canvas text-ink-body">
       <JsonLdScript data={structuredData} />
       <PageHeader
         breadcrumbs={[{ label: "Insights", href: "/blog" }, { label: post.title }]}
@@ -109,13 +118,14 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
         description={post.excerpt}
       />
 
-      <section className="border-b border-line bg-surface py-14 sm:py-20">
+      <section className="border-b border-line py-14 sm:py-22">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-          {/* Article Body */}
-          <article className="lg:col-span-8">
+          {/* Editorial Article Reader Card */}
+          <SoaleCard as="article" className="p-6 sm:p-10 lg:col-span-8">
             <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-line pb-5 text-xs text-ink-muted">
               <span>
-                By <strong className="text-ink-heading">{post.authorName}</strong>
+                By{" "}
+                <strong className="text-ink-heading">{post.authorName}</strong>
               </span>
               {post.publishedAt && (
                 <span>
@@ -140,7 +150,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                     <h2
                       key={index}
                       id={block.id}
-                      className="scroll-mt-24 pt-4 text-2xl font-bold text-ink-heading"
+                      className="soale-h3 scroll-mt-28 pt-5 text-ink-heading"
                     >
                       {block.text}
                     </h2>
@@ -151,7 +161,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                     <h3
                       key={index}
                       id={block.id}
-                      className="scroll-mt-24 pt-2 text-lg font-bold text-ink-heading"
+                      className="soale-h4 scroll-mt-28 pt-3 text-ink-heading"
                     >
                       {block.text}
                     </h3>
@@ -159,7 +169,10 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                 }
                 if (block.type === "ul") {
                   return (
-                    <ul key={index} className="list-disc space-y-2 pl-6 text-ink-body">
+                    <ul
+                      key={index}
+                      className="list-disc space-y-2 pl-6 text-ink-body"
+                    >
                       {block.items.map((item, idx) => (
                         <li key={idx}>
                           <InlineFormatted text={item} />
@@ -172,7 +185,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                   return (
                     <blockquote
                       key={index}
-                      className="rounded-r-control border-l-4 border-primary bg-surface-muted p-4 italic text-ink-heading"
+                      className="rounded-r-2xl border-l-4 border-primary bg-accent-subtle/60 p-5 italic text-ink-heading"
                     >
                       <InlineFormatted text={block.text} />
                     </blockquote>
@@ -188,11 +201,11 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
 
             {post.tags.length > 0 && (
               <div className="mt-10 flex flex-wrap items-center gap-2 border-t border-line pt-6">
-                <span className="text-xs font-semibold text-ink-muted">Topics:</span>
+                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                  Topics:
+                </span>
                 {post.tags.map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
+                  <SoaleChip key={tag}>{tag}</SoaleChip>
                 ))}
               </div>
             )}
@@ -206,77 +219,84 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                 Back to all insights
               </Link>
             </div>
-          </article>
+          </SoaleCard>
 
           {/* Table of Contents & Conversion Sidebar */}
           <aside className="space-y-6 lg:col-span-4">
-            <div className="sticky top-24 space-y-6">
+            <div className="sticky top-28 space-y-6">
               {post.showTableOfContents && headings.length > 0 && (
-                <nav
-                  aria-label="Table of contents"
-                  className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                    On This Page
-                  </p>
-                  <ul className="mt-3 space-y-2 text-sm">
-                    {headings.map((h) => (
-                      <li key={h.id} className={h.level === 3 ? "pl-3" : ""}>
-                        <a
-                          href={`#${h.id}`}
-                          className="text-ink-body transition-colors hover:text-primary"
-                        >
-                          {h.text}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
+                <SoaleCard className="p-6">
+                  <nav aria-label="Table of contents">
+                    <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                      On This Page
+                    </p>
+                    <ul className="mt-4 space-y-2.5 text-sm">
+                      {headings.map((h) => (
+                        <li key={h.id} className={h.level === 3 ? "pl-3" : ""}>
+                          <a
+                            href={`#${h.id}`}
+                            className="text-ink-body transition-colors hover:text-primary"
+                          >
+                            {h.text}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                </SoaleCard>
               )}
 
-              <div className="rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card">
-                <Badge variant="accent">Practical Next Step</Badge>
-                <h2 className="mt-3 text-lg font-bold text-ink-heading">
+              <SoaleCard elevated className="p-6">
+                <SoaleEyebrow className="mb-4">Practical Next Step</SoaleEyebrow>
+                <h2 className="soale-h4 text-ink-heading">
                   Want to Apply This to Your Workflow?
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-ink-body">
-                  Share your current lead, support, or operational bottleneck and receive a tailored scoping response.
+                  Share your current lead, support, or operational bottleneck
+                  and receive a tailored scoping response.
                 </p>
-                <div className="mt-5 flex flex-col gap-2.5">
-                  <Link href={settings.primaryCtaHref}>
-                    <Button className="w-full">
-                      {settings.primaryCtaLabel}
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Link href="/demos">
-                    <Button variant="secondary" className="w-full">
-                      Try Interactive Demos
-                    </Button>
-                  </Link>
+                <div className="mt-6 flex flex-col gap-3">
+                  <SoaleArrowButton
+                    href={settings.primaryCtaHref}
+                    variant="primary"
+                    size="sm"
+                    className="w-full justify-between"
+                  >
+                    {settings.primaryCtaLabel}
+                  </SoaleArrowButton>
+                  <SoaleArrowButton
+                    href="/demos"
+                    variant="surface"
+                    size="sm"
+                    className="w-full justify-between"
+                  >
+                    Try Interactive Demos
+                  </SoaleArrowButton>
                 </div>
-              </div>
+              </SoaleCard>
             </div>
           </aside>
         </Container>
       </section>
 
       {relatedPosts.length > 0 && (
-        <section className="bg-surface-muted/45 py-14">
+        <section className="bg-canvas-tertiary/40 py-16">
           <Container>
-            <h2 className="text-xl font-bold text-ink-heading">Further Engineering Reading</h2>
+            <h2 className="soale-h3 text-ink-heading">
+              Further Engineering Reading
+            </h2>
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
               {relatedPosts.map((rel) => (
-                <Link
-                  key={rel.id}
-                  href={`/blog/${rel.slug}`}
-                  className="group rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card transition-all hover:border-primary/40"
-                >
-                  <Badge>{rel.category}</Badge>
-                  <h3 className="mt-3 text-lg font-bold text-ink-heading group-hover:text-primary">
-                    {rel.title}
-                  </h3>
-                  <p className="mt-2 line-clamp-2 text-sm text-ink-body">{rel.excerpt}</p>
+                <Link key={rel.id} href={`/blog/${rel.slug}`} className="group">
+                  <SoaleCard interactive className="h-full p-6">
+                    <SoaleChip>{rel.category}</SoaleChip>
+                    <h3 className="mt-3 text-lg font-semibold text-ink-heading group-hover:text-primary">
+                      {rel.title}
+                    </h3>
+                    <p className="mt-2 line-clamp-2 text-sm text-ink-body">
+                      {rel.excerpt}
+                    </p>
+                  </SoaleCard>
                 </Link>
               ))}
             </div>
@@ -291,6 +311,6 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
         primaryLabel={settings.primaryCtaLabel}
         primaryHref={settings.primaryCtaHref}
       />
-    </>
+    </div>
   );
 }
