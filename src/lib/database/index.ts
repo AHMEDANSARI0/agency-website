@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomBytes } from "node:crypto";
 import postgres from "postgres";
 import type {
@@ -227,10 +228,10 @@ export function normalizeDatabaseUrlForRuntime(
   if (
     serverless &&
     process.env.OMNIFLOW_FORCE_SESSION_POOLER !== "true" &&
-    /\.pooler\.supabase\.com:5432\b/i.test(cleaned)
+    /\.pooler\.supabase\.com(?::5432\b|(?=\/|$|\?))/i.test(cleaned)
   ) {
     cleaned = cleaned.replace(
-      /(\.pooler\.supabase\.com):5432\b/i,
+      /(\.pooler\.supabase\.com)(?::5432\b|(?=\/|$|\?))/i,
       "$1:6543"
     );
   }
@@ -245,14 +246,68 @@ interface CachedPostgresKvBundle {
   expiresAt: number;
 }
 
+interface CachedPostgresPublicCatalog {
+  services: ServiceItem[];
+  caseStudies: CaseStudyItem[];
+  blogPosts: BlogPost[];
+  faqs: FaqItem[];
+  testimonials: TestimonialItem[];
+  teamMembers: TeamMember[];
+  pages: PageDocument[];
+  activeRedirects: RedirectRule[];
+  expiresAt: number;
+}
+
 let cachedPgKvBundle: CachedPostgresKvBundle | null = null;
+let cachedPgPublicCatalog: CachedPostgresPublicCatalog | null = null;
 
 function invalidatePgKvBundle(): void {
   cachedPgKvBundle = null;
 }
 
+function invalidatePgPublicCatalog(): void {
+  cachedPgPublicCatalog = null;
+}
+
+/**
+ * Supabase Supavisor Transaction Pooler (:6543) deadlocks when postgres.js
+ * pipelines multiple extended-protocol queries onto an already-busy socket
+ * (`busy.shift()` in postgres.js triggers whenever concurrent queries > `max`).
+ * Pairing `MAX_CONCURRENT_PG_OPS = 3` with `max >= 6` guarantees idle sockets
+ * (`open.length + closed.length >= 3`) are always available so query pipelining
+ * onto a busy Supavisor socket never occurs.
+ */
+const MAX_CONCURRENT_PG_OPS = 3;
+const pgSlotStorage = new AsyncLocalStorage<boolean>();
+let activePgOps = 0;
+const pgSlotWaiters: Array<() => void> = [];
+
+export async function withPgConcurrencySlot<T>(
+  fn: () => Promise<T>
+): Promise<T> {
+  if (pgSlotStorage.getStore()) {
+    return fn();
+  }
+
+  while (activePgOps >= MAX_CONCURRENT_PG_OPS) {
+    await new Promise<void>((resolve) => {
+      pgSlotWaiters.push(resolve);
+    });
+  }
+
+  activePgOps += 1;
+  try {
+    return await pgSlotStorage.run(true, fn);
+  } finally {
+    activePgOps = Math.max(0, activePgOps - 1);
+    const next = pgSlotWaiters.shift();
+    if (next) next();
+  }
+}
+
 function resetCachedSqlClient(): void {
   invalidatePgKvBundle();
+  invalidatePgPublicCatalog();
   if (cachedSqlClient) {
     const stale = cachedSqlClient;
     cachedSqlClient = null;
@@ -288,13 +343,14 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
     const strictProd = isProductionEnvironment();
 
     cachedSqlClient = postgres(url, {
-      // 3 pooled sockets on serverless avoids CPU contention from 6 simultaneous
-      // TLS + SCRAM-SHA-256 handshakes on Vercel Hobby while pipelining fast SELECTs.
-      max: serverless ? 3 : 6,
+      // 6 pooled sockets paired with MAX_CONCURRENT_PG_OPS = 3 ensures postgres.js
+      // always picks an `open` or `closed` socket and NEVER pipelines onto `busy`.
+      max: serverless ? 6 : 8,
+      fetch_types: false, // Skip cold pg_catalog.pg_type OID query on serverless connect
       idle_timeout: serverless ? 10 : 15,
       max_lifetime: 60 * 5,
       connect_timeout: strictProd ? 12 : 5,
-      prepare: false, // Required for Supabase PgBouncer Transaction Pooler (:6543)
+      prepare: false, // Required for Supabase PgBouncer/Supavisor Transaction Pooler (:6543)
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
   }
@@ -349,9 +405,10 @@ function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
     code === "CONNECT_TIMEOUT" ||
     code === "CONNECTION_CLOSED" ||
     code === "CONNECTION_DESTROYED" ||
+    code === "CONNECTION_ENDED" ||
     code === "42704" ||
     code.startsWith("08") ||
-    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT|ENETUNREACH/i.test(message)
+    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT|CONNECTION_ENDED|ENETUNREACH/i.test(message)
   ) {
     const activeUrl = cachedSqlUrl || process.env.DATABASE_URL?.trim() || "";
     if (isServerlessRuntime() && isDirectIpv6SupabaseHost(activeUrl)) {
@@ -565,18 +622,36 @@ async function runWithDbFallback<T>(
     throw err;
   }
 
-  const sql = getPostgresClient();
-  if (sql) {
+  const initialSql = getPostgresClient();
+  if (initialSql) {
     try {
-      const result = await withHardDbTimeout(
-        (async () => {
-          await ensurePostgresBaselineSeed(sql);
-          return pgOp(sql);
-        })(),
-        strictProd ? 15_000 : 6_000
-      );
-      if (result !== undefined) {
-        return result;
+      const slotOutcome = await withPgConcurrencySlot(async () => {
+        const activeSql = getPostgresClient();
+        if (!activeSql) {
+          return { skippedToLocal: true as const, value: undefined as T | undefined };
+        }
+        const value = await withHardDbTimeout(
+          (async () => {
+            await ensurePostgresBaselineSeed(activeSql);
+            return pgOp(activeSql);
+          })(),
+          strictProd ? 12_000 : 6_000
+        );
+        return { skippedToLocal: false as const, value };
+      });
+      if (slotOutcome.skippedToLocal) {
+        if (strictProd) {
+          const err = new DatabaseUnavailableError(
+            "DB_CONNECTION_FAILED",
+            "PostgreSQL client could not be initialized in production."
+          );
+          recordSanitizedDbError(err.code, err.publicMessage);
+          throw err;
+        }
+        return await localOp();
+      }
+      if (slotOutcome.value !== undefined) {
+        return slotOutcome.value;
       }
       if (strictProd) {
         const emptyErr = new DatabaseUnavailableError(
@@ -1098,6 +1173,64 @@ async function loadPostgresKvBundle(
   });
 }
 
+/**
+ * Fetches all published public-website collections, pages, and active redirects in
+ * ONE zero-parameter Simple Query (`simple: true`), eliminating multi-query RSC waterfalls
+ * and Supavisor Transaction Pooler (:6543) extended-protocol pipelining deadlocks on
+ * HomePage (/), ServiceDetailPage, CaseStudyDetailPage, and BlogPostDetailPage.
+ * Cached for 3 seconds and invalidated immediately on any CMS/Page/Redirect mutation.
+ */
+async function loadPostgresPublicCatalogBundle(
+  sql: ReturnType<typeof postgres>
+): Promise<CachedPostgresPublicCatalog> {
+  if (cachedPgPublicCatalog && Date.now() < cachedPgPublicCatalog.expiresAt) {
+    return cachedPgPublicCatalog;
+  }
+  return dedupeInFlight("pg_public_catalog", async () => {
+    if (cachedPgPublicCatalog && Date.now() < cachedPgPublicCatalog.expiresAt) {
+      return cachedPgPublicCatalog;
+    }
+    const rows = await sql<
+      {
+        services: ServiceItem[] | null;
+        case_studies: CaseStudyItem[] | null;
+        blog_posts: BlogPost[] | null;
+        faqs: FaqItem[] | null;
+        testimonials: TestimonialItem[] | null;
+        team_members: TeamMember[] | null;
+        pages: PageDocument[] | null;
+        active_redirects: RedirectRule[] | null;
+      }[]
+    >`
+      SELECT
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY sort_order ASC), '[]'::jsonb) FROM services WHERE status = 'published') AS services,
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY updated_at DESC), '[]'::jsonb) FROM case_studies WHERE status = 'published') AS case_studies,
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY published_at DESC NULLS LAST), '[]'::jsonb) FROM blog_posts WHERE status = 'published') AS blog_posts,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', id, 'category', category, 'order', sort_order, 'isPublished', is_published, 'question', question, 'answer', answer) ORDER BY sort_order ASC), '[]'::jsonb) FROM faqs WHERE is_published = TRUE) AS faqs,
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY created_at DESC), '[]'::jsonb) FROM testimonials WHERE is_published = TRUE AND is_authorized = TRUE AND is_verified = TRUE) AS testimonials,
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY sort_order ASC), '[]'::jsonb) FROM team_members WHERE is_published = TRUE) AS team_members,
+        (SELECT COALESCE(jsonb_agg(payload ORDER BY slug ASC), '[]'::jsonb) FROM pages) AS pages,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', id, 'sourcePath', source_path, 'destinationPath', destination_path, 'permanent', permanent, 'isActive', is_active, 'createdAt', created_at) ORDER BY created_at DESC), '[]'::jsonb) FROM redirects WHERE is_active = TRUE) AS active_redirects
+    `;
+    const r = rows[0];
+    const catalog: CachedPostgresPublicCatalog = {
+      services: Array.isArray(r?.services) ? r.services : [],
+      caseStudies: Array.isArray(r?.case_studies) ? r.case_studies : [],
+      blogPosts: Array.isArray(r?.blog_posts) ? r.blog_posts : [],
+      faqs: Array.isArray(r?.faqs) ? r.faqs : [],
+      testimonials: Array.isArray(r?.testimonials) ? r.testimonials : [],
+      teamMembers: Array.isArray(r?.team_members) ? r.team_members : [],
+      pages: Array.isArray(r?.pages) ? r.pages : [],
+      activeRedirects: Array.isArray(r?.active_redirects)
+        ? r.active_redirects
+        : [],
+      expiresAt: Date.now() + 3_000,
+    };
+    cachedPgPublicCatalog = catalog;
+    return catalog;
+  });
+}
+
 export const db = {
   getMode(): DatabaseDriverMode {
     return getActiveDatabaseMode();
@@ -1265,35 +1398,42 @@ export const db = {
   },
 
   async listServices(onlyPublished = false): Promise<ServiceItem[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: ServiceItem }[]>`
-              SELECT payload FROM services WHERE status = 'published' ORDER BY sort_order ASC
-            `
-          : await sql<{ payload: ServiceItem }[]>`
-              SELECT payload FROM services ORDER BY sort_order ASC
-            `;
-        return rows.map((r) => r.payload);
-      },
-      () => {
-        const all = readLocalSnapshot().services;
-        return (
-          onlyPublished ? all.filter((s) => s.status === "published") : all
-        ).sort((a, b) => a.order - b.order);
-      }
+    return dedupeInFlight(`list_services_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublished) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.services;
+          }
+          const rows = await sql<{ payload: ServiceItem }[]>`
+            SELECT payload FROM services ORDER BY sort_order ASC
+          `;
+          return rows.map((r) => r.payload);
+        },
+        () => {
+          const all = readLocalSnapshot().services;
+          return (
+            onlyPublished ? all.filter((s) => s.status === "published") : all
+          ).sort((a, b) => a.order - b.order);
+        }
+      )
     );
   },
 
   async getServiceBySlug(slug: string): Promise<ServiceItem | null> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: ServiceItem }[]>`
-          SELECT payload FROM services WHERE slug = ${slug} LIMIT 1
-        `;
-        return rows[0]?.payload ?? null;
-      },
-      () => readLocalSnapshot().services.find((s) => s.slug === slug) ?? null
+    return dedupeInFlight(`service_slug_${slug}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          const publishedMatch = catalog.services.find((s) => s.slug === slug);
+          if (publishedMatch) return publishedMatch;
+          const rows = await sql<{ payload: ServiceItem }[]>`
+            SELECT payload FROM services WHERE slug = ${slug} LIMIT 1
+          `;
+          return rows[0]?.payload ?? null;
+        },
+        () => readLocalSnapshot().services.find((s) => s.slug === slug) ?? null
+      )
     );
   },
 
@@ -1302,6 +1442,7 @@ export const db = {
       ...service,
       updatedAt: new Date().toISOString(),
     };
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1327,6 +1468,7 @@ export const db = {
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `;
+        invalidatePgPublicCatalog();
         return next;
       },
       () => {
@@ -1341,9 +1483,11 @@ export const db = {
   },
 
   async deleteService(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM services WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1358,23 +1502,25 @@ export const db = {
   },
 
   async listCaseStudies(onlyPublished = false): Promise<CaseStudyItem[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: CaseStudyItem }[]>`
-              SELECT payload FROM case_studies WHERE status = 'published' ORDER BY updated_at DESC
-            `
-          : await sql<{ payload: CaseStudyItem }[]>`
-              SELECT payload FROM case_studies ORDER BY updated_at DESC
-            `;
-        return rows.map((r) => r.payload);
-      },
-      () => {
-        const all = readLocalSnapshot().caseStudies;
-        return onlyPublished
-          ? all.filter((c) => c.status === "published")
-          : all;
-      }
+    return dedupeInFlight(`list_cases_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublished) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.caseStudies;
+          }
+          const rows = await sql<{ payload: CaseStudyItem }[]>`
+            SELECT payload FROM case_studies ORDER BY updated_at DESC
+          `;
+          return rows.map((r) => r.payload);
+        },
+        () => {
+          const all = readLocalSnapshot().caseStudies;
+          return onlyPublished
+            ? all.filter((c) => c.status === "published")
+            : all;
+        }
+      )
     );
   },
 
@@ -1382,29 +1528,31 @@ export const db = {
     slug: string,
     onlyPublished = false
   ): Promise<CaseStudyItem | null> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: CaseStudyItem }[]>`
-              SELECT payload FROM case_studies
-              WHERE slug = ${slug} AND status = 'published'
-              LIMIT 1
-            `
-          : await sql<{ payload: CaseStudyItem }[]>`
-              SELECT payload FROM case_studies
-              WHERE slug = ${slug}
-              LIMIT 1
-            `;
-        return rows[0]?.payload ?? null;
-      },
-      () => {
-        const match = readLocalSnapshot().caseStudies.find(
-          (c) => c.slug === slug
-        );
-        if (!match) return null;
-        if (onlyPublished && match.status !== "published") return null;
-        return match;
-      }
+    return dedupeInFlight(`case_slug_${slug}_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          const publishedMatch = catalog.caseStudies.find(
+            (c) => c.slug === slug
+          );
+          if (publishedMatch) return publishedMatch;
+          if (onlyPublished) return null;
+          const rows = await sql<{ payload: CaseStudyItem }[]>`
+            SELECT payload FROM case_studies
+            WHERE slug = ${slug}
+            LIMIT 1
+          `;
+          return rows[0]?.payload ?? null;
+        },
+        () => {
+          const match = readLocalSnapshot().caseStudies.find(
+            (c) => c.slug === slug
+          );
+          if (!match) return null;
+          if (onlyPublished && match.status !== "published") return null;
+          return match;
+        }
+      )
     );
   },
 
@@ -1413,6 +1561,7 @@ export const db = {
       ...item,
       updatedAt: new Date().toISOString(),
     };
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1434,6 +1583,7 @@ export const db = {
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `;
+        invalidatePgPublicCatalog();
         return next;
       },
       () => {
@@ -1448,9 +1598,11 @@ export const db = {
   },
 
   async deleteCaseStudy(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM case_studies WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1465,23 +1617,25 @@ export const db = {
   },
 
   async listBlogPosts(onlyPublished = false): Promise<BlogPost[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: BlogPost }[]>`
-              SELECT payload FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC NULLS LAST
-            `
-          : await sql<{ payload: BlogPost }[]>`
-              SELECT payload FROM blog_posts ORDER BY updated_at DESC
-            `;
-        return rows.map((r) => r.payload);
-      },
-      () => {
-        const all = readLocalSnapshot().blogPosts;
-        return onlyPublished
-          ? all.filter((p) => p.status === "published")
-          : all;
-      }
+    return dedupeInFlight(`list_posts_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublished) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.blogPosts;
+          }
+          const rows = await sql<{ payload: BlogPost }[]>`
+            SELECT payload FROM blog_posts ORDER BY updated_at DESC
+          `;
+          return rows.map((r) => r.payload);
+        },
+        () => {
+          const all = readLocalSnapshot().blogPosts;
+          return onlyPublished
+            ? all.filter((p) => p.status === "published")
+            : all;
+        }
+      )
     );
   },
 
@@ -1489,27 +1643,29 @@ export const db = {
     slug: string,
     onlyPublished = false
   ): Promise<BlogPost | null> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: BlogPost }[]>`
-              SELECT payload FROM blog_posts
-              WHERE slug = ${slug} AND status = 'published'
-              LIMIT 1
-            `
-          : await sql<{ payload: BlogPost }[]>`
-              SELECT payload FROM blog_posts
-              WHERE slug = ${slug}
-              LIMIT 1
-            `;
-        return rows[0]?.payload ?? null;
-      },
-      () => {
-        const match = readLocalSnapshot().blogPosts.find((p) => p.slug === slug);
-        if (!match) return null;
-        if (onlyPublished && match.status !== "published") return null;
-        return match;
-      }
+    return dedupeInFlight(`post_slug_${slug}_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          const publishedMatch = catalog.blogPosts.find((p) => p.slug === slug);
+          if (publishedMatch) return publishedMatch;
+          if (onlyPublished) return null;
+          const rows = await sql<{ payload: BlogPost }[]>`
+            SELECT payload FROM blog_posts
+            WHERE slug = ${slug}
+            LIMIT 1
+          `;
+          return rows[0]?.payload ?? null;
+        },
+        () => {
+          const match = readLocalSnapshot().blogPosts.find(
+            (p) => p.slug === slug
+          );
+          if (!match) return null;
+          if (onlyPublished && match.status !== "published") return null;
+          return match;
+        }
+      )
     );
   },
 
@@ -1527,6 +1683,7 @@ export const db = {
 
   async upsertBlogPost(post: BlogPost): Promise<BlogPost> {
     const next: BlogPost = { ...post, updatedAt: new Date().toISOString() };
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1551,6 +1708,7 @@ export const db = {
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `;
+        invalidatePgPublicCatalog();
         return next;
       },
       () => {
@@ -1565,9 +1723,11 @@ export const db = {
   },
 
   async deleteBlogPost(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM blog_posts WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1582,29 +1742,31 @@ export const db = {
   },
 
   async listFaqs(onlyPublished = false): Promise<FaqItem[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<FaqItem[]>`
-              SELECT id, category, sort_order as "order", is_published as "isPublished", question, answer
-              FROM faqs WHERE is_published = TRUE ORDER BY sort_order ASC
-            `
-          : await sql<FaqItem[]>`
-              SELECT id, category, sort_order as "order", is_published as "isPublished", question, answer
-              FROM faqs ORDER BY sort_order ASC
-            `;
-        return rows;
-      },
-      () => {
-        const all = readLocalSnapshot().faqs;
-        return (onlyPublished ? all.filter((f) => f.isPublished) : all).sort(
-          (a, b) => a.order - b.order
-        );
-      }
+    return dedupeInFlight(`list_faqs_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublished) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.faqs;
+          }
+          const rows = await sql<FaqItem[]>`
+            SELECT id, category, sort_order as "order", is_published as "isPublished", question, answer
+            FROM faqs ORDER BY sort_order ASC
+          `;
+          return rows;
+        },
+        () => {
+          const all = readLocalSnapshot().faqs;
+          return (onlyPublished ? all.filter((f) => f.isPublished) : all).sort(
+            (a, b) => a.order - b.order
+          );
+        }
+      )
     );
   },
 
   async upsertFaq(faq: FaqItem): Promise<FaqItem> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1617,6 +1779,7 @@ export const db = {
             question = EXCLUDED.question,
             answer = EXCLUDED.answer
         `;
+        invalidatePgPublicCatalog();
         return faq;
       },
       () => {
@@ -1631,9 +1794,11 @@ export const db = {
   },
 
   async deleteFaq(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM faqs WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1648,29 +1813,30 @@ export const db = {
   },
 
   async listTestimonials(onlyPublicVerified = false): Promise<TestimonialItem[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublicVerified
-          ? await sql<{ payload: TestimonialItem }[]>`
-              SELECT payload FROM testimonials
-              WHERE is_published = TRUE AND is_authorized = TRUE AND is_verified = TRUE
-              ORDER BY created_at DESC
-            `
-          : await sql<{ payload: TestimonialItem }[]>`
-              SELECT payload FROM testimonials ORDER BY created_at DESC
-            `;
-        return rows.map((r) => r.payload);
-      },
-      () => {
-        const all = readLocalSnapshot().testimonials;
-        return onlyPublicVerified
-          ? all.filter((t) => t.isPublished && t.isAuthorized && t.isVerified)
-          : all;
-      }
+    return dedupeInFlight(`list_testimonials_${onlyPublicVerified}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublicVerified) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.testimonials;
+          }
+          const rows = await sql<{ payload: TestimonialItem }[]>`
+            SELECT payload FROM testimonials ORDER BY created_at DESC
+          `;
+          return rows.map((r) => r.payload);
+        },
+        () => {
+          const all = readLocalSnapshot().testimonials;
+          return onlyPublicVerified
+            ? all.filter((t) => t.isPublished && t.isAuthorized && t.isVerified)
+            : all;
+        }
+      )
     );
   },
 
   async upsertTestimonial(item: TestimonialItem): Promise<TestimonialItem> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1689,6 +1855,7 @@ export const db = {
             is_published = EXCLUDED.is_published,
             payload = EXCLUDED.payload
         `;
+        invalidatePgPublicCatalog();
         return item;
       },
       () => {
@@ -1703,9 +1870,11 @@ export const db = {
   },
 
   async deleteTestimonial(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM testimonials WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1720,27 +1889,30 @@ export const db = {
   },
 
   async listTeamMembers(onlyPublished = false): Promise<TeamMember[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = onlyPublished
-          ? await sql<{ payload: TeamMember }[]>`
-              SELECT payload FROM team_members WHERE is_published = TRUE ORDER BY sort_order ASC
-            `
-          : await sql<{ payload: TeamMember }[]>`
-              SELECT payload FROM team_members ORDER BY sort_order ASC
-            `;
-        return rows.map((r) => r.payload);
-      },
-      () => {
-        const all = readLocalSnapshot().teamMembers;
-        return (onlyPublished ? all.filter((m) => m.isPublished) : all).sort(
-          (a, b) => a.order - b.order
-        );
-      }
+    return dedupeInFlight(`list_team_${onlyPublished}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (onlyPublished) {
+            const catalog = await loadPostgresPublicCatalogBundle(sql);
+            return catalog.teamMembers;
+          }
+          const rows = await sql<{ payload: TeamMember }[]>`
+            SELECT payload FROM team_members ORDER BY sort_order ASC
+          `;
+          return rows.map((r) => r.payload);
+        },
+        () => {
+          const all = readLocalSnapshot().teamMembers;
+          return (onlyPublished ? all.filter((m) => m.isPublished) : all).sort(
+            (a, b) => a.order - b.order
+          );
+        }
+      )
     );
   },
 
   async upsertTeamMember(member: TeamMember): Promise<TeamMember> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1758,6 +1930,7 @@ export const db = {
             is_published = EXCLUDED.is_published,
             payload = EXCLUDED.payload
         `;
+        invalidatePgPublicCatalog();
         return member;
       },
       () => {
@@ -1772,9 +1945,11 @@ export const db = {
   },
 
   async deleteTeamMember(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM team_members WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -1789,31 +1964,32 @@ export const db = {
   },
 
   async listPages(): Promise<PageDocument[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: PageDocument }[]>`
-          SELECT payload FROM pages ORDER BY slug ASC
-        `;
-        return rows.map((r) => r.payload);
-      },
-      () => readLocalSnapshot().pages
+    return dedupeInFlight("list_pages", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          return catalog.pages;
+        },
+        () => readLocalSnapshot().pages
+      )
     );
   },
 
   async getPageBySlug(slug: string): Promise<PageDocument | null> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: PageDocument }[]>`
-          SELECT payload FROM pages WHERE slug = ${slug} LIMIT 1
-        `;
-        return rows[0]?.payload ?? null;
-      },
-      () => readLocalSnapshot().pages.find((p) => p.slug === slug) ?? null
+    return dedupeInFlight(`page_slug_${slug}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          return catalog.pages.find((p) => p.slug === slug) ?? null;
+        },
+        () => readLocalSnapshot().pages.find((p) => p.slug === slug) ?? null
+      )
     );
   },
 
   async savePage(page: PageDocument): Promise<PageDocument> {
     const next: PageDocument = { ...page, updatedAt: new Date().toISOString() };
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1833,6 +2009,7 @@ export const db = {
             payload = EXCLUDED.payload,
             updated_at = EXCLUDED.updated_at
         `;
+        invalidatePgPublicCatalog();
         return next;
       },
       () => {
@@ -2901,41 +3078,31 @@ export const db = {
     if (/\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|woff2?|ttf|txt|xml)$/i.test(clean)) {
       return null;
     }
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<
-          {
-            id: string;
-            source_path: string;
-            destination_path: string;
-            permanent: boolean;
-            is_active: boolean;
-            created_at: string;
-          }[]
-        >`
-          SELECT * FROM redirects
-          WHERE source_path = ${clean} AND is_active = TRUE
-          LIMIT 1
-        `;
-        const r = rows[0];
-        if (!r || r.destination_path === clean) return null;
-        return {
-          id: r.id,
-          sourcePath: r.source_path,
-          destinationPath: r.destination_path,
-          permanent: r.permanent,
-          isActive: r.is_active,
-          createdAt: r.created_at,
-        };
-      },
-      () =>
-        readLocalSnapshot().redirects.find(
-          (r) => r.isActive && r.sourcePath === clean && r.destinationPath !== clean
-        ) ?? null
+    return dedupeInFlight(`redirect_${clean}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const catalog = await loadPostgresPublicCatalogBundle(sql);
+          const match = catalog.activeRedirects.find(
+            (r) =>
+              r.isActive &&
+              r.sourcePath === clean &&
+              r.destinationPath !== clean
+          );
+          return match ?? null;
+        },
+        () =>
+          readLocalSnapshot().redirects.find(
+            (r) =>
+              r.isActive &&
+              r.sourcePath === clean &&
+              r.destinationPath !== clean
+          ) ?? null
+      )
     );
   },
 
   async upsertRedirect(rule: RedirectRule): Promise<RedirectRule> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -2953,6 +3120,7 @@ export const db = {
             permanent = EXCLUDED.permanent,
             is_active = EXCLUDED.is_active
         `;
+        invalidatePgPublicCatalog();
         return rule;
       },
       () => {
@@ -2973,9 +3141,11 @@ export const db = {
   },
 
   async deleteRedirect(id: string): Promise<boolean> {
+    invalidatePgPublicCatalog();
     return runWithDbFallback(
       async (sql) => {
         const res = await sql`DELETE FROM redirects WHERE id = ${id}`;
+        invalidatePgPublicCatalog();
         return res.count > 0;
       },
       () => {
@@ -3138,9 +3308,10 @@ export const db = {
     }
 
     try {
-      const verification = await withHardDbTimeout(
-        (async () => {
-          await sql`SELECT 1`;
+      const verification = await withPgConcurrencySlot(() =>
+        withHardDbTimeout(
+          (async () => {
+            await sql`SELECT 1`;
 
           const tableRows = await sql<{ table_name: string }[]>`
             SELECT table_name
@@ -3206,8 +3377,9 @@ export const db = {
                   ...missingColumns.map((c) => `users.${c}`),
                 ].join(", ")}).`,
           };
-        })(),
-        5_000
+          })(),
+          5_000
+        )
       );
 
       return verification;
@@ -3478,6 +3650,7 @@ export const db = {
 
         const data = row.snapshot;
         invalidatePgKvBundle();
+        invalidatePgPublicCatalog();
         // 2. Restore inside a single atomic PostgreSQL transaction (merges safely without dropping active admins or leads)
         await sql.begin(async (txRaw) => {
           const tx = txRaw as unknown as ReturnType<typeof postgres>;
@@ -3608,6 +3781,8 @@ export const db = {
             `;
           }
         });
+        invalidatePgKvBundle();
+        invalidatePgPublicCatalog();
 
         return { restoredId: backupId, safetyBackupId: safetyBackup.id };
       },
