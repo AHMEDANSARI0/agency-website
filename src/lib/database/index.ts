@@ -27,7 +27,13 @@ import type {
   TestimonialItem,
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
-import { normalizeStoredThemeConfig } from "@/features/themes/presets";
+import {
+  createArchivedOriginalThemeSnapshot,
+  normalizeStoredThemeConfig,
+  SOALE_INSPIRED_DESIGN_SYSTEM,
+  SOALE_INSPIRED_PREMIUM_PRESET,
+  SOALE_INSPIRED_PRESET_ID,
+} from "@/features/themes/presets";
 import {
   DatabaseUnavailableError,
   isNextBuildPhase,
@@ -145,29 +151,113 @@ function isPlaceholderDatabaseUrl(url: string): boolean {
   return isPlaceholderEnvValue(url) || !/^postgres(ql)?:\/\//i.test(url.trim());
 }
 
+const ORM_PSEUDO_QUERY_PARAMS = [
+  "pgbouncer",
+  "connection_limit",
+  "pool_timeout",
+  "schema",
+  "supa",
+  "uselibpqcompat",
+] as const;
+
+function stripUnsupportedPostgresQueryParams(rawUrl: string): string {
+  const qIndex = rawUrl.indexOf("?");
+  if (qIndex === -1) return rawUrl;
+
+  const base = rawUrl.slice(0, qIndex);
+  const hashIndex = rawUrl.indexOf("#", qIndex);
+  const rawQuery =
+    hashIndex === -1
+      ? rawUrl.slice(qIndex + 1)
+      : rawUrl.slice(qIndex + 1, hashIndex);
+  const hashSuffix = hashIndex === -1 ? "" : rawUrl.slice(hashIndex);
+
+  const params = new URLSearchParams(rawQuery);
+  let modified = false;
+  for (const key of ORM_PSEUDO_QUERY_PARAMS) {
+    if (params.has(key)) {
+      params.delete(key);
+      modified = true;
+    }
+  }
+  if (!modified) return rawUrl;
+
+  const nextQuery = params.toString();
+  return nextQuery ? `${base}?${nextQuery}${hashSuffix}` : `${base}${hashSuffix}`;
+}
+
+function createSoaleProductionThemeSeed(): ThemeConfiguration {
+  return {
+    activePresetId: SOALE_INSPIRED_PRESET_ID,
+    defaultMode: "light",
+    designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
+    published: {
+      light: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.light),
+      dark: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.dark),
+      overrides: {},
+      designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
+      defaultMode: "light",
+    },
+    draft: {
+      light: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.light),
+      dark: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.dark),
+      overrides: {},
+      designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
+      defaultMode: "light",
+    },
+    previousPublished: null,
+    archivedOriginalTheme: createArchivedOriginalThemeSnapshot(),
+    customPresets: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 /**
  * On Vercel Serverless, Supabase Session Pooler (:5432, ~15 client cap) saturates under concurrent
  * Lambda invocations (EMAXCONNSESSION). Upgrading to Transaction Pooler (:6543, 200+ clients)
- * works seamlessly with prepare: false. On local machines, port 5432 is preserved because
- * residential ISPs frequently block non-standard port 6543.
+ * works seamlessly with prepare: false. Also strips Prisma/ORM-only query flags (?pgbouncer=true)
+ * which otherwise cause postgres.js to send unrecognized GUC startup parameters to PostgreSQL.
  */
 export function normalizeDatabaseUrlForRuntime(
   rawUrl: string,
   options?: { serverless?: boolean }
 ): string {
-  const trimmed = rawUrl.trim();
+  let cleaned = stripUnsupportedPostgresQueryParams(rawUrl.trim());
   const serverless = options?.serverless ?? isServerlessRuntime();
   if (
     serverless &&
     process.env.OMNIFLOW_FORCE_SESSION_POOLER !== "true" &&
-    /\.pooler\.supabase\.com:5432\b/i.test(trimmed)
+    /\.pooler\.supabase\.com:5432\b/i.test(cleaned)
   ) {
-    return trimmed.replace(
+    cleaned = cleaned.replace(
       /(\.pooler\.supabase\.com):5432\b/i,
       "$1:6543"
     );
   }
-  return trimmed;
+  return cleaned;
+}
+
+interface CachedPostgresKvBundle {
+  siteSettings?: SiteSettings;
+  themeConfig?: ThemeConfiguration;
+  brandAssets?: BrandAssetConfig;
+  servicePillars?: ServiceCategoryPillar[];
+  expiresAt: number;
+}
+
+let cachedPgKvBundle: CachedPostgresKvBundle | null = null;
+
+function invalidatePgKvBundle(): void {
+  cachedPgKvBundle = null;
+}
+
+function resetCachedSqlClient(): void {
+  invalidatePgKvBundle();
+  if (cachedSqlClient) {
+    const stale = cachedSqlClient;
+    cachedSqlClient = null;
+    stale.end({ timeout: 0 }).catch(() => undefined);
+  }
 }
 
 function getPostgresClient(): ReturnType<typeof postgres> | null {
@@ -188,26 +278,31 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
   }
 
   if (!cachedSqlClient || cachedSqlUrl !== url) {
-    if (cachedSqlClient) {
-      cachedSqlClient.end({ timeout: 0 }).catch(() => undefined);
-    }
+    resetCachedSqlClient();
     cachedSqlUrl = url;
     postgresBootstrapChecked = false;
     postgresBaselineSeeded = false;
     const isSupabaseHost =
       url.includes(".supabase.co") || url.includes(".supabase.com");
     const serverless = isServerlessRuntime();
+    const strictProd = isProductionEnvironment();
 
     cachedSqlClient = postgres(url, {
-      max: serverless ? 2 : 4,
-      idle_timeout: serverless ? 5 : 15,
+      // 3 pooled sockets on serverless avoids CPU contention from 6 simultaneous
+      // TLS + SCRAM-SHA-256 handshakes on Vercel Hobby while pipelining fast SELECTs.
+      max: serverless ? 3 : 6,
+      idle_timeout: serverless ? 10 : 15,
       max_lifetime: 60 * 5,
-      connect_timeout: 5,
+      connect_timeout: strictProd ? 12 : 5,
       prepare: false, // Required for Supabase PgBouncer Transaction Pooler (:6543)
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
   }
   return cachedSqlClient;
+}
+
+export function isDirectIpv6SupabaseHost(url: string): boolean {
+  return /@db\.[a-z0-9-]+\.supabase\.co(?::\d+)?(?:\/|$)/i.test(url.trim());
 }
 
 function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
@@ -225,7 +320,7 @@ function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
   if (code === "28P01" || code === "28000" || /password authentication failed|Tenant or user not found/i.test(message)) {
     return new DatabaseUnavailableError(
       "DB_AUTH_FAILED",
-      "Database authentication failed. Verify DATABASE_URL credentials in your deployment configuration."
+      "Database authentication failed. Verify DATABASE_URL username (postgres.<project-ref> on Pooler) and URL-encoded password in Vercel."
     );
   }
 
@@ -254,12 +349,21 @@ function classifyDatabaseError(err: unknown): DatabaseUnavailableError {
     code === "CONNECT_TIMEOUT" ||
     code === "CONNECTION_CLOSED" ||
     code === "CONNECTION_DESTROYED" ||
+    code === "42704" ||
     code.startsWith("08") ||
-    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT/i.test(message)
+    /getaddrinfo|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT|ENETUNREACH/i.test(message)
   ) {
+    const activeUrl = cachedSqlUrl || process.env.DATABASE_URL?.trim() || "";
+    if (isServerlessRuntime() && isDirectIpv6SupabaseHost(activeUrl)) {
+      return new DatabaseUnavailableError(
+        "DB_CONNECTION_FAILED",
+        "Supabase Direct Connection host (db.<project-ref>.supabase.co) is IPv6-only and unreachable from Vercel IPv4 Serverless. Switch DATABASE_URL in Vercel to Supabase Transaction Pooler (aws-0-<region>.pooler.supabase.com:6543)."
+      );
+    }
+
     return new DatabaseUnavailableError(
       "DB_CONNECTION_FAILED",
-      "Database service is currently unreachable. Verify network connectivity and Supabase Pooler configuration."
+      "Database service is currently unreachable. Verify Supabase project is active (not paused) and DATABASE_URL uses Supabase Transaction Pooler (:6543)."
     );
   }
 
@@ -321,132 +425,128 @@ function withHardDbTimeout<T>(promise: Promise<T>, timeoutMs = 6_000): Promise<T
 
 /**
  * Seeds baseline CMS records into an empty PostgreSQL database once via an atomic transaction.
- * Uses ON CONFLICT DO NOTHING so existing production content, users, and leads are NEVER overwritten.
+ * Deduplicated in-flight so concurrent SSR layout/metadata/page queries never race multiple seed
+ * transactions simultaneously. Uses ON CONFLICT DO NOTHING so existing production content, users,
+ * and leads are NEVER overwritten.
  */
 async function ensurePostgresBaselineSeed(
   sql: ReturnType<typeof postgres>
 ): Promise<void> {
   if (postgresBaselineSeeded) return;
 
-  const existingKv = await sql<{ cnt: number }[]>`
-    SELECT count(*)::int AS cnt FROM kv_configs WHERE key = 'site_settings'
-  `;
-  if ((existingKv[0]?.cnt ?? 0) > 0) {
-    postgresBaselineSeeded = true;
-    return;
-  }
+  await dedupeInFlight("postgres_baseline_seed", async () => {
+    if (postgresBaselineSeeded) return;
 
-  const initial = createInitialSeedSnapshot();
-  await sql.begin(async (txRaw) => {
-    const tx = txRaw as unknown as ReturnType<typeof postgres>;
-    await tx`
-      INSERT INTO kv_configs (key, payload, updated_at)
-      VALUES
-        ('site_settings', ${tx.json(initial.siteSettings as unknown as postgres.JSONValue)}, NOW()),
-        ('theme_config', ${tx.json(initial.themeConfig as unknown as postgres.JSONValue)}, NOW()),
-        ('brand_assets', ${tx.json(initial.brandAssets as unknown as postgres.JSONValue)}, NOW()),
-        ('service_pillars', ${tx.json(initial.servicePillars as unknown as postgres.JSONValue)}, NOW())
-      ON CONFLICT (key) DO NOTHING
+    const existingKv = await sql<{ cnt: number }[]>`
+      SELECT count(*)::int AS cnt
+      FROM kv_configs
+      WHERE key IN ('site_settings', 'theme_config', 'brand_assets', 'service_pillars')
+    `;
+    if ((existingKv[0]?.cnt ?? 0) >= 4) {
+      postgresBaselineSeeded = true;
+      return;
+    }
+
+    const initial = createInitialSeedSnapshot();
+    const themeSeed = isProductionEnvironment()
+      ? createSoaleProductionThemeSeed()
+      : initial.themeConfig;
+
+    // Single-round-trip atomic CTE seed across all 7 baseline tables (~280ms cross-region
+    // instead of 28 sequential INSERT round-trips that previously timed out at 6,000ms).
+    await sql`
+      WITH ins_kv AS (
+        INSERT INTO kv_configs (key, payload, updated_at)
+        VALUES
+          ('site_settings', ${sql.json(initial.siteSettings as unknown as postgres.JSONValue)}, NOW()),
+          ('theme_config', ${sql.json(themeSeed as unknown as postgres.JSONValue)}, NOW()),
+          ('brand_assets', ${sql.json(initial.brandAssets as unknown as postgres.JSONValue)}, NOW()),
+          ('service_pillars', ${sql.json(initial.servicePillars as unknown as postgres.JSONValue)}, NOW())
+        ON CONFLICT (key) DO NOTHING
+      ),
+      ins_pages AS (
+        INSERT INTO pages (id, slug, title, status, payload, updated_at)
+        SELECT
+          elem->>'id',
+          elem->>'slug',
+          elem->>'title',
+          elem->>'status',
+          elem,
+          COALESCE((elem->>'updatedAt')::timestamptz, NOW())
+        FROM jsonb_array_elements(${sql.json(initial.pages as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      ),
+      ins_services AS (
+        INSERT INTO services (id, slug, title, category_slug, is_flagship_priority, status, sort_order, payload, updated_at)
+        SELECT
+          elem->>'id',
+          elem->>'slug',
+          elem->>'title',
+          elem->>'categorySlug',
+          COALESCE((elem->>'isFlagshipPriority')::boolean, false),
+          elem->>'status',
+          COALESCE((elem->>'order')::int, 0),
+          elem,
+          COALESCE((elem->>'updatedAt')::timestamptz, NOW())
+        FROM jsonb_array_elements(${sql.json(initial.services as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      ),
+      ins_cases AS (
+        INSERT INTO case_studies (id, slug, title, work_type, status, payload, updated_at)
+        SELECT
+          elem->>'id',
+          elem->>'slug',
+          elem->>'title',
+          elem->>'workType',
+          elem->>'status',
+          elem,
+          COALESCE((elem->>'updatedAt')::timestamptz, NOW())
+        FROM jsonb_array_elements(${sql.json(initial.caseStudies as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      ),
+      ins_posts AS (
+        INSERT INTO blog_posts (id, slug, title, category, author_id, status, published_at, payload, updated_at)
+        SELECT
+          elem->>'id',
+          elem->>'slug',
+          elem->>'title',
+          elem->>'category',
+          elem->>'authorId',
+          elem->>'status',
+          NULLIF(elem->>'publishedAt', '')::timestamptz,
+          elem,
+          COALESCE((elem->>'updatedAt')::timestamptz, NOW())
+        FROM jsonb_array_elements(${sql.json(initial.blogPosts as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      ),
+      ins_faqs AS (
+        INSERT INTO faqs (id, category, sort_order, is_published, question, answer)
+        SELECT
+          elem->>'id',
+          elem->>'category',
+          COALESCE((elem->>'order')::int, 0),
+          COALESCE((elem->>'isPublished')::boolean, true),
+          elem->>'question',
+          elem->>'answer'
+        FROM jsonb_array_elements(${sql.json(initial.faqs as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      ),
+      ins_team AS (
+        INSERT INTO team_members (id, is_founder, sort_order, is_published, payload)
+        SELECT
+          elem->>'id',
+          COALESCE((elem->>'isFounder')::boolean, false),
+          COALESCE((elem->>'order')::int, 0),
+          COALESCE((elem->>'isPublished')::boolean, true),
+          elem
+        FROM jsonb_array_elements(${sql.json(initial.teamMembers as unknown as postgres.JSONValue)}) AS elem
+        ON CONFLICT DO NOTHING
+      )
+      SELECT 1
     `;
 
-    for (const page of initial.pages) {
-      await tx`
-        INSERT INTO pages (id, slug, title, status, payload, updated_at)
-        VALUES (
-          ${page.id},
-          ${page.slug},
-          ${page.title},
-          ${page.status},
-          ${tx.json(page as unknown as postgres.JSONValue)},
-          ${page.updatedAt}
-        )
-        ON CONFLICT (slug) DO NOTHING
-      `;
-    }
-
-    for (const svc of initial.services) {
-      await tx`
-        INSERT INTO services (id, slug, title, category_slug, is_flagship_priority, status, sort_order, payload, updated_at)
-        VALUES (
-          ${svc.id},
-          ${svc.slug},
-          ${svc.title},
-          ${svc.categorySlug},
-          ${svc.isFlagshipPriority},
-          ${svc.status},
-          ${svc.order},
-          ${tx.json(svc as unknown as postgres.JSONValue)},
-          ${svc.updatedAt}
-        )
-        ON CONFLICT (slug) DO NOTHING
-      `;
-    }
-
-    for (const cs of initial.caseStudies) {
-      await tx`
-        INSERT INTO case_studies (id, slug, title, work_type, status, payload, updated_at)
-        VALUES (
-          ${cs.id},
-          ${cs.slug},
-          ${cs.title},
-          ${cs.workType},
-          ${cs.status},
-          ${tx.json(cs as unknown as postgres.JSONValue)},
-          ${cs.updatedAt}
-        )
-        ON CONFLICT (slug) DO NOTHING
-      `;
-    }
-
-    for (const post of initial.blogPosts) {
-      await tx`
-        INSERT INTO blog_posts (id, slug, title, category, author_id, status, published_at, payload, updated_at)
-        VALUES (
-          ${post.id},
-          ${post.slug},
-          ${post.title},
-          ${post.category},
-          ${post.authorId},
-          ${post.status},
-          ${post.publishedAt ?? null},
-          ${tx.json(post as unknown as postgres.JSONValue)},
-          ${post.updatedAt}
-        )
-        ON CONFLICT (slug) DO NOTHING
-      `;
-    }
-
-    for (const faq of initial.faqs) {
-      await tx`
-        INSERT INTO faqs (id, category, sort_order, is_published, question, answer)
-        VALUES (
-          ${faq.id},
-          ${faq.category},
-          ${faq.order},
-          ${faq.isPublished},
-          ${faq.question},
-          ${faq.answer}
-        )
-        ON CONFLICT (id) DO NOTHING
-      `;
-    }
-
-    for (const member of initial.teamMembers) {
-      await tx`
-        INSERT INTO team_members (id, is_founder, sort_order, is_published, payload)
-        VALUES (
-          ${member.id},
-          ${member.isFounder},
-          ${member.order},
-          ${member.isPublished},
-          ${tx.json(member as unknown as postgres.JSONValue)}
-        )
-        ON CONFLICT (id) DO NOTHING
-      `;
-    }
+    postgresBaselineSeeded = true;
   });
-
-  postgresBaselineSeeded = true;
 }
 
 async function runWithDbFallback<T>(
@@ -473,7 +573,7 @@ async function runWithDbFallback<T>(
           await ensurePostgresBaselineSeed(sql);
           return pgOp(sql);
         })(),
-        6_000
+        strictProd ? 15_000 : 6_000
       );
       if (result !== undefined) {
         return result;
@@ -490,8 +590,12 @@ async function runWithDbFallback<T>(
       const classified = classifyDatabaseError(err);
       recordSanitizedDbError(classified.code, classified.publicMessage);
 
-      // Production NEVER silently falls back to local JSON or /tmp storage
+      // Production NEVER silently falls back to local JSON or /tmp storage,
+      // but recycles broken socket pools so warm Lambdas recover immediately.
       if (strictProd) {
+        if (classified.code === "DB_CONNECTION_FAILED") {
+          resetCachedSqlClient();
+        }
         if (err instanceof DatabaseUnavailableError) throw err;
         if (isConnectivityOrSchemaError(err)) throw classified;
         throw err;
@@ -964,6 +1068,36 @@ export function computeLeadDashboardMetrics(
   };
 }
 
+async function loadPostgresKvBundle(
+  sql: ReturnType<typeof postgres>
+): Promise<CachedPostgresKvBundle> {
+  if (cachedPgKvBundle && Date.now() < cachedPgKvBundle.expiresAt) {
+    return cachedPgKvBundle;
+  }
+  return dedupeInFlight("pg_kv_bundle", async () => {
+    if (cachedPgKvBundle && Date.now() < cachedPgKvBundle.expiresAt) {
+      return cachedPgKvBundle;
+    }
+    const rows = await sql<{ key: string; payload: unknown }[]>`
+      SELECT key, payload
+      FROM kv_configs
+      WHERE key IN ('site_settings', 'theme_config', 'brand_assets', 'service_pillars')
+    `;
+    const byKey = new Map(rows.map((r) => [r.key, r.payload]));
+    const bundle: CachedPostgresKvBundle = {
+      siteSettings: byKey.get("site_settings") as SiteSettings | undefined,
+      themeConfig: byKey.get("theme_config") as ThemeConfiguration | undefined,
+      brandAssets: byKey.get("brand_assets") as BrandAssetConfig | undefined,
+      servicePillars: byKey.get("service_pillars") as
+        | ServiceCategoryPillar[]
+        | undefined,
+      expiresAt: Date.now() + 4_000,
+    };
+    cachedPgKvBundle = bundle;
+    return bundle;
+  });
+}
+
 export const db = {
   getMode(): DatabaseDriverMode {
     return getActiveDatabaseMode();
@@ -973,10 +1107,16 @@ export const db = {
     return dedupeInFlight("site_settings", () =>
       runWithDbFallback(
         async (sql) => {
-          const rows = await sql<{ payload: SiteSettings }[]>`
-            SELECT payload FROM kv_configs WHERE key = 'site_settings' LIMIT 1
-          `;
-          return rows[0]?.payload;
+          const kv = await loadPostgresKvBundle(sql);
+          if (kv.siteSettings) return kv.siteSettings;
+          const fallback = createInitialSeedSnapshot().siteSettings;
+          await sql`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES ('site_settings', ${sql.json(fallback as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO NOTHING
+          `.catch(() => undefined);
+          invalidatePgKvBundle();
+          return fallback;
         },
         () => readLocalSnapshot().siteSettings
       )
@@ -985,6 +1125,7 @@ export const db = {
 
   async saveSiteSettings(settings: SiteSettings): Promise<SiteSettings> {
     const next = { ...settings, updatedAt: new Date().toISOString() };
+    invalidatePgKvBundle();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -992,6 +1133,7 @@ export const db = {
           VALUES ('site_settings', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
           ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
         `;
+        invalidatePgKvBundle();
         return next;
       },
       () => {
@@ -1007,17 +1149,27 @@ export const db = {
     return dedupeInFlight("theme_config", () =>
       runWithDbFallback(
         async (sql) => {
-          const rows = await sql<{ payload: ThemeConfiguration }[]>`
-            SELECT payload FROM kv_configs WHERE key = 'theme_config' LIMIT 1
-          `;
-          if (!rows[0]?.payload) return undefined;
-          const { config, upgraded } = normalizeStoredThemeConfig(rows[0].payload);
+          const kv = await loadPostgresKvBundle(sql);
+          if (!kv.themeConfig) {
+            const fallback = isProductionEnvironment()
+              ? createSoaleProductionThemeSeed()
+              : createInitialSeedSnapshot().themeConfig;
+            await sql`
+              INSERT INTO kv_configs (key, payload, updated_at)
+              VALUES ('theme_config', ${sql.json(fallback as unknown as postgres.JSONValue)}, NOW())
+              ON CONFLICT (key) DO NOTHING
+            `.catch(() => undefined);
+            invalidatePgKvBundle();
+            return fallback;
+          }
+          const { config, upgraded } = normalizeStoredThemeConfig(kv.themeConfig);
           if (upgraded) {
             await sql`
               INSERT INTO kv_configs (key, payload, updated_at)
               VALUES ('theme_config', ${sql.json(config as unknown as postgres.JSONValue)}, NOW())
               ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
             `.catch(() => undefined);
+            invalidatePgKvBundle();
           }
           return config;
         },
@@ -1030,6 +1182,7 @@ export const db = {
     config: ThemeConfiguration
   ): Promise<ThemeConfiguration> {
     const next = { ...config, updatedAt: new Date().toISOString() };
+    invalidatePgKvBundle();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1037,6 +1190,7 @@ export const db = {
           VALUES ('theme_config', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
           ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
         `;
+        invalidatePgKvBundle();
         return next;
       },
       () => {
@@ -1052,10 +1206,16 @@ export const db = {
     return dedupeInFlight("brand_assets", () =>
       runWithDbFallback(
         async (sql) => {
-          const rows = await sql<{ payload: BrandAssetConfig }[]>`
-            SELECT payload FROM kv_configs WHERE key = 'brand_assets' LIMIT 1
-          `;
-          return rows[0]?.payload;
+          const kv = await loadPostgresKvBundle(sql);
+          if (kv.brandAssets) return kv.brandAssets;
+          const fallback = createInitialSeedSnapshot().brandAssets;
+          await sql`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES ('brand_assets', ${sql.json(fallback as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO NOTHING
+          `.catch(() => undefined);
+          invalidatePgKvBundle();
+          return fallback;
         },
         () => readLocalSnapshot().brandAssets
       )
@@ -1064,6 +1224,7 @@ export const db = {
 
   async saveBrandAssets(assets: BrandAssetConfig): Promise<BrandAssetConfig> {
     const next = { ...assets, updatedAt: new Date().toISOString() };
+    invalidatePgKvBundle();
     return runWithDbFallback(
       async (sql) => {
         await sql`
@@ -1071,6 +1232,7 @@ export const db = {
           VALUES ('brand_assets', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
           ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
         `;
+        invalidatePgKvBundle();
         return next;
       },
       () => {
@@ -1083,14 +1245,22 @@ export const db = {
   },
 
   async getServicePillars(): Promise<ServiceCategoryPillar[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<{ payload: ServiceCategoryPillar[] }[]>`
-          SELECT payload FROM kv_configs WHERE key = 'service_pillars' LIMIT 1
-        `;
-        return rows[0]?.payload;
-      },
-      () => readLocalSnapshot().servicePillars
+    return dedupeInFlight("service_pillars", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const kv = await loadPostgresKvBundle(sql);
+          if (kv.servicePillars) return kv.servicePillars;
+          const fallback = createInitialSeedSnapshot().servicePillars;
+          await sql`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES ('service_pillars', ${sql.json(fallback as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO NOTHING
+          `.catch(() => undefined);
+          invalidatePgKvBundle();
+          return fallback;
+        },
+        () => readLocalSnapshot().servicePillars
+      )
     );
   },
 
@@ -3307,6 +3477,7 @@ export const db = {
         }
 
         const data = row.snapshot;
+        invalidatePgKvBundle();
         // 2. Restore inside a single atomic PostgreSQL transaction (merges safely without dropping active admins or leads)
         await sql.begin(async (txRaw) => {
           const tx = txRaw as unknown as ReturnType<typeof postgres>;
