@@ -19,6 +19,7 @@ export default async function PrivacyPolicyPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="privacy-policy"
         breadcrumbs={[{ label: "Privacy Policy" }]}
         badge="Legal & Data Governance"
         title="Privacy Policy"

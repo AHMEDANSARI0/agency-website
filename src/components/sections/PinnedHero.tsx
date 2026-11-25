@@ -511,10 +511,27 @@ export function PinnedHero({
               </Link>
             </div>
 
-            {/* 1-Line Reassurance */}
-            <p className="mt-4 text-xs text-ink-muted">
-              Free 25-minute review. Written scope. Zero obligation.
-            </p>
+            {/* Architectural Executive Assurance Strip */}
+            <div
+              className={`mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-muted ${
+                isSplitLeft && showQuantumGlobe
+                  ? "justify-start"
+                  : "justify-center"
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Human-Approved Gates
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                100% Client IP Ownership
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FB923C]" />
+                Free 25-Min Scope Review
+              </span>
+            </div>
           </div>
 
           {/* Right-Column Interactive 3D Quantum Holographic Globe (Shot #26367677 / Quip Style) */}

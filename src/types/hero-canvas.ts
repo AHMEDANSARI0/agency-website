@@ -25,20 +25,27 @@ export interface HeroCanvasConfig {
   eyebrowOverride?: string;
 }
 
+/**
+ * Default Signature Hero Configuration:
+ * - Harmonized 1:1 with OmniFlow Dark Purple AI (`#07030D` obsidian canvas,
+ *   `#A855F7` royal electric orchid rim, `#FB923C` warm sunset-orange beacons)
+ * - Clean split-left executive typography + right-hand interactive 3D sphere
+ * - `showCommandCenter: false` by default so zero bulky UI competes with the primary CTA
+ */
 export const DEFAULT_HERO_CANVAS_CONFIG: HeroCanvasConfig = {
-  visualMode: "orbital_halo",
-  layoutAlign: "centered",
-  globeScale: 1,
+  visualMode: "quantum_sphere",
+  layoutAlign: "split_left",
+  globeScale: 1.04,
   globeOffsetX: 0,
   globeOffsetY: 0,
-  rotationSpeed: 1,
+  rotationSpeed: 0.9,
   particleDensity: "balanced",
-  primaryGlowColor: "#4DB1C0",
-  secondaryGlowColor: "#FF2E93",
+  primaryGlowColor: "#A855F7",
+  secondaryGlowColor: "#FB923C",
   showOrbitalRing: true,
   showSignalArcs: true,
   interactiveDrag: true,
-  showCommandCenter: true,
+  showCommandCenter: false,
   eyebrowOverride: "",
 };
 
@@ -54,81 +61,84 @@ export const HERO_CANVAS_PRESETS: HeroCanvasPreset[] = [
   {
     id: "soale-orbital-default",
     name: "Soale Orbital Halo Ring",
-    badge: "Default · Dual Mode",
+    badge: "Minimal · Ambient Ring",
     description:
-      "Rotating Sunset-Orange to Electric-Orchid orbital light ring behind centered Hero copy and Command Center.",
+      "Centered executive hero framed by OmniFlow's warm Sunset-Orange to Electric-Orchid ambient light ring.",
     config: {
       ...DEFAULT_HERO_CANVAS_CONFIG,
       visualMode: "orbital_halo",
       layoutAlign: "centered",
+      primaryGlowColor: "#A855F7",
+      secondaryGlowColor: "#FB923C",
+      showCommandCenter: false,
     },
   },
   {
     id: "quip-quantum-sphere",
-    name: "Quantum Holographic 3D Sphere",
-    badge: "3D Globe · Split Right",
+    name: "OmniFlow 3D Quantum Sphere",
+    badge: "Default · 3D Split",
     description:
-      "Inspired by Quip 3D Globe: left-aligned Hero copy paired with an interactive 3D holographic sphere, glowing magenta/cyan continent nodes, geodesic mesh, and tilted dotted orbital ring.",
+      "Signature split-screen hero: crisp left-aligned value proposition paired with an interactive 3D Orchid & Sunset-Orange particle sphere, geodesic mesh, and tilted orbital ring.",
     config: {
       visualMode: "quantum_sphere",
       layoutAlign: "split_left",
-      globeScale: 1.05,
+      globeScale: 1.04,
       globeOffsetX: 0,
       globeOffsetY: 0,
-      rotationSpeed: 1,
+      rotationSpeed: 0.9,
       particleDensity: "dense",
-      primaryGlowColor: "#4DB1C0",
-      secondaryGlowColor: "#FF2E93",
+      primaryGlowColor: "#A855F7",
+      secondaryGlowColor: "#FB923C",
       showOrbitalRing: true,
       showSignalArcs: true,
       interactiveDrag: true,
-      showCommandCenter: true,
+      showCommandCenter: false,
       eyebrowOverride: "",
     },
   },
   {
     id: "blueorbit-horizon-globe",
-    name: "BlueOrbit Rising Horizon Globe",
+    name: "OmniFlow Rising Horizon 3D Globe",
     badge: "3D Horizon · Centered",
     description:
-      "Inspired by BlueOrbit / Unfold Interactive Globe: centered Hero headline floating above a rising planetary horizon crest with rotating dotted continents and live trajectory arcs.",
+      "Centered headline poised above a rising royal-violet & orchid planetary horizon crest with rotating dotted continents and live trajectory arcs.",
     config: {
       visualMode: "horizon_arc",
       layoutAlign: "centered",
       globeScale: 1.08,
       globeOffsetX: 0,
       globeOffsetY: 16,
-      rotationSpeed: 0.85,
+      rotationSpeed: 0.8,
       particleDensity: "dense",
-      primaryGlowColor: "#3B82F6",
-      secondaryGlowColor: "#8B5CF6",
+      primaryGlowColor: "#9333EA",
+      secondaryGlowColor: "#E879F9",
       showOrbitalRing: false,
       showSignalArcs: true,
       interactiveDrag: true,
-      showCommandCenter: true,
+      showCommandCenter: false,
       eyebrowOverride: "",
     },
   },
   {
     id: "omniflow-orbital-globe-hybrid",
-    name: "Soale Halo + 3D Quantum Globe",
-    badge: "Hybrid · Full Canvas",
+    name: "Ambient Halo + 3D Quantum Globe",
+    badge: "Hybrid · Full Depth",
     description:
-      "Combines Soale's warm Sunset-to-Orchid ambient halo with the interactive 3D Quantum Sphere in split-screen mode.",
+      "Layers the warm Orchid-to-Sunset ambient halo behind the interactive 3D Quantum Sphere for maximum depth.",
     config: {
       visualMode: "halo_plus_globe",
       layoutAlign: "split_left",
-      globeScale: 1,
+      globeScale: 1.02,
       globeOffsetX: 0,
       globeOffsetY: 0,
-      rotationSpeed: 1.1,
+      rotationSpeed: 0.95,
       particleDensity: "balanced",
-      primaryGlowColor: "#FF7023",
-      secondaryGlowColor: "#C823FF",
+      primaryGlowColor: "#C026D3",
+      secondaryGlowColor: "#FB923C",
       showOrbitalRing: true,
       showSignalArcs: true,
       interactiveDrag: true,
-      showCommandCenter: true,
+      showCommandCenter: false,
       eyebrowOverride: "",
     },
   },
@@ -157,7 +167,7 @@ export function normalizeHeroCanvasConfig(raw: unknown): HeroCanvasConfig {
     obj.visualMode === "halo_plus_globe" ||
     obj.visualMode === "orbital_halo"
       ? obj.visualMode
-      : "orbital_halo";
+      : DEFAULT_HERO_CANVAS_CONFIG.visualMode;
 
   const layoutAlign: HeroLayoutAlign =
     obj.layoutAlign === "split_left" || obj.layoutAlign === "centered"
@@ -176,10 +186,20 @@ export function normalizeHeroCanvasConfig(raw: unknown): HeroCanvasConfig {
   return {
     visualMode,
     layoutAlign,
-    globeScale: clampNum(obj.globeScale, 0.55, 1.65, 1),
+    globeScale: clampNum(
+      obj.globeScale,
+      0.55,
+      1.65,
+      DEFAULT_HERO_CANVAS_CONFIG.globeScale
+    ),
     globeOffsetX: clampNum(obj.globeOffsetX, -280, 280, 0),
     globeOffsetY: clampNum(obj.globeOffsetY, -200, 200, 0),
-    rotationSpeed: clampNum(obj.rotationSpeed, 0, 3, 1),
+    rotationSpeed: clampNum(
+      obj.rotationSpeed,
+      0,
+      3,
+      DEFAULT_HERO_CANVAS_CONFIG.rotationSpeed
+    ),
     particleDensity,
     primaryGlowColor: sanitizeHexColor(
       obj.primaryGlowColor,
@@ -196,7 +216,9 @@ export function normalizeHeroCanvasConfig(raw: unknown): HeroCanvasConfig {
     interactiveDrag:
       typeof obj.interactiveDrag === "boolean" ? obj.interactiveDrag : true,
     showCommandCenter:
-      typeof obj.showCommandCenter === "boolean" ? obj.showCommandCenter : true,
+      typeof obj.showCommandCenter === "boolean"
+        ? obj.showCommandCenter
+        : DEFAULT_HERO_CANVAS_CONFIG.showCommandCenter,
     eyebrowOverride:
       typeof obj.eyebrowOverride === "string"
         ? obj.eyebrowOverride.slice(0, 90)

@@ -68,29 +68,38 @@ export function VisualEditorCanvasBridge() {
         if (rootContainer) {
           rootContainer.style.display = "flex";
           rootContainer.style.flexDirection = "column";
-
-          data.sections.forEach((sec, idx) => {
-            const node = rootContainer.querySelector<HTMLElement>(
-              `[data-ve-section-id="${CSS.escape(sec.id)}"]`
-            );
-            if (!node) return;
-            node.style.order = String(idx + 1);
-            node.style.display = sec.isVisible ? "" : "none";
-
-            // Live-patch heading/subtitle inside non-hero sections when tagged
-            if (sec.type !== "hero") {
-              const titleEl = node.querySelector<HTMLElement>("[data-ve-title]");
-              if (titleEl && sec.title) {
-                titleEl.textContent = sec.title;
-              }
-              const subEl =
-                node.querySelector<HTMLElement>("[data-ve-subtitle]");
-              if (subEl && typeof sec.subtitle === "string") {
-                subEl.textContent = sec.subtitle;
-              }
-            }
-          });
         }
+
+        data.sections.forEach((sec, idx) => {
+          const scope: ParentNode = rootContainer ?? document;
+          const node =
+            scope.querySelector<HTMLElement>(
+              `[data-ve-section-id="${CSS.escape(sec.id)}"]`
+            ) ??
+            (!rootContainer
+              ? document.querySelector<HTMLElement>(
+                  `[data-ve-section-type="${CSS.escape(sec.type)}"]`
+                )
+              : null);
+          if (!node) return;
+          if (rootContainer) {
+            node.style.order = String(idx + 1);
+          }
+          node.style.display = sec.isVisible ? "" : "none";
+
+          // Live-patch heading/subtitle inside non-home-hero sections when tagged
+          if (!rootContainer || sec.type !== "hero") {
+            const titleEl = node.querySelector<HTMLElement>("[data-ve-title]");
+            if (titleEl && sec.title) {
+              titleEl.textContent = sec.title;
+            }
+            const subEl =
+              node.querySelector<HTMLElement>("[data-ve-subtitle]");
+            if (subEl && typeof sec.subtitle === "string") {
+              subEl.textContent = sec.subtitle;
+            }
+          }
+        });
       }
 
       if (data.scrollToSectionId) {

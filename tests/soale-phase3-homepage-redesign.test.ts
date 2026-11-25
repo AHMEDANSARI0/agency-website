@@ -7,15 +7,15 @@ import {
 } from "@/features/pricing/default-pricing";
 
 describe("Soale Redesign Phase 3 — Homepage Redesign, Card Architecture & Own Navbar Preservation", () => {
-  it("1. preserves our own existing Navbar.tsx untouched while upgrading Footer.tsx to Soale semantic tokens", () => {
+  it("1. wires Admin-driven Navbar.tsx with theme switching while upgrading Footer.tsx to Soale semantic tokens", () => {
     const navbarSrc = fs.readFileSync(
       path.join(process.cwd(), "src/components/layout/Navbar.tsx"),
       "utf8"
     );
-    expect(navbarSrc).toContain("mega-panel-services");
-    expect(navbarSrc).toContain("mega-panel-solutions");
-    expect(navbarSrc).toContain("mega-panel-proof");
-    expect(navbarSrc).toContain("ThemeToggle");
+    expect(navbarSrc).toContain("settings.navigation");
+    expect(navbarSrc).toContain("BrandMark");
+    expect(navbarSrc).toContain("useTheme");
+    expect(navbarSrc).toContain('aria-label="Switch color theme"');
 
     const footerSrc = fs.readFileSync(
       path.join(process.cwd(), "src/components/layout/Footer.tsx"),

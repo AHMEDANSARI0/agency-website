@@ -38,6 +38,7 @@ export default async function ContactPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="contact"
         breadcrumbs={[{ label: "Contact" }]}
         badge="Free 25-Minute Workflow Review"
         title="Book a Free Workflow Review or Share Your Bottleneck"

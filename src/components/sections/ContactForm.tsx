@@ -161,11 +161,14 @@ export function ContactForm({
   }, [defaultSource, defaultService, defaultContext]);
 
   const formRef = React.useRef<HTMLFormElement | null>(null);
+  const inFlightRef = React.useRef<boolean>(false);
   const idempotencyKeyRef = React.useRef<string>(
     `idem_of_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
   );
 
   async function submitFormElement(form: HTMLFormElement) {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setSubmitting(true);
     setStatus({ type: "idle" });
 
@@ -209,6 +212,9 @@ export function ContactForm({
       ),
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       const response = await fetch("/api/leads", {
         method: "POST",
@@ -217,6 +223,7 @@ export function ContactForm({
           "Idempotency-Key": idempotencyKeyRef.current,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       const result = (await response.json()) as {
@@ -233,7 +240,6 @@ export function ContactForm({
             result.error ||
             "Unable to submit your request. Please check your details and try again.",
         });
-        setSubmitting(false);
         return;
       }
 
@@ -258,13 +264,18 @@ export function ContactForm({
           result.message ||
           "Thank you. Your request has been saved and our team will respond within one business day.",
       });
-    } catch {
+    } catch (err) {
+      const isTimeout =
+        err instanceof DOMException && err.name === "AbortError";
       setStatus({
         type: "error",
-        message:
-          "Network connection interrupted while sending your request. Your entries are still here — click Try Again below.",
+        message: isTimeout
+          ? "Request timed out on a slow network connection. Your entries are preserved — click Try Again below."
+          : "Network connection interrupted while sending your request. Your entries are still here — click Try Again below.",
       });
     } finally {
+      clearTimeout(timeoutId);
+      inFlightRef.current = false;
       setSubmitting(false);
     }
   }

@@ -46,6 +46,7 @@ export default async function FaqPage() {
     <div className="bg-canvas text-ink-body">
       <JsonLdScript data={structuredData} />
       <PageHeader
+        pageSlug="faq"
         breadcrumbs={[{ label: "FAQ" }]}
         badge="Answers & Transparency"
         title="Frequently Asked Questions"
@@ -88,6 +89,7 @@ export default async function FaqPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="faq"
         eyebrow="Still Have a Question?"
         title="Ask us about your specific tools, compliance rules, or timeline"
         description={

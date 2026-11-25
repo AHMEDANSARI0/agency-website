@@ -31,6 +31,7 @@ export default async function DemosPage() {
     <div className="bg-canvas text-ink-body">
       <JsonLdScript data={[demosSchema, breadcrumbSchema]} />
       <PageHeader
+        pageSlug="demos"
         breadcrumbs={[{ label: "Interactive Demos" }]}
         badge="5 Live Interactive Sandboxes"
         title="See How OmniFlow Workflows Run Before You Book a Call"
@@ -100,6 +101,7 @@ export default async function DemosPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="demos"
         eyebrow="Custom System Architecture"
         title="Want a workflow like these tailored to your own CRM and SOPs?"
         description="Tell us which process you tested above and what tools your team currently uses. We will map out a production implementation plan."

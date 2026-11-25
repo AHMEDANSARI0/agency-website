@@ -20,7 +20,6 @@ const STATIC_PUBLIC_ROUTES: {
   { path: "/solutions", priority: 0.85, changeFrequency: "weekly" },
   { path: "/how-it-works", priority: 0.85, changeFrequency: "monthly" },
   { path: "/demos", priority: 0.9, changeFrequency: "weekly" },
-  { path: "/work", priority: 0.85, changeFrequency: "weekly" },
   { path: "/case-studies", priority: 0.85, changeFrequency: "weekly" },
   { path: "/blog", priority: 0.8, changeFrequency: "weekly" },
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },

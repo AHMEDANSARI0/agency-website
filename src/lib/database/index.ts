@@ -873,8 +873,7 @@ function normalizeLegacyHomePage(page: PageDocument): PageDocument {
   const currentSections = page.sections || [];
   const isUntouchedLegacyLayout =
     currentSections.length === 0 ||
-    currentSections.length >= 14 ||
-    !currentSections.some((s) => s.type === "roi_framing");
+    currentSections.length >= 9;
 
   if (!isUntouchedLegacyLayout) return page;
 
@@ -892,34 +891,24 @@ function upgradeSnapshotIfNeeded(
     return snap;
   }
   const fresh = createInitialSeedSnapshot();
-  const hadPhase1AnchorNav = snap.siteSettings?.navigation?.some((n) =>
-    n.href.startsWith("/#")
+  const hadLegacyNav = snap.siteSettings?.navigation?.some(
+    (n) => n.href.startsWith("/#") || n.href === "/work"
   );
-  const missingDemosNav = !snap.siteSettings?.navigation?.some(
-    (n) => n.href === "/demos"
+  const missingPricingNav = !snap.siteSettings?.navigation?.some(
+    (n) => n.href === "/pricing"
   );
 
-  const baseSettings: SiteSettings = hadPhase1AnchorNav
-    ? {
-        ...snap.siteSettings,
-        bookingUrl: fresh.siteSettings.bookingUrl,
-        primaryCtaLabel: fresh.siteSettings.primaryCtaLabel,
-        primaryCtaHref: fresh.siteSettings.primaryCtaHref,
-        secondaryCtaLabel: fresh.siteSettings.secondaryCtaLabel,
-        secondaryCtaHref: fresh.siteSettings.secondaryCtaHref,
-        navigation: fresh.siteSettings.navigation,
-        footerLinks: fresh.siteSettings.footerLinks,
-      }
-    : missingDemosNav
+  const baseSettings: SiteSettings =
+    hadLegacyNav || missingPricingNav
       ? {
           ...snap.siteSettings,
+          bookingUrl: fresh.siteSettings.bookingUrl,
+          primaryCtaLabel: fresh.siteSettings.primaryCtaLabel,
+          primaryCtaHref: fresh.siteSettings.primaryCtaHref,
           secondaryCtaLabel: fresh.siteSettings.secondaryCtaLabel,
           secondaryCtaHref: fresh.siteSettings.secondaryCtaHref,
-          navigation: mergeByKey(
-            snap.siteSettings.navigation || [],
-            fresh.siteSettings.navigation,
-            (n) => n.href
-          ).map((item, idx) => ({ ...item, order: idx + 1 })),
+          navigation: fresh.siteSettings.navigation,
+          footerLinks: fresh.siteSettings.footerLinks,
         }
       : snap.siteSettings;
 

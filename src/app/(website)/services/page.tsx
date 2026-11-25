@@ -43,6 +43,7 @@ export default async function ServicesIndexPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="services"
         breadcrumbs={[{ label: "Services" }]}
         badge="AI & Workflow Services"
         title="Practical AI Workflows With Human Approval Built In"
@@ -249,6 +250,7 @@ export default async function ServicesIndexPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="services"
         eyebrow="Not Sure Where to Start?"
         title="Begin with one high-friction bottleneck"
         description="Most clients start by automating inbound lead qualification or routine customer support triage, then expand once the time savings are proven."

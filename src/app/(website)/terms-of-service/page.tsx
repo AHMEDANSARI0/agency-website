@@ -19,6 +19,7 @@ export default async function TermsOfServicePage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="terms-of-service"
         breadcrumbs={[{ label: "Terms of Service" }]}
         badge="Legal & Engagement Terms"
         title="Terms of Service"

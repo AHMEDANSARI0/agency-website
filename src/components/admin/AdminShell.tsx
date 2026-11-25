@@ -134,16 +134,9 @@ const NAV_SECTIONS: NavSection[] = [
         anyOfPermissions: ["media:manage"],
       },
       {
-        href: "/admin/seo-inspector",
-        label: "SEO & Page Inspector",
-        shortDesc: "Every-page SEO score, SERP preview, alerts & 1-click fixes",
-        icon: Search,
-        requiredPermission: "seo:manage",
-      },
-      {
         href: "/admin/seo",
         label: "SEO & Analytics",
-        shortDesc: "301 redirects, XML sitemap, and consent-gated GA4",
+        shortDesc: "Every-page SEO inspector, SERP fixes, 301 redirects & GA4",
         icon: Globe,
         requiredPermission: "seo:manage",
       },

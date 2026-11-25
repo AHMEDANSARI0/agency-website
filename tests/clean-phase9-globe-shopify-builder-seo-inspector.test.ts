@@ -264,6 +264,6 @@ describe("Phase 9 — 3D Interactive Globe Studio, Shopify Live Customizer & Eve
       (c) => c.category === "seo_content"
     );
     expect(seoCheck?.severity).toBe("critical");
-    expect(seoCheck?.fixHref).toBe("/admin/seo-inspector");
+    expect(seoCheck?.fixHref).toBe("/admin/seo");
   });
 });

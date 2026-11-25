@@ -23,6 +23,7 @@ export default async function AboutPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="about"
         breadcrumbs={[{ label: "About" }]}
         badge={`Founded by ${settings.founderName}`}
         title="Practical Engineering for Businesses That Value Reliability"
@@ -77,7 +78,7 @@ export default async function AboutPage() {
               <SoaleArrowButton href="/how-it-works" variant="surface">
                 See 4-Phase Process
               </SoaleArrowButton>
-              <SoaleArrowButton href="/work" variant="outline">
+              <SoaleArrowButton href="/case-studies" variant="outline">
                 Workflow Blueprints
               </SoaleArrowButton>
             </div>
@@ -132,6 +133,7 @@ export default async function AboutPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="about"
         eyebrow="Direct Principal Collaboration"
         title="Speak directly with the architect building your system"
         description="No commission sales reps or junior handoffs. Share your operational bottleneck and receive an honest engineering assessment."

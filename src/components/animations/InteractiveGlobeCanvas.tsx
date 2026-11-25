@@ -109,7 +109,7 @@ function seededRandom(seed: number) {
 
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
-  if (clean.length !== 6) return [77, 177, 192];
+  if (clean.length !== 6) return [168, 85, 247];
   const n = parseInt(clean, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
@@ -143,10 +143,10 @@ export function InteractiveGlobeCanvas({
   scale = 1,
   offsetX = 0,
   offsetY = 0,
-  rotationSpeed = 1,
+  rotationSpeed = 0.9,
   particleDensity = "balanced",
-  primaryGlowColor = "#4DB1C0",
-  secondaryGlowColor = "#FF2E93",
+  primaryGlowColor = "#A855F7",
+  secondaryGlowColor = "#FB923C",
   showOrbitalRing = true,
   showSignalArcs = true,
   interactiveDrag = true,
@@ -325,6 +325,15 @@ export function InteractiveGlobeCanvas({
         const isLightMode =
           document.documentElement.getAttribute("data-theme") === "light";
 
+        // Theme-aware ink & highlight adaptation:
+        // In Light Mode, deepen pale lavender/orange glows slightly so nodes stay crisp & high-contrast on alabaster glass
+        const [pr1, pg1, pb1] = isLightMode
+          ? [Math.round(r1 * 0.68), Math.round(g1 * 0.42), Math.round(b1 * 0.82)]
+          : [r1, g1, b1];
+        const [pr2, pg2, pb2] = isLightMode
+          ? [Math.round(r2 * 0.88), Math.round(g2 * 0.52), Math.round(b2 * 0.35)]
+          : [r2, g2, b2];
+
         if (!isDragging && !prefersReduced) {
           yaw += dt * 0.24 * rotationSpeed + velYaw;
           pitch = Math.max(-0.65, Math.min(0.75, pitch + velPitch));
@@ -337,45 +346,45 @@ export function InteractiveGlobeCanvas({
         const isHorizon = variant === "horizon_arc";
         const baseRadius = isHorizon
           ? Math.min(width * 0.72, height * 1.18) * scale
-          : Math.min(width, height) * 0.37 * scale;
+          : Math.min(width, height) * 0.38 * scale;
 
         const cx = width * 0.5 + offsetX;
         const cy = isHorizon
           ? height * 1.16 + offsetY
           : height * 0.5 + offsetY;
 
-        // 1. Outer Atmospheric Halo Glow
+        // 1. Outer Atmospheric Halo Glow (Dark Purple AI / Orchid + Sunset Orange)
         const outerHalo = ctx.createRadialGradient(
           cx,
           cy,
           baseRadius * 0.72,
           cx,
           cy,
-          baseRadius * (isHorizon ? 1.34 : 1.48)
+          baseRadius * (isHorizon ? 1.34 : 1.46)
         );
-        const glowAlpha1 = isLightMode ? 0.22 : isHorizon ? 0.44 : 0.34;
-        const glowAlpha2 = isLightMode ? 0.14 : 0.22;
+        const glowAlpha1 = isLightMode ? 0.16 : isHorizon ? 0.38 : 0.30;
+        const glowAlpha2 = isLightMode ? 0.10 : 0.18;
         outerHalo.addColorStop(0, `rgba(${r1}, ${g1}, ${b1}, ${glowAlpha1})`);
-        outerHalo.addColorStop(0.45, `rgba(${r2}, ${g2}, ${b2}, ${glowAlpha2})`);
+        outerHalo.addColorStop(0.5, `rgba(${r2}, ${g2}, ${b2}, ${glowAlpha2})`);
         outerHalo.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = outerHalo;
         ctx.beginPath();
-        ctx.arc(cx, cy, baseRadius * 1.48, 0, Math.PI * 2);
+        ctx.arc(cx, cy, baseRadius * 1.46, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. Floating Space Bokeh & Micro-Hexagons (Quantum Sphere mode)
+        // 2. Subtle Floating Space Bokeh & Micro-Hexagons (Quantum Sphere mode)
         if (!isHorizon) {
           const tSec = now * 0.001;
           for (const sp of spaceParticles) {
-            const driftY = Math.sin(tSec * sp.speed + sp.phase) * 10;
-            const sx = cx + sp.nx * baseRadius * 1.38;
-            const sy = cy + sp.ny * baseRadius * 1.28 + driftY;
-            const [cr, cg, cb] = sp.tint === 1 ? [r2, g2, b2] : [r1, g1, b1];
-            const alpha = isLightMode ? 0.32 : 0.48;
+            const driftY = Math.sin(tSec * sp.speed + sp.phase) * 9;
+            const sx = cx + sp.nx * baseRadius * 1.36;
+            const sy = cy + sp.ny * baseRadius * 1.26 + driftY;
+            const [cr, cg, cb] = sp.tint === 1 ? [pr2, pg2, pb2] : [pr1, pg1, pb1];
+            const alpha = isLightMode ? 0.24 : 0.42;
             if (sp.isHex) {
               ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha})`;
               ctx.lineWidth = 1;
-              drawHexagon(sx, sy, sp.r * 1.8);
+              drawHexagon(sx, sy, sp.r * 1.7);
             } else {
               ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha})`;
               ctx.beginPath();
@@ -389,9 +398,9 @@ export function InteractiveGlobeCanvas({
         const drawOrbitalRingHalf = (frontHalf: boolean) => {
           if (!showOrbitalRing) return;
           const ringDots = 108;
-          const ringRx = baseRadius * 1.34;
-          const ringRz = baseRadius * 1.34;
-          const ringTiltX = 0.34; // Tilted Saturn-style plane
+          const ringRx = baseRadius * 1.33;
+          const ringRz = baseRadius * 1.33;
+          const ringTiltX = 0.34;
           const ringTiltZ = -0.14;
           const spin = (now * 0.00045 * Math.max(0.25, rotationSpeed)) % (Math.PI * 2);
 
@@ -402,11 +411,8 @@ export function InteractiveGlobeCanvas({
             const isFront = zFlat >= 0;
             if (isFront !== frontHalf) continue;
 
-            // Tilt in 3D
             const yTilted = -zFlat * Math.sin(ringTiltX);
             const zTilted = zFlat * Math.cos(ringTiltX);
-
-            // Slight roll angle (like Quip's diagonal orbital ring)
             const rx = xFlat * Math.cos(ringTiltZ) - yTilted * Math.sin(ringTiltZ);
             const ry = xFlat * Math.sin(ringTiltZ) + yTilted * Math.cos(ringTiltZ);
 
@@ -414,26 +420,27 @@ export function InteractiveGlobeCanvas({
             const sx = cx + rx * depthScale;
             const sy = cy + ry * depthScale;
 
-            // Comet pulse racing around the ring
             const pulseDist = Math.abs(((i / ringDots + spin * 0.35) % 1) - 0.5);
             const isComet = pulseDist < 0.045;
 
             const baseAlpha = frontHalf
               ? isLightMode
-                ? 0.65
-                : 0.88
+                ? 0.62
+                : 0.85
               : isLightMode
-                ? 0.22
-                : 0.32;
+                ? 0.20
+                : 0.30;
 
             ctx.fillStyle = isComet
-              ? `rgba(255, 255, 255, ${frontHalf ? 0.98 : 0.5})`
-              : `rgba(${r1}, ${g1}, ${b1}, ${baseAlpha})`;
+              ? isLightMode
+                ? `rgba(${pr2}, ${pg2}, ${pb2}, ${frontHalf ? 0.95 : 0.45})`
+                : `rgba(250, 247, 255, ${frontHalf ? 0.98 : 0.5})`
+              : `rgba(${pr1}, ${pg1}, ${pb1}, ${baseAlpha})`;
             ctx.beginPath();
             ctx.arc(
               sx,
               sy,
-              isComet ? 2.8 : frontHalf ? 1.75 : 1.2,
+              isComet ? 2.7 : frontHalf ? 1.7 : 1.15,
               0,
               Math.PI * 2
             );
@@ -460,8 +467,8 @@ export function InteractiveGlobeCanvas({
           for (const item of projected) {
             if (item.z >= 0) continue;
             const [cr, cg, cb] =
-              item.pt.tint === 1 ? [r2, g2, b2] : [r1, g1, b1];
-            const alpha = (1 + item.z * 0.75) * (isLightMode ? 0.11 : 0.16);
+              item.pt.tint === 1 ? [pr2, pg2, pb2] : [pr1, pg1, pb1];
+            const alpha = (1 + item.z * 0.75) * (isLightMode ? 0.14 : 0.16);
             if (alpha <= 0.02) continue;
             ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha.toFixed(3)})`;
             ctx.beginPath();
@@ -470,7 +477,7 @@ export function InteractiveGlobeCanvas({
           }
         }
 
-        // 6. Planetary Core Body + Fresnel Rim Light
+        // 6. Planetary Core Body + Theme-Matched Obsidian / Alabaster Glass Fill
         const bodyGrad = ctx.createRadialGradient(
           cx - baseRadius * 0.22,
           cy - baseRadius * 0.28,
@@ -480,19 +487,13 @@ export function InteractiveGlobeCanvas({
           baseRadius
         );
         if (isLightMode) {
-          bodyGrad.addColorStop(0, "rgba(18, 14, 46, 0.88)");
-          bodyGrad.addColorStop(0.72, "rgba(12, 10, 34, 0.94)");
-          bodyGrad.addColorStop(
-            1,
-            `rgba(${r1}, ${g1}, ${b1}, 0.58)`
-          );
+          bodyGrad.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+          bodyGrad.addColorStop(0.72, "rgba(241, 234, 251, 0.94)");
+          bodyGrad.addColorStop(1, `rgba(${r1}, ${g1}, ${b1}, 0.26)`);
         } else {
-          bodyGrad.addColorStop(0, "rgba(8, 10, 26, 0.86)");
-          bodyGrad.addColorStop(0.74, "rgba(4, 6, 18, 0.94)");
-          bodyGrad.addColorStop(
-            1,
-            `rgba(${r1}, ${g1}, ${b1}, 0.45)`
-          );
+          bodyGrad.addColorStop(0, "rgba(24, 13, 44, 0.88)");
+          bodyGrad.addColorStop(0.74, "rgba(9, 4, 18, 0.95)");
+          bodyGrad.addColorStop(1, `rgba(${r1}, ${g1}, ${b1}, 0.42)`);
         }
 
         ctx.fillStyle = bodyGrad;
@@ -507,15 +508,20 @@ export function InteractiveGlobeCanvas({
           cx + baseRadius,
           cy + (isHorizon ? 0 : baseRadius)
         );
-        rimGrad.addColorStop(0, `rgba(${r1}, ${g1}, ${b1}, 0.92)`);
-        rimGrad.addColorStop(0.5, "rgba(224, 242, 254, 0.96)");
-        rimGrad.addColorStop(1, `rgba(${r2}, ${g2}, ${b2}, 0.88)`);
+        rimGrad.addColorStop(0, `rgba(${pr1}, ${pg1}, ${pb1}, 0.90)`);
+        rimGrad.addColorStop(
+          0.5,
+          isLightMode
+            ? `rgba(${pr1}, ${pg1}, ${pb1}, 0.55)`
+            : "rgba(250, 247, 255, 0.92)"
+        );
+        rimGrad.addColorStop(1, `rgba(${pr2}, ${pg2}, ${pb2}, 0.88)`);
 
         ctx.save();
         ctx.strokeStyle = rimGrad;
-        ctx.lineWidth = isHorizon ? 2.6 : 2.0;
-        ctx.shadowColor = `rgba(${r1}, ${g1}, ${b1}, 0.75)`;
-        ctx.shadowBlur = isHorizon ? 26 : 18;
+        ctx.lineWidth = isHorizon ? 2.4 : 1.85;
+        ctx.shadowColor = `rgba(${r1}, ${g1}, ${b1}, ${isLightMode ? 0.35 : 0.72})`;
+        ctx.shadowBlur = isHorizon ? 24 : 18;
         ctx.beginPath();
         ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
         ctx.stroke();
@@ -531,8 +537,10 @@ export function InteractiveGlobeCanvas({
             const dist = Math.hypot(a.x - b.x, a.y - b.y);
             if (dist < baseRadius * 0.78) {
               const lineAlpha =
-                (1 - dist / (baseRadius * 0.78)) * 0.24 * Math.min(a.z, b.z);
-              ctx.strokeStyle = `rgba(${r1}, ${g1}, ${b1}, ${lineAlpha.toFixed(3)})`;
+                (1 - dist / (baseRadius * 0.78)) *
+                (isLightMode ? 0.28 : 0.24) *
+                Math.min(a.z, b.z);
+              ctx.strokeStyle = `rgba(${pr1}, ${pg1}, ${pb1}, ${lineAlpha.toFixed(3)})`;
               ctx.beginPath();
               ctx.moveTo(a.x, a.y);
               ctx.lineTo(b.x, b.y);
@@ -546,19 +554,20 @@ export function InteractiveGlobeCanvas({
           if (item.z < 0) continue;
           const depth = Math.pow(item.z, 0.65);
           const [cr, cg, cb] =
-            item.pt.tint === 1 ? [r2, g2, b2] : [r1, g1, b1];
+            item.pt.tint === 1 ? [pr2, pg2, pb2] : [pr1, pg1, pb1];
 
-          const alpha = Math.min(1, 0.28 + depth * 0.76);
+          const alpha = Math.min(1, (isLightMode ? 0.36 : 0.28) + depth * 0.72);
           const rad = item.pt.size * (0.75 + depth * 0.45);
 
           if (item.pt.isHub) {
-            // Soft city beacon bloom
             ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${(alpha * 0.28).toFixed(3)})`;
             ctx.beginPath();
             ctx.arc(item.x, item.y, rad * 2.8, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
+            ctx.fillStyle = isLightMode
+              ? `rgba(${pr2}, ${pg2}, ${pb2}, ${(alpha * 0.95).toFixed(3)})`
+              : `rgba(250, 247, 255, ${(alpha * 0.95).toFixed(3)})`;
             ctx.beginPath();
             ctx.arc(item.x, item.y, rad * 0.95, 0, Math.PI * 2);
             ctx.fill();
@@ -570,7 +579,7 @@ export function InteractiveGlobeCanvas({
           }
         }
 
-        // 9. Animated 3D Great-Circle Signal Arcs (BlueOrbit & Quantum Arcs)
+        // 9. Animated 3D Great-Circle Signal Arcs
         if (showSignalArcs) {
           const tArc = now * 0.001 * Math.max(0.2, rotationSpeed);
           for (const arc of SIGNAL_ARCS) {
@@ -578,7 +587,6 @@ export function InteractiveGlobeCanvas({
             const pTo = projectLatLng(arc.toLat, arc.toLng, yaw, pitch);
             if (pFrom.z < -0.15 && pTo.z < -0.15) continue;
 
-            // Midpoint elevated above sphere surface (`1.24` altitude)
             const midLat = (arc.fromLat + arc.toLat) * 0.5 + 12;
             const midLng = (arc.fromLng + arc.toLng) * 0.5;
             const pMid = projectLatLng(midLat, midLng, yaw, pitch);
@@ -591,20 +599,18 @@ export function InteractiveGlobeCanvas({
             const x1 = cx + pMid.x * baseRadius * lift;
             const y1 = cy + pMid.y * baseRadius * lift;
 
-            // Subtle base trajectory curve
-            ctx.strokeStyle = `rgba(${r1}, ${g1}, ${b1}, 0.20)`;
+            ctx.strokeStyle = `rgba(${pr1}, ${pg1}, ${pb1}, ${isLightMode ? 0.24 : 0.20})`;
             ctx.lineWidth = 1.1;
             ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.quadraticCurveTo(x1, y1, x2, y2);
             ctx.stroke();
 
-            // Animated glowing packet along the quadratic Bezier curve
             const prog = (tArc * arc.speed + arc.offset) % 1;
             const tailStart = Math.max(0, prog - 0.22);
             const steps = 10;
             ctx.lineWidth = 2.0;
-            ctx.strokeStyle = `rgba(${r2}, ${g2}, ${b2}, 0.85)`;
+            ctx.strokeStyle = `rgba(${pr2}, ${pg2}, ${pb2}, 0.88)`;
             ctx.beginPath();
             for (let s = 0; s <= steps; s++) {
               const t = tailStart + ((prog - tailStart) * s) / steps;
@@ -616,13 +622,14 @@ export function InteractiveGlobeCanvas({
             }
             ctx.stroke();
 
-            // Leading packet spark
             const omt = 1 - prog;
             const headX =
               omt * omt * x0 + 2 * omt * prog * x1 + prog * prog * x2;
             const headY =
               omt * omt * y0 + 2 * omt * prog * y1 + prog * prog * y2;
-            ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+            ctx.fillStyle = isLightMode
+              ? `rgba(${pr2}, ${pg2}, ${pb2}, 0.98)`
+              : "rgba(250, 247, 255, 0.96)";
             ctx.beginPath();
             ctx.arc(headX, headY, 2.4, 0, Math.PI * 2);
             ctx.fill();

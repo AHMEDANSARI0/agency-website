@@ -19,6 +19,7 @@ export default async function CookiePolicyPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="cookie-policy"
         breadcrumbs={[{ label: "Cookie Policy" }]}
         badge="Privacy & Storage Controls"
         title="Cookie & Local Storage Policy"

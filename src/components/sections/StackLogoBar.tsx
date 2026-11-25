@@ -118,7 +118,7 @@ export function StackLogoBar() {
   return (
     <section
       aria-label="Supported business tools"
-      className="border-b border-line/60 pb-14 pt-2 sm:pb-16"
+      className="pb-14 pt-2 sm:pb-16"
     >
       <Container>
         <p className="text-center text-xs font-medium tracking-wide text-ink-muted">

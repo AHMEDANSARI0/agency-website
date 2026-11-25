@@ -112,6 +112,7 @@ export default async function SolutionsPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="solutions"
         breadcrumbs={[{ label: "Solutions" }]}
         badge="Industry Playbooks · USA · UK · Canada"
         title="Automation Tailored to How Service Teams Actually Operate"
@@ -262,6 +263,7 @@ export default async function SolutionsPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="solutions"
         eyebrow="Tailored Architecture"
         title="Don’t see your exact industry listed?"
         description="If your team handles inbound leads, customer enquiries, or multi-tool handoffs, we can design a reliable workflow around your stack."

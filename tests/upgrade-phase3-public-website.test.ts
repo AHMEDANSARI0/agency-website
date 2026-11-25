@@ -21,7 +21,7 @@ describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Hom
     }
   });
 
-  it("seeds all 9 focused homepage sections plus the strict verified-testimonials gate", async () => {
+  it("seeds all 6 focused homepage sections plus the strict verified-testimonials gate", async () => {
     const snapshot = createInitialSeedSnapshot();
     const home = snapshot.pages.find((p) => p.slug === "home");
     expect(home).toBeDefined();
@@ -29,55 +29,31 @@ describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Hom
     const sectionTypes = home!.sections.map((s) => s.type);
     expect(sectionTypes).toEqual([
       "hero",
-      "trust_strip",
-      "problems_outcomes",
       "flagship_systems",
       "interactive_demos_preview",
-      "how_it_works",
       "case_studies_highlight",
-      "roi_framing",
-      "faq_section",
+      "how_it_works",
+      "cta_banner",
     ]);
 
     const verifiedTestimonials = await db.listTestimonials(true);
     expect(verifiedTestimonials).toHaveLength(0);
     const activeSectionCount = home!.sections.filter((s) => s.isVisible).length;
-    expect(activeSectionCount).toBe(9);
+    expect(activeSectionCount).toBe(6);
   });
 
-  it("includes accessible WAI-ARIA mega-menu controls, 8 service links, and 5 live demo links in Navbar", () => {
+  it("wires accessible Admin-driven Navbar with Escape key, mobile drawer, and settings.navigation", () => {
     const navbarSource = fs.readFileSync(
       path.join(process.cwd(), "src/components/layout/Navbar.tsx"),
       "utf8"
     );
 
-    expect(navbarSource).toContain("mega-panel-services");
-    expect(navbarSource).toContain("mega-panel-solutions");
-    expect(navbarSource).toContain("mega-panel-proof");
+    expect(navbarSource).toContain("settings.navigation");
     expect(navbarSource).toContain("aria-expanded");
     expect(navbarSource).toContain("aria-controls");
     expect(navbarSource).toContain("Escape");
-    expect(navbarSource).toContain("ArrowDown");
-
-    const requiredLinks = [
-      "/services/lead-management",
-      "/services/ai-customer-support",
-      "/services/workflow-automation",
-      "/services/ai-sales-intelligence",
-      "/services/ai-customer-experience",
-      "/services/ai-operations",
-      "/services/ai-analytics",
-      "/services/custom-ai-systems",
-      "/demos?tab=lead-qualification",
-      "/demos?tab=support-generator",
-      "/demos?tab=workflow-builder",
-      "/demos?tab=savings-calculator",
-      "/demos?tab=readiness-assessment",
-    ];
-
-    for (const href of requiredLinks) {
-      expect(navbarSource).toContain(href);
-    }
+    expect(navbarSource).toContain("mobile-navigation-drawer");
+    expect(navbarSource).toContain("data-lenis-prevent");
   });
 
   it("eliminates legacy Phase 1 vermilion/amber hardcoded colors across public website pages", () => {
@@ -100,7 +76,6 @@ describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Hom
       "src/app/(website)/solutions/page.tsx",
       "src/app/(website)/how-it-works/page.tsx",
       "src/app/(website)/demos/page.tsx",
-      "src/app/(website)/work/page.tsx",
       "src/app/(website)/case-studies/page.tsx",
       "src/app/(website)/case-studies/[slug]/page.tsx",
       "src/app/(website)/about/page.tsx",

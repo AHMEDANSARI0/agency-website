@@ -29,6 +29,7 @@ export default async function TeamPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="team"
         breadcrumbs={[
           { label: "About", href: "/about" },
           { label: "Founder & Team" },
@@ -141,6 +142,7 @@ export default async function TeamPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="team"
         eyebrow="Start a Conversation"
         title="Discuss your workflow directly with Ahmed Ansari"
         description="Share your operational challenge via our structured intake form and receive a direct response within one business day."

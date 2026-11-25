@@ -76,6 +76,7 @@ export default async function HowItWorksPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="how-it-works"
         breadcrumbs={[{ label: "How It Works" }]}
         badge="4-Phase Delivery"
         title="Four Clear Steps From Workflow Review to Handover"
@@ -214,6 +215,7 @@ export default async function HowItWorksPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="how-it-works"
         eyebrow="Step 01 Starts Here"
         title="Ready to map out your highest-leverage automation?"
         description="Book a 25-minute discovery call and receive a straightforward written blueprint for your workflow."

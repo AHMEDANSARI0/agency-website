@@ -91,18 +91,6 @@ export const STATIC_ROUTE_SEO_DEFAULTS: Record<string, StaticRouteSeoDefault> = 
     sitemapPriority: 0.85,
     changeFrequency: "monthly",
   },
-  work: {
-    slug: "work",
-    path: "/work",
-    label: "Work & Reference Builds",
-    defaultTitle: "Work, Prototypes & Architectures",
-    defaultDescription:
-      "Explore OmniFlow’s transparently labeled automation architectures, internal workflow prototypes, and authorized client implementations.",
-    primaryH1: "Reference Architectures, Prototypes & Verified Builds",
-    jsonLdTypes: ["Organization", "WebSite"],
-    sitemapPriority: 0.8,
-    changeFrequency: "weekly",
-  },
   blog: {
     slug: "blog",
     path: "/blog",

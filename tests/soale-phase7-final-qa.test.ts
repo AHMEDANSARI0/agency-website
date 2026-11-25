@@ -30,7 +30,8 @@ describe("Soale Redesign Phase 7 — Final Responsive, Accessibility, SEO, Speed
       path.join(process.cwd(), "src/components/layout/Navbar.tsx"),
       "utf8"
     );
-    expect(navbarSrc).toContain("ThemeToggle");
+    expect(navbarSrc).toContain("useTheme");
+    expect(navbarSrc).toContain('aria-label="Switch color theme"');
     expect(navbarSrc).toContain("BrandMark");
 
     const [settings, services, caseStudies, blogPosts, testimonials] =
@@ -80,7 +81,8 @@ describe("Soale Redesign Phase 7 — Final Responsive, Accessibility, SEO, Speed
 
     expect(urls.some((u) => u.endsWith("/pricing"))).toBe(true);
     expect(urls.some((u) => u.endsWith("/services"))).toBe(true);
-    expect(urls.some((u) => u.endsWith("/work"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/case-studies"))).toBe(true);
+    expect(urls.some((u) => u.endsWith("/work"))).toBe(false);
     expect(urls.some((u) => u.endsWith("/demos"))).toBe(true);
     expect(urls.some((u) => u.endsWith("/services/lead-management"))).toBe(true);
     expect(urls.some((u) => u.endsWith("/services/workflow-automation"))).toBe(

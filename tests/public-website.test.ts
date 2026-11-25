@@ -54,11 +54,11 @@ describe("Phase 2 — Public Routes Data & Seamless v1-to-v2 Snapshot Upgrade", 
     expect(navHrefs).toContain("/services");
     expect(navHrefs).toContain("/solutions");
     expect(navHrefs).toContain("/how-it-works");
-    expect(navHrefs).toContain("/work");
+    expect(navHrefs).toContain("/pricing");
     expect(navHrefs).toContain("/case-studies");
     expect(navHrefs).toContain("/about");
     expect(navHrefs).toContain("/blog");
-    expect(navHrefs).toContain("/contact");
+    expect(navHrefs).toContain("/demos");
 
     expect(caseStudies.length).toBeGreaterThanOrEqual(3);
     expect(posts.length).toBeGreaterThanOrEqual(3);

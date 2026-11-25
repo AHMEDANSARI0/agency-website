@@ -406,8 +406,8 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
         ? `${topSeo.routePath}: ${topSeo.message}`
         : "Duplicate titles, accidental noindex, or missing metadata detected.",
       affectedTarget: topSeo?.routePath,
-      fixHref: "/admin/seo-inspector",
-      fixLabel: "Fix in SEO Inspector",
+      fixHref: "/admin/seo",
+      fixLabel: "Fix in SEO Hub",
     });
   } else if (seoInspection.warningRoutes > 0) {
     const topSeo = seoInspection.topAlerts[0];
@@ -421,8 +421,8 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
         ? `${topSeo.routePath}: ${topSeo.message}`
         : "Review SERP snippet lengths in the Every-Page SEO Inspector.",
       affectedTarget: topSeo?.routePath,
-      fixHref: "/admin/seo-inspector",
-      fixLabel: "Open SEO Inspector",
+      fixHref: "/admin/seo",
+      fixLabel: "Open SEO Hub",
     });
   } else {
     checks.push({
@@ -432,7 +432,7 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
       categoryLabel: "Content & SEO",
       title: `All ${seoInspection.totalRoutes} routes pass Every-Page SEO Inspection (${seoInspection.overallScore}/100)`,
       detail: `Homepage (${visibleHomeSections} sections) & ${publishedServices.length} services verified with 0 duplicate titles or descriptions.`,
-      fixHref: "/admin/seo-inspector",
+      fixHref: "/admin/seo",
       fixLabel: "Inspect All Pages",
     });
   }
@@ -546,7 +546,7 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
     "/services",
     "/pricing",
     "/demos",
-    "/work",
+    "/case-studies",
     "/how-it-works",
     "/about",
     "/contact",

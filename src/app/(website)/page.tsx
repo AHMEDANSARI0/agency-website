@@ -424,12 +424,12 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="work"
-                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-24 lg:py-28"
+                className="bg-canvas-tertiary/45 py-20 sm:py-24 lg:py-28"
               >
                 <Container>
                   <SoaleWorkShowcase caseStudies={caseStudies} />
                   {!hasFounderIntroVisible && (
-                    <div className="mt-16 border-t border-line pt-16">
+                    <div className="mt-16 pt-16">
                       <SoaleEditorialProof
                         testimonials={testimonials}
                         founder={founder}
@@ -444,15 +444,17 @@ export default async function HomePage() {
           /* 5. 8 SPECIALIZED AUTOMATION SYSTEMS SHOWCASE */
           case "flagship_systems":
             return (
-              <section
-                key={section.id}
-                id="capabilities"
-                className="py-20 sm:py-28 lg:py-32"
-              >
-                <Container>
-                  <SoaleServicesShowcase services={services} />
-                </Container>
-              </section>
+              <div key={section.id}>
+                {!visibleTypes.has("trust_strip") && <StackLogoBar />}
+                <section
+                  id="capabilities"
+                  className="py-16 sm:py-24 lg:py-28"
+                >
+                  <Container>
+                    <SoaleServicesShowcase services={services} />
+                  </Container>
+                </section>
+              </div>
             );
 
           /* 6. COMPLEMENTARY 5 PRACTICE PILLARS ARCHITECTURAL MATRIX */
@@ -461,7 +463,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="pillars"
-                className="border-t border-line bg-canvas-tertiary/35 py-20 sm:py-24"
+                className="bg-canvas-tertiary/35 py-20 sm:py-24"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -523,7 +525,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="live-sandbox"
-                className="border-t border-line bg-canvas-tertiary/30 py-20 sm:py-24"
+                className="bg-canvas-tertiary/30 py-20 sm:py-24"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -548,7 +550,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="ecosystem"
-                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28"
+                className="bg-canvas-tertiary/45 py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -567,16 +569,32 @@ export default async function HomePage() {
               </section>
             );
 
-          /* 9. 10-STAGE SCROLL-LINKED SOALE PROCESS PILLS */
+          /* 5. 4-PHASE DELIVERY PROCESS + WRITTEN SCOPE CLARITY */
           case "how_it_works":
             return (
               <section
                 key={section.id}
                 id="process"
-                className="py-20 sm:py-28 lg:py-32"
+                className="py-16 sm:py-24 lg:py-28"
               >
                 <Container>
                   <LazySoaleProcessSection />
+
+                  {!visibleTypes.has("roi_framing") && (
+                    <div className="mt-12 flex flex-col items-start justify-between gap-4 rounded-2xl border border-line-subtle bg-surface-card/75 px-6 py-5 backdrop-blur-md sm:flex-row sm:items-center">
+                      <div>
+                        <p className="font-mono text-[11px] uppercase tracking-wider text-primary">
+                          Transparent Fixed-Scope Engagement
+                        </p>
+                        <p className="mt-1 text-sm text-ink-body">
+                          {pricingConfig.statusBannerText} — written deliverables, human approval gates, and 100% client code ownership.
+                        </p>
+                      </div>
+                      <SoaleArrowButton href="/pricing" variant="surface" size="sm">
+                        View Pricing &amp; Scopes
+                      </SoaleArrowButton>
+                    </div>
+                  )}
                 </Container>
               </section>
             );
@@ -587,7 +605,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="solutions-fit"
-                className="border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28"
+                className="bg-canvas-tertiary/40 py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -723,7 +741,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="roi_framing"
-                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
+                className="bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
               >
                 <Container>
                   <LazySoalePricingSection pricing={pricingConfig} />
@@ -775,7 +793,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="insights"
-                className="border-t border-line py-20 sm:py-28"
+                className="py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -868,7 +886,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="faq"
-                className="border-t border-line bg-canvas-tertiary/40 py-20 sm:py-24 lg:py-28"
+                className="bg-canvas-tertiary/40 py-20 sm:py-24 lg:py-28"
               >
                 <Container>
                   <LazySoaleFaqAccordion
@@ -923,12 +941,29 @@ export default async function HomePage() {
             );
 
           /* 16. SIGNATURE SOALE CLOSING CONVERSION BANNER (Dual-Mode Horizon Glow) */
-          case "cta_banner":
+          case "cta_banner": {
+            const bannerTitle =
+              section.title?.trim() ||
+              "Start with one bottleneck. Leave with a clear, written automation plan.";
+            const bannerSub =
+              section.subtitle?.trim() ||
+              "Walk us through where enquiries, support threads, or handoffs slow your team down. You will receive honest architectural guidance — whether we build together or not.";
+            const bannerCtaLabel =
+              typeof section.config?.ctaLabel === "string" &&
+              section.config.ctaLabel.trim()
+                ? section.config.ctaLabel.trim()
+                : settings.primaryCtaLabel;
+            const bannerCtaHref =
+              typeof section.config?.ctaHref === "string" &&
+              section.config.ctaHref.trim()
+                ? section.config.ctaHref.trim()
+                : settings.primaryCtaHref;
+
             return (
               <section
                 key={section.id}
                 aria-label="Schedule a discovery call"
-                className="py-14 sm:py-24"
+                className="py-14 sm:py-22"
               >
                 <Container>
                   <div
@@ -940,23 +975,25 @@ export default async function HomePage() {
                       <SoaleEyebrow className="mb-5">
                         Ready When Your Team Is
                       </SoaleEyebrow>
-                      <h2 className="soale-h1 text-ink-heading">
-                        Start with one bottleneck. Leave with a clear, written
-                        automation plan.
+                      <h2
+                        data-ve-title=""
+                        className="soale-h1 text-ink-heading"
+                      >
+                        {bannerTitle}
                       </h2>
-                      <p className="soale-lead mx-auto mt-5 text-ink-body">
-                        Walk us through where enquiries, support threads, or
-                        handoffs slow your team down. You will receive honest
-                        architectural guidance — whether we build together or
-                        not.
+                      <p
+                        data-ve-subtitle=""
+                        className="soale-lead mx-auto mt-5 text-ink-body"
+                      >
+                        {bannerSub}
                       </p>
 
                       <div className="mt-9 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:flex-wrap sm:gap-4">
                         <SoaleArrowButton
-                          href={settings.primaryCtaHref}
+                          href={bannerCtaHref}
                           variant="secondary"
                         >
-                          {settings.primaryCtaLabel}
+                          {bannerCtaLabel}
                         </SoaleArrowButton>
                         <SoaleArrowButton
                           href={settings.secondaryCtaHref}
@@ -966,9 +1003,18 @@ export default async function HomePage() {
                         </SoaleArrowButton>
                       </div>
 
-                      <p className="mt-5 font-mono text-xs text-ink-muted">
-                        {settings.supportHours} · 100% Client-Owned Systems
-                      </p>
+                      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-xs text-ink-muted">
+                        <span>{settings.supportHours}</span>
+                        <span>·</span>
+                        <span>100% Client-Owned Systems</span>
+                        <span>·</span>
+                        <Link
+                          href="/faq"
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          Read Buyer FAQs
+                        </Link>
+                      </div>
                     </div>
 
                     <div aria-hidden="true" className="soale-horizon-beam" />
@@ -976,6 +1022,7 @@ export default async function HomePage() {
                 </Container>
               </section>
             );
+          }
 
           /* 17. CUSTOM ADMIN RICH TEXT BLOCK */
           case "rich_text": {
@@ -985,28 +1032,49 @@ export default async function HomePage() {
                 : "";
             const blocks = parseSafeMarkdown(markdown);
             return (
-              <section key={section.id} className="py-16 sm:py-20">
+              <section key={section.id} className="py-14 sm:py-18">
                 <Container>
                   <SoaleCard className="mx-auto max-w-4xl p-7 sm:p-10">
                     {section.title && (
-                      <h2 className="soale-h2 text-ink-heading">
+                      <h2
+                        data-ve-title=""
+                        className="soale-h2 text-ink-heading"
+                      >
                         {section.title}
                       </h2>
                     )}
                     {section.subtitle && (
-                      <p className="soale-lead mt-3">{section.subtitle}</p>
+                      <p data-ve-subtitle="" className="soale-lead mt-3">
+                        {section.subtitle}
+                      </p>
                     )}
                     <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-body">
                       {blocks.map((blk, i) =>
                         blk.type === "p" ? (
                           <p key={i}>{blk.text}</p>
-                        ) : blk.type === "h2" ? (
+                        ) : blk.type === "h2" || blk.type === "h3" ? (
                           <h3
                             key={i}
                             className="soale-h3 pt-2 text-ink-heading"
                           >
                             {blk.text}
                           </h3>
+                        ) : blk.type === "ul" ? (
+                          <ul
+                            key={i}
+                            className="list-disc space-y-1.5 pl-5 text-ink-body"
+                          >
+                            {blk.items.map((item, j) => (
+                              <li key={j}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : blk.type === "blockquote" ? (
+                          <blockquote
+                            key={i}
+                            className="border-l-2 border-primary/50 pl-4 italic text-ink-muted"
+                          >
+                            {blk.text}
+                          </blockquote>
                         ) : null
                       )}
                     </div>

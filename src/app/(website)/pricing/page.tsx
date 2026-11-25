@@ -34,6 +34,7 @@ export default async function PricingPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="pricing"
         breadcrumbs={[{ label: "Pricing & Scopes" }]}
         badge={pricing.sectionEyebrow}
         title="Clear Written Scopes Before Any Work Begins"
@@ -119,6 +120,7 @@ export default async function PricingPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="pricing"
         eyebrow="Free 25-Minute Scope Call"
         title="Get a written milestone scope tailored to your exact stack"
         description="Share your current bottleneck on a 25-minute call and receive a straightforward written scope within one business day."

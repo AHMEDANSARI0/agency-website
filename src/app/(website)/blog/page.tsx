@@ -25,6 +25,7 @@ export default async function BlogIndexPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
+        pageSlug="blog"
         breadcrumbs={[{ label: "Insights" }]}
         badge="Engineering Insights & Playbooks"
         title="Practical Guides on Reliable Business Automation"
@@ -43,6 +44,7 @@ export default async function BlogIndexPage() {
       </section>
 
       <PageConversionBanner
+        pageSlug="blog"
         eyebrow="Put It Into Practice"
         title="Want help implementing one of these playbooks in your firm?"
         description="Tell us about your current tools and workflow bottleneck. We will map out a clean, deterministic implementation plan."

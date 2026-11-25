@@ -7,7 +7,9 @@ const PUBLIC_ADMIN_PREFIXES = ["/admin/login", "/admin/setup", "/admin/recover"]
 const BUILTIN_ROUTE_ALIASES: Record<string, string> = {
   "/about-us": "/about",
   "/contact-us": "/contact",
-  "/our-work": "/work",
+  "/our-work": "/case-studies",
+  // Redirect before React starts streaming so the response is an actual 308.
+  "/work": "/case-studies",
   "/insights": "/blog",
   "/pricing-plans": "/pricing",
 };

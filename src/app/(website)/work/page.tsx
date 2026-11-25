@@ -1,70 +1,12 @@
-import type { Metadata } from "next";
-import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
-import { ShieldCheck } from "lucide-react";
-import {
-  getCachedPublishedCaseStudies,
-  getCachedSiteSettings,
-} from "@/lib/cache/public-cache";
-import { Container } from "@/components/ui/Container";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { SoaleArrowButton, SoaleCard } from "@/components/ui/soale";
-import { WorkFilterGrid } from "@/components/sections/WorkFilterGrid";
-import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+import { permanentRedirect } from "next/navigation";
 
 export const revalidate = 600;
 
-export async function generateMetadata(): Promise<Metadata> {
-  return buildStaticRouteMetadata("work");
-}
-
-export default async function WorkPage() {
-  const [items, settings] = await Promise.all([
-    getCachedPublishedCaseStudies(),
-    getCachedSiteSettings(),
-  ]);
-
-  return (
-    <div className="bg-canvas text-ink-body">
-      <PageHeader
-        breadcrumbs={[{ label: "Work & Architectures" }]}
-        badge="Transparent Portfolio & Blueprints"
-        title="Systems We Design, Test & Deploy"
-        description="Every entry below carries an explicit verification badge distinguishing authorized client deployments from internal prototypes and reference architectures — never fabricated claims."
-        actions={
-          <>
-            <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
-              {settings.primaryCtaLabel}
-            </SoaleArrowButton>
-            <SoaleArrowButton href="/case-studies" variant="surface">
-              Detailed Breakdowns
-            </SoaleArrowButton>
-          </>
-        }
-      />
-
-      <section className="py-16 sm:py-24">
-        <Container>
-          <SoaleCard className="mb-10 flex items-start gap-3 border-primary/25 bg-accent-subtle/60 p-4 text-xs text-ink-body sm:items-center sm:px-6 sm:text-sm">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mt-0" />
-            <span>
-              <strong className="text-ink-heading">Verification Standard:</strong>{" "}
-              Client engagements are published strictly after written client
-              authorization. Internal prototypes and concept architectures are
-              labeled explicitly.
-            </span>
-          </SoaleCard>
-
-          <WorkFilterGrid items={items} />
-        </Container>
-      </section>
-
-      <PageConversionBanner
-        eyebrow="Architecture Review"
-        title="Have a workflow similar to one of our reference blueprints?"
-        description="Share your stack and operational requirements. We will adapt a proven architecture to your exact business rules."
-        primaryLabel={settings.primaryCtaLabel}
-        primaryHref={settings.primaryCtaHref}
-      />
-    </div>
-  );
+/**
+ * `/work` permanently consolidates into `/case-studies` (HTTP 308) so all
+ * verified client builds, internal prototypes, and reference architectures
+ * live in one authoritative, non-duplicated hub.
+ */
+export default function WorkRedirectPage() {
+  permanentRedirect("/case-studies");
 }
