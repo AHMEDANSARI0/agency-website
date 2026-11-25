@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { hasConfiguredContactEmail } from "@/lib/placeholders";
@@ -8,11 +9,9 @@ import { SoaleCard } from "@/components/ui/soale";
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Terms of Service",
-  description:
-    "Website terms of use, demonstration disclaimers, and engagement principles for OmniFlow.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("terms-of-service");
+}
 
 export default async function TermsOfServicePage() {
   const settings = await getCachedSiteSettings();

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import {
   Clock,
   FileCheck2,
@@ -19,11 +20,9 @@ import { ContactForm } from "@/components/sections/ContactForm";
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Book a Free Workflow Review",
-  description:
-    "Book a free 25-minute workflow review or send an enquiry to OmniFlow. Answer leads faster, stop manual copy-pasting, and keep a person approving the important steps.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("contact");
+}
 
 export default async function ContactPage() {
   const [settings, services] = await Promise.all([

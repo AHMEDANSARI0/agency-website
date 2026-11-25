@@ -256,6 +256,20 @@ export async function middleware(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
 
+  // One-time automatic browser HTTP cache purge in local `next dev` to evict any
+  // previously `immutable`-cached `/_next/static/chunks/*` dev bundles on localhost.
+  if (
+    process.env.NODE_ENV === "development" &&
+    request.cookies.get("of_dev_cache_v9")?.value !== "1"
+  ) {
+    response.headers.set("Clear-Site-Data", '"cache"');
+    response.cookies.set("of_dev_cache_v9", "1", {
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+    });
+  }
+
   return response;
 }
 

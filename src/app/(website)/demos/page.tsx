@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
@@ -14,11 +15,9 @@ import {
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Interactive Automation Demos & Calculators",
-  description:
-    "Test OmniFlow’s 5 live interactive workflow demonstrations: Lead Qualification, Grounded AI Customer Support, Workflow Simulator, Multi-Currency Savings Calculator, and Readiness Assessment.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("demos");
+}
 
 export default async function DemosPage() {
   const settings = await getCachedSiteSettings();

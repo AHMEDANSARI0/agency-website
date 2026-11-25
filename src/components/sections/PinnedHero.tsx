@@ -2,7 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { Move } from "lucide-react";
+import { InteractiveGlobeCanvas } from "@/components/animations/InteractiveGlobeCanvas";
 import { SoaleArrowButton } from "@/components/ui/soale";
+import {
+  DEFAULT_HERO_CANVAS_CONFIG,
+  normalizeHeroCanvasConfig,
+  type HeroCanvasConfig,
+} from "@/types/hero-canvas";
 
 export interface PinnedHeroProps {
   companyName?: string;
@@ -11,6 +18,11 @@ export interface PinnedHeroProps {
   primaryCtaHref?: string;
   secondaryCtaLabel?: string;
   secondaryCtaHref?: string;
+  headlineOverride?: string;
+  subtitleOverride?: string;
+  heroCanvas?: Partial<HeroCanvasConfig> | Record<string, unknown>;
+  canvasPositionDragMode?: boolean;
+  onGlobePositionChange?: (offsetX: number, offsetY: number) => void;
 }
 
 type CommandTabId = "overview" | "leads" | "workflows" | "support" | "reports";
@@ -153,9 +165,118 @@ export function PinnedHero({
   primaryCtaHref,
   secondaryCtaLabel,
   secondaryCtaHref,
+  headlineOverride,
+  subtitleOverride,
+  heroCanvas: rawHeroCanvas,
+  canvasPositionDragMode = false,
+  onGlobePositionChange,
 }: PinnedHeroProps) {
   const [activeTab, setActiveTab] = useState<CommandTabId>("overview");
   const [repeatVisit, setRepeatVisit] = useState(false);
+  const [veOverride, setVeOverride] = useState<{
+    headline?: string;
+    subtitle?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    heroCanvas?: Record<string, unknown>;
+    dragMode?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.location.search.includes("ve=1")) return;
+    const onHeroSync = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{
+          section?: {
+            title?: string;
+            subtitle?: string;
+            config?: Record<string, unknown>;
+          };
+          canvasPositionDragMode?: boolean;
+        }>
+      ).detail;
+      const sec = detail?.section;
+      if (sec) {
+        setVeOverride({
+          headline: sec.title,
+          subtitle: sec.subtitle,
+          ctaLabel:
+            typeof sec.config?.ctaLabel === "string"
+              ? sec.config.ctaLabel
+              : undefined,
+          ctaHref:
+            typeof sec.config?.ctaHref === "string"
+              ? sec.config.ctaHref
+              : undefined,
+          heroCanvas:
+            (sec.config?.heroCanvas as Record<string, unknown> | undefined) ??
+            undefined,
+          dragMode: Boolean(detail?.canvasPositionDragMode),
+        });
+      }
+    };
+    window.addEventListener("omniflow:ve-hero-update", onHeroSync);
+    return () =>
+      window.removeEventListener("omniflow:ve-hero-update", onHeroSync);
+  }, []);
+
+  const effectiveDragMode = veOverride?.dragMode ?? canvasPositionDragMode;
+  const canvasCfg = normalizeHeroCanvasConfig(
+    veOverride?.heroCanvas ?? rawHeroCanvas ?? DEFAULT_HERO_CANVAS_CONFIG
+  );
+  const showSoaleHalo =
+    canvasCfg.visualMode === "orbital_halo" ||
+    canvasCfg.visualMode === "halo_plus_globe";
+  const showQuantumGlobe =
+    canvasCfg.visualMode === "quantum_sphere" ||
+    canvasCfg.visualMode === "halo_plus_globe";
+  const showHorizonGlobe = canvasCfg.visualMode === "horizon_arc";
+  const isSplitLeft = canvasCfg.layoutAlign === "split_left";
+
+  const handleCanvasDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!effectiveDragMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = canvasCfg.globeOffsetX;
+    const origY = canvasCfg.globeOffsetY;
+
+    const onMove = (ev: PointerEvent) => {
+      const nextX = Math.max(
+        -260,
+        Math.min(260, Math.round(origX + (ev.clientX - startX)))
+      );
+      const nextY = Math.max(
+        -180,
+        Math.min(180, Math.round(origY + (ev.clientY - startY)))
+      );
+      onGlobePositionChange?.(nextX, nextY);
+      setVeOverride((prev) => ({
+        ...(prev ?? {}),
+        heroCanvas: {
+          ...(prev?.heroCanvas ??
+            (rawHeroCanvas as Record<string, unknown>) ??
+            {}),
+          globeOffsetX: nextX,
+          globeOffsetY: nextY,
+        },
+      }));
+      if (typeof window !== "undefined" && window.parent !== window) {
+        window.parent.postMessage(
+          { type: "OMNIFLOW_VE_GLOBE_DRAGGED", offsetX: nextX, offsetY: nextY },
+          window.location.origin
+        );
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -180,12 +301,16 @@ export function PinnedHero({
   const currentView =
     COMMAND_VIEWS.find((v) => v.id === activeTab) ?? COMMAND_VIEWS[0];
 
-  const effectivePrimaryHref = primaryCtaHref?.trim() || "/contact?intent=call";
+  const effectivePrimaryHref =
+    veOverride?.ctaHref?.trim() ||
+    primaryCtaHref?.trim() ||
+    "/contact?intent=call";
   const effectiveSecondaryHref = secondaryCtaHref?.trim() || "/demos";
+  const resolvedPrimaryLabel = veOverride?.ctaLabel?.trim() || primaryCtaLabel;
   const effectivePrimaryText =
-    primaryCtaLabel &&
-    !primaryCtaLabel.toLowerCase().includes("discovery")
-      ? primaryCtaLabel
+    resolvedPrimaryLabel &&
+    !resolvedPrimaryLabel.toLowerCase().includes("discovery")
+      ? resolvedPrimaryLabel
       : "Book a free workflow review";
   const effectiveSecondaryText =
     secondaryCtaLabel &&
@@ -193,20 +318,90 @@ export function PinnedHero({
       ? secondaryCtaLabel
       : "See live demo";
 
+  const customTitleTrimmed =
+    (veOverride?.headline ?? headlineOverride)?.trim() || "";
+  const resolvedSubtitle =
+    (veOverride?.subtitle ?? subtitleOverride)?.trim() || "";
+  const useCustomTitle =
+    Boolean(customTitleTrimmed) &&
+    customTitleTrimmed !== "Automate the work. Accelerate the business.";
+
   return (
     <section
       aria-label="OmniFlow AI workflow automation hero"
       data-hero-repeat={repeatVisit ? "true" : "false"}
+      data-hero-visual={canvasCfg.visualMode}
       className="of-hero-shell relative overflow-hidden pb-14 pt-24 sm:pb-20 sm:pt-32 lg:pb-24 lg:pt-36"
     >
       {/* Soale Orbital Halo Light Ring + Corner Ambient Orbs + Starfield (Dark & Light Mode) */}
-      <div aria-hidden="true" className="soale-hero-circle-wrapper">
-        <div className="soale-gradient-circle" />
-        <div className="soale-core-circle" />
-      </div>
+      {showSoaleHalo && (
+        <div aria-hidden="true" className="soale-hero-circle-wrapper">
+          <div className="soale-gradient-circle" />
+          <div className="soale-core-circle" />
+        </div>
+      )}
       <div aria-hidden="true" className="soale-ambient-orb-left" />
       <div aria-hidden="true" className="soale-ambient-orb-right" />
       <div aria-hidden="true" className="soale-starfield" />
+
+      {/* BlueOrbit / Unfold Rising Horizon 3D Globe Backdrop */}
+      {showHorizonGlobe && (
+        <div
+          onPointerDown={handleCanvasDragStart}
+          className={`absolute inset-x-0 bottom-0 top-10 z-[1] ${
+            effectiveDragMode
+              ? "cursor-move ring-2 ring-inset ring-primary/60"
+              : "pointer-events-auto"
+          }`}
+        >
+          <InteractiveGlobeCanvas
+            variant="horizon_arc"
+            scale={canvasCfg.globeScale}
+            offsetX={canvasCfg.globeOffsetX}
+            offsetY={canvasCfg.globeOffsetY}
+            rotationSpeed={canvasCfg.rotationSpeed}
+            particleDensity={canvasCfg.particleDensity}
+            primaryGlowColor={canvasCfg.primaryGlowColor}
+            secondaryGlowColor={canvasCfg.secondaryGlowColor}
+            showOrbitalRing={canvasCfg.showOrbitalRing}
+            showSignalArcs={canvasCfg.showSignalArcs}
+            interactiveDrag={canvasCfg.interactiveDrag && !effectiveDragMode}
+          />
+          {effectiveDragMode && (
+            <span className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-semibold text-primary-foreground shadow-card">
+              <Move className="h-3.5 w-3.5" />
+              Drag Horizon Globe ({canvasCfg.globeOffsetX}px,{" "}
+              {canvasCfg.globeOffsetY}px)
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Centered Backdrop Quantum Globe when Quantum Sphere is set to Centered layout */}
+      {showQuantumGlobe && !isSplitLeft && (
+        <div
+          onPointerDown={handleCanvasDragStart}
+          className={`absolute inset-x-0 top-12 z-[1] mx-auto h-[460px] max-w-[680px] opacity-85 sm:h-[560px] ${
+            effectiveDragMode
+              ? "cursor-move rounded-3xl ring-2 ring-primary/60"
+              : ""
+          }`}
+        >
+          <InteractiveGlobeCanvas
+            variant="quantum_sphere"
+            scale={canvasCfg.globeScale}
+            offsetX={canvasCfg.globeOffsetX}
+            offsetY={canvasCfg.globeOffsetY}
+            rotationSpeed={canvasCfg.rotationSpeed}
+            particleDensity={canvasCfg.particleDensity}
+            primaryGlowColor={canvasCfg.primaryGlowColor}
+            secondaryGlowColor={canvasCfg.secondaryGlowColor}
+            showOrbitalRing={canvasCfg.showOrbitalRing}
+            showSignalArcs={canvasCfg.showSignalArcs}
+            interactiveDrag={canvasCfg.interactiveDrag && !effectiveDragMode}
+          />
+        </div>
+      )}
 
       {/* Subtle Radial Wash + Perspective Horizon Grid */}
       <div
@@ -218,75 +413,142 @@ export function PinnedHero({
         className="of-hero-grid pointer-events-none absolute inset-x-0 bottom-0 h-[56%]"
       />
 
-      <div className="relative z-10 mx-auto max-w-[1140px] px-4 sm:px-6 lg:px-8">
-        {/* Centered Soale-Style Hero Copy */}
-        <div className="mx-auto max-w-3xl text-center">
-          {/* Dual-Mode Soale Star Pill Eyebrow */}
+      <div className="relative z-10 mx-auto max-w-[1180px] px-4 sm:px-6 lg:px-8">
+        <div
+          className={
+            isSplitLeft && showQuantumGlobe
+              ? "grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-10"
+              : ""
+          }
+        >
+          {/* Hero Copy Column (Centered or Left-Split when 3D Globe sits on Right) */}
           <div
-            data-reveal="fade"
-            style={{ "--d": 0 } as React.CSSProperties}
-            className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-line-strong/80 bg-surface-glass px-4 py-2 text-[0.74rem] font-medium text-ink-heading shadow-card backdrop-blur-md sm:text-xs"
+            className={
+              isSplitLeft && showQuantumGlobe
+                ? "text-left lg:col-span-6"
+                : "mx-auto max-w-3xl text-center"
+            }
           >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5 shrink-0 text-[#FF7023]"
-              fill="currentColor"
+            {/* Dual-Mode Soale Star Pill Eyebrow */}
+            <div
+              data-reveal="fade"
+              style={{ "--d": 0 } as React.CSSProperties}
+              className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-line-strong/80 bg-surface-glass px-4 py-2 text-[0.74rem] font-medium text-ink-heading shadow-card backdrop-blur-md sm:text-xs"
             >
-              <path d="M8 0.5L9.85 6.15L15.5 8L9.85 9.85L8 15.5L6.15 9.85L0.5 8L6.15 6.15L8 0.5Z" />
-            </svg>
-            <span className="truncate">
-              AI automation for service businesses
-              <span className="hidden text-ink-muted sm:inline">
-                {" "}
-                | US · UK · Canada
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5 shrink-0 text-[#FF7023]"
+                fill="currentColor"
+              >
+                <path d="M8 0.5L9.85 6.15L15.5 8L9.85 9.85L8 15.5L6.15 9.85L0.5 8L6.15 6.15L8 0.5Z" />
+              </svg>
+              <span className="truncate">
+                {canvasCfg.eyebrowOverride?.trim() || (
+                  <>
+                    AI automation for service businesses
+                    <span className="hidden text-ink-muted sm:inline">
+                      {" "}
+                      | US · UK · Canada
+                    </span>
+                  </>
+                )}
               </span>
-            </span>
-          </div>
+            </div>
 
-          {/* 2-Line Centered Display Headline */}
-          <h1
-            data-reveal=""
-            style={{ "--d": 1 } as React.CSSProperties}
-            className="mt-6 font-display text-[2.2rem] font-bold leading-[1.07] tracking-[-0.036em] text-ink-heading sm:mt-7 sm:text-[3.45rem] lg:text-[4.4rem]"
-          >
-            <span className="block">Automate the work.</span>
-            <span className="of-hero-gradient-text mt-1 block">
-              Accelerate the business.
-            </span>
-          </h1>
-
-          {/* 2-Line Plain-English Subcopy (<= 60ch) */}
-          <p
-            data-reveal=""
-            style={{ "--d": 2 } as React.CSSProperties}
-            className="mx-auto mt-5 max-w-[56ch] text-[0.96rem] leading-relaxed text-ink-body sm:mt-6 sm:text-[1.125rem]"
-          >
-            AI workflows that answer every lead, update your CRM and alert your
-            team, with a person approving the important steps.
-          </p>
-
-          {/* Soale Dual-Capsule Sliding-Arrow CTA + Secondary Demo Pill */}
-          <div
-            data-reveal=""
-            style={{ "--d": 3 } as React.CSSProperties}
-            className="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-3.5"
-          >
-            <SoaleArrowButton href={effectivePrimaryHref} variant="secondary">
-              {effectivePrimaryText}
-            </SoaleArrowButton>
-            <Link
-              href={effectiveSecondaryHref}
-              className="inline-flex min-h-[45px] items-center justify-center rounded-[17px] border border-line-strong bg-surface-glass px-6 py-3 text-[0.92rem] font-medium text-ink-heading backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            {/* Display Headline */}
+            <h1
+              data-reveal=""
+              style={{ "--d": 1 } as React.CSSProperties}
+              className={`mt-6 font-display font-bold leading-[1.07] tracking-[-0.036em] text-ink-heading sm:mt-7 ${
+                isSplitLeft && showQuantumGlobe
+                  ? "text-[2.15rem] sm:text-[3.1rem] lg:text-[3.75rem]"
+                  : "text-[2.2rem] sm:text-[3.45rem] lg:text-[4.4rem]"
+              }`}
             >
-              {effectiveSecondaryText}
-            </Link>
+              {useCustomTitle ? (
+                <span>{customTitleTrimmed}</span>
+              ) : (
+                <>
+                  <span className="block">Automate the work.</span>
+                  <span className="of-hero-gradient-text mt-1 block">
+                    Accelerate the business.
+                  </span>
+                </>
+              )}
+            </h1>
+
+            {/* 2-Line Plain-English Subcopy (<= 60ch) */}
+            <p
+              data-reveal=""
+              style={{ "--d": 2 } as React.CSSProperties}
+              className={`mt-5 max-w-[56ch] text-[0.96rem] leading-relaxed text-ink-body sm:mt-6 sm:text-[1.125rem] ${
+                isSplitLeft && showQuantumGlobe ? "" : "mx-auto"
+              }`}
+            >
+              {resolvedSubtitle ||
+                "AI workflows that answer every lead, update your CRM and alert your team, with a person approving the important steps."}
+            </p>
+
+            {/* Soale Dual-Capsule Sliding-Arrow CTA + Secondary Demo Pill */}
+            <div
+              data-reveal=""
+              style={{ "--d": 3 } as React.CSSProperties}
+              className={`mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-3.5 ${
+                isSplitLeft && showQuantumGlobe
+                  ? "items-start justify-start"
+                  : "items-center justify-center"
+              }`}
+            >
+              <SoaleArrowButton href={effectivePrimaryHref} variant="secondary">
+                {effectivePrimaryText}
+              </SoaleArrowButton>
+              <Link
+                href={effectiveSecondaryHref}
+                className="inline-flex min-h-[45px] items-center justify-center rounded-[17px] border border-line-strong bg-surface-glass px-6 py-3 text-[0.92rem] font-medium text-ink-heading backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                {effectiveSecondaryText}
+              </Link>
+            </div>
+
+            {/* 1-Line Reassurance */}
+            <p className="mt-4 text-xs text-ink-muted">
+              Free 25-minute review. Written scope. Zero obligation.
+            </p>
           </div>
 
-          {/* 1-Line Reassurance */}
-          <p className="mt-4 text-xs text-ink-muted">
-            Free 25-minute review. Written scope. Zero obligation.
-          </p>
+          {/* Right-Column Interactive 3D Quantum Holographic Globe (Shot #26367677 / Quip Style) */}
+          {isSplitLeft && showQuantumGlobe && (
+            <div
+              onPointerDown={handleCanvasDragStart}
+              className={`relative h-[340px] w-full sm:h-[430px] lg:col-span-6 lg:h-[510px] ${
+                effectiveDragMode
+                  ? "cursor-move rounded-3xl ring-2 ring-dashed ring-primary/70"
+                  : ""
+              }`}
+            >
+              <InteractiveGlobeCanvas
+                variant="quantum_sphere"
+                scale={canvasCfg.globeScale}
+                offsetX={canvasCfg.globeOffsetX}
+                offsetY={canvasCfg.globeOffsetY}
+                rotationSpeed={canvasCfg.rotationSpeed}
+                particleDensity={canvasCfg.particleDensity}
+                primaryGlowColor={canvasCfg.primaryGlowColor}
+                secondaryGlowColor={canvasCfg.secondaryGlowColor}
+                showOrbitalRing={canvasCfg.showOrbitalRing}
+                showSignalArcs={canvasCfg.showSignalArcs}
+                interactiveDrag={canvasCfg.interactiveDrag && !effectiveDragMode}
+              />
+              {effectiveDragMode && (
+                <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-semibold text-primary-foreground shadow-card">
+                  <Move className="h-3.5 w-3.5" />
+                  Drag 3D Globe ({canvasCfg.globeOffsetX}px,{" "}
+                  {canvasCfg.globeOffsetY}px)
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Soale 4-Column Monospace Architectural Strip (2x2 on Mobile, 4-col on Tablet/Desktop) */}
@@ -312,6 +574,7 @@ export function PinnedHero({
         </div>
 
         {/* Dual-Mode Live HTML/CSS/SVG "Workflow command center" Bento Window */}
+        {canvasCfg.showCommandCenter && (
         <div
           data-reveal="card"
           data-scroll-card=""
@@ -519,6 +782,7 @@ export function PinnedHero({
             </div>
           </div>
         </div>
+        )}
       </div>
     </section>
   );

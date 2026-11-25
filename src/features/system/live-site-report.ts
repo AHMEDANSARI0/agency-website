@@ -1,5 +1,6 @@
 import { evaluateThemeContrast } from "@/features/themes/color-utils";
 import { getSystemHealthReport, type SystemHealthReport } from "@/features/system/health";
+import { runFullSiteSeoInspection } from "@/features/seo/site-seo-inspector";
 import { db, type DatabaseErrorEvent, type SiteErrorIncident } from "@/lib/database";
 import { findUnfilledPlaceholders } from "@/lib/placeholders";
 
@@ -370,16 +371,12 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
     });
   }
 
-  // 6. Content & SEO Completeness Audit
+  // 6. Content & Every-Page SEO Completeness Audit
   const homePage = pages.find((p) => p.slug === "home");
   const visibleHomeSections =
     homePage?.sections.filter((s) => s.isVisible).length ?? 0;
   const publishedServices = services.filter((s) => s.status === "published");
-  const missingSeoPages = pages.filter(
-    (p) =>
-      p.status === "published" &&
-      (!p.seo?.seoTitle?.trim() || !p.seo?.seoDescription?.trim())
-  );
+  const seoInspection = await runFullSiteSeoInspection();
 
   if (visibleHomeSections === 0 || publishedServices.length === 0) {
     checks.push({
@@ -397,16 +394,35 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
       fixLabel:
         visibleHomeSections === 0 ? "Open Page Builder" : "Open Content Studio",
     });
-  } else if (missingSeoPages.length > 0) {
+  } else if (seoInspection.criticalRoutes > 0) {
+    const topSeo = seoInspection.topAlerts[0];
     checks.push({
-      id: "seo-metadata-gaps",
+      id: "seo-critical-alerts",
+      severity: "critical",
+      category: "seo_content",
+      categoryLabel: "Content & SEO",
+      title: `${seoInspection.criticalRoutes} page(s) have critical SEO or indexing alerts (Score ${seoInspection.overallScore}/100)`,
+      detail: topSeo
+        ? `${topSeo.routePath}: ${topSeo.message}`
+        : "Duplicate titles, accidental noindex, or missing metadata detected.",
+      affectedTarget: topSeo?.routePath,
+      fixHref: "/admin/seo-inspector",
+      fixLabel: "Fix in SEO Inspector",
+    });
+  } else if (seoInspection.warningRoutes > 0) {
+    const topSeo = seoInspection.topAlerts[0];
+    checks.push({
+      id: "seo-metadata-warnings",
       severity: "warning",
       category: "seo_content",
       categoryLabel: "Content & SEO",
-      title: `${missingSeoPages.length} published page(s) missing custom SEO title or description`,
-      detail: `Affected: ${missingSeoPages.map((p) => `/${p.slug === "home" ? "" : p.slug}`).join(", ")}.`,
-      fixHref: "/admin/seo",
-      fixLabel: "Complete SEO Metadata",
+      title: `${seoInspection.warningRoutes} of ${seoInspection.totalRoutes} route(s) have SEO metadata length/tag warnings`,
+      detail: topSeo
+        ? `${topSeo.routePath}: ${topSeo.message}`
+        : "Review SERP snippet lengths in the Every-Page SEO Inspector.",
+      affectedTarget: topSeo?.routePath,
+      fixHref: "/admin/seo-inspector",
+      fixLabel: "Open SEO Inspector",
     });
   } else {
     checks.push({
@@ -414,8 +430,10 @@ export async function getLiveSiteDiagnosticsReport(): Promise<LiveSiteDiagnostic
       severity: "healthy",
       category: "seo_content",
       categoryLabel: "Content & SEO",
-      title: `Homepage (${visibleHomeSections} sections) & ${publishedServices.length} services published with complete SEO`,
-      detail: "All published pages carry valid titles and meta descriptions.",
+      title: `All ${seoInspection.totalRoutes} routes pass Every-Page SEO Inspection (${seoInspection.overallScore}/100)`,
+      detail: `Homepage (${visibleHomeSections} sections) & ${publishedServices.length} services verified with 0 duplicate titles or descriptions.`,
+      fixHref: "/admin/seo-inspector",
+      fixLabel: "Inspect All Pages",
     });
   }
 

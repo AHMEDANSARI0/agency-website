@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
@@ -8,11 +9,9 @@ import { CookiePreferencesButton } from "@/components/analytics/CookiePreference
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Cookie Policy",
-  description:
-    "Information on essential preference storage, authentication cookies, and optional consent-gated analytics on OmniFlow.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("cookie-policy");
+}
 
 export default async function CookiePolicyPage() {
   const settings = await getCachedSiteSettings();

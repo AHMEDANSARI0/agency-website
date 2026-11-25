@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateMetadata as generateHomeMetadata } from "@/app/(website)/page";
-import { metadata as aboutMetadata } from "@/app/(website)/about/page";
-import { metadata as howItWorksMetadata } from "@/app/(website)/how-it-works/page";
+import { generateMetadata as generateAboutMetadata } from "@/app/(website)/about/page";
+import { generateMetadata as generateHowItWorksMetadata } from "@/app/(website)/how-it-works/page";
 import { GET as getSetupHandler } from "@/app/api/admin/auth/setup/route";
 import { GET as healthHandler } from "@/app/api/health/route";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
@@ -46,8 +46,10 @@ describe("Phase 1 — Launch Blockers, Placeholders, Admin Hardening & Brand Ass
     const brandMatches = absTitle.match(/OmniFlow/gi) || [];
     expect(brandMatches.length).toBe(1);
 
-    expect(String(aboutMetadata.title)).not.toMatch(/OmniFlow/i);
-    expect(String(howItWorksMetadata.title)).not.toMatch(/OmniFlow/i);
+    const aboutMeta = await generateAboutMetadata();
+    const howItWorksMeta = await generateHowItWorksMetadata();
+    expect(String(aboutMeta.title)).not.toMatch(/OmniFlow/i);
+    expect(String(howItWorksMeta.title)).not.toMatch(/OmniFlow/i);
 
     expect(
       stripTrailingBrand("Lead Management Systems | OmniFlow", "OmniFlow")

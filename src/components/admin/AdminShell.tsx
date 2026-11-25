@@ -109,8 +109,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       {
         href: "/admin/pages",
-        label: "Pages & Sections",
-        shortDesc: "Homepage section ordering, visibility, and page copy",
+        label: "Pages & Live Studio",
+        shortDesc: "Shopify-grade drag-and-drop sections, 3D Globe & live preview",
         icon: Layers,
         requiredPermission: "content:edit_any",
       },
@@ -134,9 +134,16 @@ const NAV_SECTIONS: NavSection[] = [
         anyOfPermissions: ["media:manage"],
       },
       {
+        href: "/admin/seo-inspector",
+        label: "SEO & Page Inspector",
+        shortDesc: "Every-page SEO score, SERP preview, alerts & 1-click fixes",
+        icon: Search,
+        requiredPermission: "seo:manage",
+      },
+      {
         href: "/admin/seo",
         label: "SEO & Analytics",
-        shortDesc: "Meta tags, XML sitemap, 301 redirects, and GA4/GTM",
+        shortDesc: "301 redirects, XML sitemap, and consent-gated GA4",
         icon: Globe,
         requiredPermission: "seo:manage",
       },

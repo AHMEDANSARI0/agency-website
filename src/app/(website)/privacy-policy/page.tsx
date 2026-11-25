@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { hasConfiguredContactEmail } from "@/lib/placeholders";
@@ -8,11 +9,9 @@ import { SoaleCard } from "@/components/ui/soale";
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description:
-    "How OmniFlow collects, processes, protects, and retains business enquiry data across US, UK, and Canadian operations.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("privacy-policy");
+}
 
 export default async function PrivacyPolicyPage() {
   const settings = await getCachedSiteSettings();

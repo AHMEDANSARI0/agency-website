@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { ShieldCheck } from "lucide-react";
 import {
   getCachedPublishedCaseStudies,
@@ -12,11 +13,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Work, Prototypes & Reference Architectures",
-  description:
-    "Explore OmniFlow’s transparently labeled automation architectures, internal workflow prototypes, and authorized client implementations.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("work");
+}
 
 export default async function WorkPage() {
   const [items, settings] = await Promise.all([

@@ -27,12 +27,12 @@ export default async function AdminPageBuilderPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="t-eyebrow text-primary">Layout Governance</p>
+        <p className="t-eyebrow text-primary">Shopify-Grade Visual Customizer</p>
         <h1 className="mt-1 text-2xl font-medium tracking-tight text-ink-heading">
-          Controlled Page Section Builder
+          Live Website Studio, Drag-and-Drop Sections &amp; 3D Globe Hero
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Drag-and-drop approved design-system sections, toggle visibility, insert structured editorial Markdown blocks, save drafts, and publish safely without raw HTML/JS injection.
+          Drag-and-drop sections on the left, customize the interactive 3D Globe Hero (Quip Quantum Sphere, BlueOrbit Rising Horizon, or Soale Orbital Halo), and preview changes live on the right-side website canvas before saving or publishing.
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import {
@@ -17,11 +18,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Case Studies & Workflow Blueprints",
-  description:
-    "Detailed technical breakdowns of OmniFlow lead qualification, policy-grounded customer support, and agency onboarding automation architectures.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("case-studies");
+}
 
 export default async function CaseStudiesPage() {
   const [items, settings] = await Promise.all([

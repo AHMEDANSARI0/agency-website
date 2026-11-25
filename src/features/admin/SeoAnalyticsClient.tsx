@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
@@ -235,6 +236,26 @@ export function SeoAnalyticsClient({
           <span>{feedback.text}</span>
         </div>
       )}
+
+      {/* Deep Every-Page SEO Inspector Launch Card */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-primary/30 bg-primary/8 p-5">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-primary">
+            Every-Page Deep SEO &amp; Metadata Inspector
+          </p>
+          <p className="mt-1 text-sm text-ink-body">
+            Audit all static routes, 8 service blueprints, case studies, and blog guides for Title/Meta truncation, duplicate tags, H1s, Open Graph social cards, and live SERP previews.
+          </p>
+        </div>
+        <Link
+          href="/admin/seo-inspector"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-glow transition hover:bg-primary-hover"
+        >
+          <SearchCheck className="h-4 w-4" />
+          Open Every-Page SEO Inspector
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
 
       {/* Top Quick Crawl Endpoints */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface-card p-5">

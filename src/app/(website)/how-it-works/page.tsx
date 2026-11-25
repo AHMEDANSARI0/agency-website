@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
@@ -18,11 +19,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "How It Works",
-  description:
-    "Our transparent 4-phase process for reviewing, building, testing, and handing over reliable AI workflow automation for service businesses.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("how-it-works");
+}
 
 const PROCESS_STAGES = [
   {

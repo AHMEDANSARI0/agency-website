@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { CheckCircle2, Globe2, ShieldCheck } from "lucide-react";
 import {
   getCachedPublishedTeamMembers,
@@ -15,11 +16,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Founder & Team",
-  description:
-    "Meet Ahmed Ansari, Founder of OmniFlow, and learn how our automation engineering engagements are led across the US, UK, and Canada.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("team");
+}
 
 export default async function TeamPage() {
   const [members, settings] = await Promise.all([

@@ -66,25 +66,34 @@ export async function generateMetadata(): Promise<Metadata> {
     settings.positioning
   );
 
+  const homeDescription =
+    homePage?.seo?.seoDescription ||
+    "AI workflows that answer every lead, update your CRM, and support US, UK, and Canadian service teams with human approval gates.";
+  const ogTitle = homePage?.seo?.ogTitle?.trim() || homeTitle;
+  const ogDescription = homePage?.seo?.ogDescription?.trim() || homeDescription;
+  const ogImage =
+    homePage?.seo?.ogImageUrl?.trim() || `${baseUrl}/opengraph-image`;
+
   return {
     title: {
       absolute: homeTitle,
     },
-    description:
-      homePage?.seo?.seoDescription ||
-      `${settings.tagline} Practical lead management, AI customer support, and workflow automation for US, UK, and Canadian service businesses.`,
+    description: homeDescription,
     alternates: {
       canonical: homePage?.seo?.canonicalUrl || baseUrl,
     },
     openGraph: {
-      title: homeTitle,
-      description:
-        homePage?.seo?.seoDescription ||
-        `${settings.tagline} Practical lead management, AI customer support, and workflow automation for US, UK, and Canadian service businesses.`,
-      url: baseUrl,
+      title: ogTitle,
+      description: ogDescription,
+      url: homePage?.seo?.canonicalUrl || baseUrl,
+      type: "website",
+      images: [{ url: ogImage, width: 1200, height: 630, alt: ogTitle }],
     },
     twitter: {
-      title: homeTitle,
+      card: "summary_large_image",
+      title: ogTitle,
+      description: ogDescription,
+      images: [ogImage],
     },
     robots: homePage?.seo?.noIndex
       ? { index: false, follow: false }
@@ -276,22 +285,40 @@ export default async function HomePage() {
   const hasStandaloneCtaVisible = visibleTypes.has("cta_banner");
 
   return (
-    <div className="bg-canvas text-ink-body">
+    <div id="of-home-sections-root" className="bg-canvas text-ink-body">
       {orderedSections.map((section) => {
-        switch (section.type) {
-          /* 1. CENTERED DARK PURPLE AI HERO + WORKFLOW COMMAND CENTER */
-          case "hero":
-            return (
-              <PinnedHero
-                key={section.id}
-                companyName={settings.companyName}
-                tagline={settings.tagline}
-                primaryCtaLabel={settings.primaryCtaLabel}
-                primaryCtaHref={settings.primaryCtaHref}
-                secondaryCtaLabel={settings.secondaryCtaLabel}
-                secondaryCtaHref={settings.secondaryCtaHref}
-              />
-            );
+        const rendered = (() => {
+          switch (section.type) {
+            /* 1. CENTERED DARK PURPLE AI HERO + 3D GLOBE STUDIO + WORKFLOW COMMAND CENTER */
+            case "hero": {
+              const secCtaLabel =
+                typeof section.config?.ctaLabel === "string" &&
+                section.config.ctaLabel.trim()
+                  ? section.config.ctaLabel
+                  : settings.primaryCtaLabel;
+              const secCtaHref =
+                typeof section.config?.ctaHref === "string" &&
+                section.config.ctaHref.trim()
+                  ? section.config.ctaHref
+                  : settings.primaryCtaHref;
+              return (
+                <PinnedHero
+                  companyName={settings.companyName}
+                  tagline={settings.tagline}
+                  primaryCtaLabel={secCtaLabel}
+                  primaryCtaHref={secCtaHref}
+                  secondaryCtaLabel={settings.secondaryCtaLabel}
+                  secondaryCtaHref={settings.secondaryCtaHref}
+                  headlineOverride={section.title}
+                  subtitleOverride={section.subtitle}
+                  heroCanvas={
+                    section.config?.heroCanvas as
+                      | Record<string, unknown>
+                      | undefined
+                  }
+                />
+              );
+            }
 
           /* 2. WORKS WITH YOUR STACK BAR (6 INLINE SVG WORDMARKS) */
           case "trust_strip":
@@ -992,6 +1019,18 @@ export default async function HomePage() {
           default:
             return null;
         }
+        })();
+
+        if (!rendered) return null;
+        return (
+          <div
+            key={section.id}
+            data-ve-section-id={section.id}
+            data-ve-section-type={section.type}
+          >
+            {rendered}
+          </div>
+        );
       })}
     </div>
   );

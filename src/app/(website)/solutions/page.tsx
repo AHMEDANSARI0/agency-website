@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import {
   Briefcase,
@@ -19,11 +20,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Solutions by Industry",
-  description:
-    "Practical AI and workflow automation solutions tailored for service businesses, consultants, and small agencies across the USA, UK, and Canada.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("solutions");
+}
 
 const SEGMENTS = [
   {

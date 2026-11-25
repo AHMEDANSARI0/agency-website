@@ -12,6 +12,7 @@ import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { AnalyticsConsentManager } from "@/components/analytics/AnalyticsConsentManager";
 import { ClientErrorMonitor } from "@/components/analytics/ClientErrorMonitor";
 import { WebVitalsReporter } from "@/components/analytics/WebVitalsReporter";
+import { VisualEditorCanvasBridge } from "@/components/visual-editor/VisualEditorCanvasBridge";
 import { buildOrganizationAndWebsiteJsonLd } from "@/features/seo/json-ld";
 
 export default async function WebsiteLayout({
@@ -32,6 +33,7 @@ export default async function WebsiteLayout({
       <ScrollProgressBar />
       <MotionRuntime />
       <ScrollCardChoreography />
+      <VisualEditorCanvasBridge />
       <ClientErrorMonitor />
       <WebVitalsReporter />
       <Navbar brand={brand} settings={settings} />

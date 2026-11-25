@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { CheckCircle2, Globe2, ShieldCheck, Workflow } from "lucide-react";
 import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
@@ -12,11 +13,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "About Us",
-  description:
-    "Founded by Ahmed Ansari, OmniFlow builds dependable, transparent AI automation and business workflow systems for service businesses, consultants, and small agencies.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("about");
+}
 
 export default async function AboutPage() {
   const settings = await getCachedSiteSettings();

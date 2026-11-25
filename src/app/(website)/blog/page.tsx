@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import {
   getCachedPublishedBlogPosts,
   getCachedSiteSettings,
@@ -11,11 +12,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Insights & Practical Automation Guides",
-  description:
-    "Operational articles and implementation guides on lead qualification, policy-grounded AI customer support, and reliable business workflows.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("blog");
+}
 
 export default async function BlogIndexPage() {
   const [posts, settings] = await Promise.all([

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { Plus } from "lucide-react";
 import {
   getCachedPublishedFaqs,
@@ -21,11 +22,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Frequently Asked Questions",
-  description:
-    "Clear answers about OmniFlow’s AI automation process, data ownership, cost control, guardrails, and US/UK/Canada engagement workflow.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("faq");
+}
 
 export default async function FaqPage() {
   const [faqs, settings] = await Promise.all([

@@ -17,6 +17,8 @@ import {
   POST as postLiveReportApi,
 } from "@/app/api/admin/system/live-report/route";
 import { POST as postAdminTheme } from "@/app/api/admin/theme/route";
+import { GET as getSwCleanup } from "@/app/sw.js/route";
+import nextConfig from "../next.config";
 
 const ROOT = process.cwd();
 const readSrc = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -214,5 +216,23 @@ describe("Phase 8 — Soale Dual-Mode UI, Collapsible Admin Sidebar & Live Site 
     const resolvedPayload = await resolveRes.json();
     expect(resolvedPayload.report.unresolvedIncidentCount).toBe(0);
     expect(resolvedPayload.report.criticalCount).toBe(0);
+  });
+
+  it("prevents dev-mode /_next/static immutable cache poisoning and cleans rogue /sw.js workers", async () => {
+    const headerRules = await nextConfig.headers!();
+    const staticRule = headerRules.find(
+      (r) => r.source === "/_next/static/:path*"
+    );
+    expect(staticRule).toBeDefined();
+    const cc = staticRule!.headers.find((h) => h.key === "Cache-Control");
+    // In non-production (`NODE_ENV !== "production"`), must NEVER set `immutable`
+    expect(cc?.value).toContain("no-store");
+    expect(cc?.value).not.toContain("immutable");
+
+    const swRes = getSwCleanup();
+    expect(swRes.status).toBe(200);
+    expect(swRes.headers.get("Cache-Control")).toContain("no-store");
+    const swText = await swRes.text();
+    expect(swText).toContain("self.registration.unregister()");
   });
 });

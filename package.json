@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev": "node scripts/clean-dev-cache.mjs && next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "typecheck": "tsc --noEmit",

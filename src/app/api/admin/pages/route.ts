@@ -8,6 +8,7 @@ import { CACHE_TAGS, revalidatePublicContent } from "@/lib/cache/public-cache";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
 import { sanitizePlainText, sanitizeSlug } from "@/lib/validation/common";
+import { normalizeHeroCanvasConfig } from "@/types/hero-canvas";
 
 const ALLOWED_SECTION_TYPES: [PageSectionType, ...PageSectionType[]] = [
   "hero",
@@ -58,6 +59,10 @@ const savePageSchema = z.object({
     .object({
       seoTitle: z.string().max(120).optional(),
       seoDescription: z.string().max(240).optional(),
+      canonicalUrl: z.string().max(240).optional(),
+      ogTitle: z.string().max(120).optional(),
+      ogDescription: z.string().max(240).optional(),
+      ogImageUrl: z.string().max(300).optional(),
       noIndex: z.boolean().optional(),
     })
     .optional(),
@@ -139,6 +144,9 @@ export async function PUT(request: Request) {
         typeof sec.config?.ctaHref === "string"
           ? sanitizePlainText(sec.config.ctaHref, 200)
           : undefined,
+      ...(sec.type === "hero" && sec.config?.heroCanvas
+        ? { heroCanvas: normalizeHeroCanvasConfig(sec.config.heroCanvas) }
+        : {}),
     },
   }));
 
@@ -162,12 +170,30 @@ export async function PUT(request: Request) {
         ? structuredClone(sanitizedBlocks)
         : existing?.sections ?? structuredClone(sanitizedBlocks),
     seo: {
-      seoTitle: data.seo?.seoTitle
-        ? sanitizePlainText(data.seo.seoTitle, 120)
-        : existing?.seo?.seoTitle,
-      seoDescription: data.seo?.seoDescription
-        ? sanitizePlainText(data.seo.seoDescription, 240)
-        : existing?.seo?.seoDescription,
+      seoTitle:
+        typeof data.seo?.seoTitle === "string"
+          ? sanitizePlainText(data.seo.seoTitle, 120)
+          : existing?.seo?.seoTitle,
+      seoDescription:
+        typeof data.seo?.seoDescription === "string"
+          ? sanitizePlainText(data.seo.seoDescription, 240)
+          : existing?.seo?.seoDescription,
+      canonicalUrl:
+        typeof data.seo?.canonicalUrl === "string"
+          ? sanitizePlainText(data.seo.canonicalUrl, 240)
+          : existing?.seo?.canonicalUrl,
+      ogTitle:
+        typeof data.seo?.ogTitle === "string"
+          ? sanitizePlainText(data.seo.ogTitle, 120)
+          : existing?.seo?.ogTitle,
+      ogDescription:
+        typeof data.seo?.ogDescription === "string"
+          ? sanitizePlainText(data.seo.ogDescription, 240)
+          : existing?.seo?.ogDescription,
+      ogImageUrl:
+        typeof data.seo?.ogImageUrl === "string"
+          ? sanitizePlainText(data.seo.ogImageUrl, 300)
+          : existing?.seo?.ogImageUrl,
       noIndex: data.seo?.noIndex ?? existing?.seo?.noIndex ?? false,
     },
     updatedAt: new Date().toISOString(),

@@ -42,11 +42,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getCachedPublishedBlogPosts(),
   ]);
 
-  const homeDoc = pages.find((p) => p.slug === "home");
-  const homeNoIndex = Boolean(homeDoc?.seo?.noIndex);
+  const noIndexSlugs = new Set(
+    pages
+      .filter((p) => p.seo?.noIndex)
+      .map((p) => p.slug.toLowerCase())
+  );
 
   const entries: MetadataRoute.Sitemap = STATIC_PUBLIC_ROUTES.filter(
-    (route) => !(route.path === "/" && homeNoIndex)
+    (route) => {
+      const slug = route.path === "/" ? "home" : route.path.replace(/^\//, "");
+      return !noIndexSlugs.has(slug.toLowerCase());
+    }
   ).map((route) => ({
     url: `${baseUrl}${route.path === "/" ? "" : route.path}`,
     lastModified: new Date(),

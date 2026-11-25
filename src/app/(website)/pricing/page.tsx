@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import { FileCheck2, Layers, ShieldCheck } from "lucide-react";
 import {
   getCachedPublishedFaqs,
@@ -18,11 +19,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "Pricing & Written Scopes",
-  description:
-    "Clear fixed-scope automation pricing from OmniFlow — Starter, Growth, Scale, and Enterprise builds with 100% client ownership across US, UK, and Canadian teams.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("pricing");
+}
 
 export default async function PricingPage() {
   const [settings, faqs] = await Promise.all([

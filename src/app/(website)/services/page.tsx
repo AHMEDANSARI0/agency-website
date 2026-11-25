@@ -1,5 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
+import { buildStaticRouteMetadata } from "@/lib/seo/static-route-metadata";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -26,11 +27,9 @@ import { PageConversionBanner } from "@/components/sections/PageConversionBanner
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "AI Automation & Business Services",
-  description:
-    "Explore OmniFlow’s 8 core automation services: Lead Management, Policy-Grounded AI Customer Support, Workflow Automation, and five specialized AI practice pillars.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticRouteMetadata("services");
+}
 
 export default async function ServicesIndexPage() {
   const [services, pillars, settings] = await Promise.all([
