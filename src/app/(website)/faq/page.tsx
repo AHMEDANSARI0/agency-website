@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedFaqs,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -15,7 +19,7 @@ import {
 } from "@/features/seo/json-ld";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Frequently Asked Questions",
@@ -25,8 +29,8 @@ export const metadata: Metadata = {
 
 export default async function FaqPage() {
   const [faqs, settings] = await Promise.all([
-    db.listFaqs(true),
-    db.getSiteSettings(),
+    getCachedPublishedFaqs(),
+    getCachedSiteSettings(),
   ]);
 
   const categories = Array.from(new Set(faqs.map((f) => f.category)));
@@ -87,7 +91,11 @@ export default async function FaqPage() {
       <PageConversionBanner
         eyebrow="Still Have a Question?"
         title="Ask us about your specific tools, compliance rules, or timeline"
-        description="Submit your question through our private enquiry form and receive a direct answer within one business day."
+        description={
+          hasConfiguredContactEmail(settings.contactEmail)
+            ? `Write to us at ${settings.contactEmail} or submit your question through our private enquiry form for a direct answer within one business day.`
+            : "Submit your question through our private enquiry form and receive a direct answer within one business day."
+        }
         primaryLabel="Contact OmniFlow"
         primaryHref={settings.primaryCtaHref}
       />

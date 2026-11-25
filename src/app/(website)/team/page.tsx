@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Globe2, ShieldCheck } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedTeamMembers,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -10,7 +13,7 @@ import {
 } from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Founder & Team",
@@ -20,8 +23,8 @@ export const metadata: Metadata = {
 
 export default async function TeamPage() {
   const [members, settings] = await Promise.all([
-    db.listTeamMembers(true),
-    db.getSiteSettings(),
+    getCachedPublishedTeamMembers(),
+    getCachedSiteSettings(),
   ]);
 
   return (
@@ -47,16 +50,26 @@ export default async function TeamPage() {
             >
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-4">
-                  <div
-                    aria-hidden="true"
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-primary text-xl font-bold text-primary-foreground shadow-sm"
-                  >
-                    {member.name
-                      .split(" ")
-                      .map((p) => p[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
+                  {member.avatarUrl && !member.avatarUrl.includes("{{") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={member.avatarUrl}
+                      alt={member.name}
+                      className="h-16 w-16 shrink-0 rounded-[20px] border border-line object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div
+                      aria-label={`${member.name} avatar placeholder ({{FOUNDER_PHOTO_URL}})`}
+                      title="Upload photo in Admin → Team ({{FOUNDER_PHOTO_URL}})"
+                      className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] border border-primary/30 bg-accent-subtle text-xl font-bold text-primary shadow-sm"
+                    >
+                      {member.name
+                        .split(" ")
+                        .map((p) => p[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </div>
+                  )}
                   <div>
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 className="soale-h3 text-ink-heading">

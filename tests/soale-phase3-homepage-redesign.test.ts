@@ -60,13 +60,15 @@ describe("Soale Redesign Phase 3 — Homepage Redesign, Card Architecture & Own 
       "utf8"
     );
     expect(processSrc).toContain("soale-process-pill");
-    for (const num of ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]) {
+    for (const num of ["01", "02", "03", "04"]) {
       expect(processSrc).toContain(`"${num}"`);
     }
+    expect(processSrc).not.toContain('"05"');
   });
 
-  it("3. configures 4-tier Starter/Growth/Scale/Enterprise Custom-Scoped Coming Soon pricing with zero fake dollar claims", () => {
-    expect(DEFAULT_PRICING_CONFIG.comingSoonMode).toBe(true);
+  it("3. configures 4-tier Starter/Growth/Scale/Enterprise pricing with {{PRICE_FROM}} placeholder and zero Coming Soon badges", () => {
+    expect(DEFAULT_PRICING_CONFIG.comingSoonMode).toBe(false);
+    expect(DEFAULT_PRICING_CONFIG.statusBannerText).toContain("{{PRICE_FROM}}");
     expect(DEFAULT_PRICING_CONFIG.packages).toHaveLength(4);
     expect(DEFAULT_PRICING_CONFIG.packages.map((p) => p.name)).toEqual([
       "Starter",

@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GET as getRssFeed } from "@/app/feed.xml/route";
 import { alt, contentType, size } from "@/app/opengraph-image";
 import {
@@ -12,6 +13,21 @@ import {
 } from "@/features/seo/json-ld";
 import { WORK_TYPE_META } from "@/features/case-studies/constants";
 import { db } from "@/lib/database";
+
+let tempDir = "";
+
+beforeEach(() => {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omniflow-upg-p7-"));
+  process.env.OMNIFLOW_LOCAL_DB_PATH = path.join(tempDir, "upg-p7-db.json");
+  delete process.env.DATABASE_URL;
+});
+
+afterEach(() => {
+  delete process.env.OMNIFLOW_LOCAL_DB_PATH;
+  if (tempDir && fs.existsSync(tempDir)) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
 
 describe("Upgrade Phase 7 — Technical SEO, RSS 2.0, OpenGraph, Truthful Schema & Consent Controls", () => {
   it("1. serves valid XML-escaped RSS 2.0 syndication at /feed.xml", async () => {

@@ -4,6 +4,82 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE_NAME = "omniflow_session";
 const PUBLIC_ADMIN_PREFIXES = ["/admin/login", "/admin/setup", "/admin/recover"];
 
+const BUILTIN_ROUTE_ALIASES: Record<string, string> = {
+  "/about-us": "/about",
+  "/contact-us": "/contact",
+  "/our-work": "/work",
+  "/insights": "/blog",
+  "/pricing-plans": "/pricing",
+};
+
+interface CachedEdgeRedirect {
+  destinationPath: string;
+  permanent: boolean;
+}
+
+let edgeRedirectCache: {
+  expiresAt: number;
+  map: Map<string, CachedEdgeRedirect>;
+} | null = null;
+
+function normalizeRedirectPath(pathname: string): string {
+  const trimmed = pathname.trim().replace(/\/+$/, "");
+  return (trimmed || "/").toLowerCase();
+}
+
+async function lookupCachedRedirect(
+  origin: string,
+  pathname: string
+): Promise<CachedEdgeRedirect | null> {
+  if (
+    pathname === "/" ||
+    Boolean(process.env.VITEST) ||
+    process.env.NODE_ENV === "test"
+  ) {
+    return null;
+  }
+
+  const now = Date.now();
+  if (!edgeRedirectCache || now >= edgeRedirectCache.expiresAt) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 600);
+      const res = await fetch(`${origin}/api/redirects`, {
+        signal: controller.signal,
+        headers: { "x-omniflow-edge-internal": "1" },
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          rules?: Array<{
+            sourcePath: string;
+            destinationPath: string;
+            permanent: boolean;
+          }>;
+        };
+        const nextMap = new Map<string, CachedEdgeRedirect>();
+        for (const rule of data.rules || []) {
+          nextMap.set(normalizeRedirectPath(rule.sourcePath), {
+            destinationPath: rule.destinationPath,
+            permanent: Boolean(rule.permanent),
+          });
+        }
+        edgeRedirectCache = {
+          expiresAt: now + 60_000,
+          map: nextMap,
+        };
+      }
+    } catch {
+      edgeRedirectCache = {
+        expiresAt: now + 15_000,
+        map: edgeRedirectCache?.map ?? new Map(),
+      };
+    }
+  }
+
+  return edgeRedirectCache?.map.get(normalizeRedirectPath(pathname)) ?? null;
+}
+
 function isPlaceholderSecret(value: string): boolean {
   if (!value) return true;
   return (
@@ -64,7 +140,9 @@ function constantTimeStringEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function hasValidEdgeAdminSession(token: string | undefined): Promise<boolean> {
+async function hasValidEdgeAdminSession(
+  token: string | undefined
+): Promise<boolean> {
   if (!token) return false;
   const parts = token.split(".");
   if (parts.length !== 2) return false;
@@ -141,6 +219,29 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Fast Edge redirect handling (moves redirect lookup completely out of RSC layout render)
+  if (!isAdminRoute && pathname !== "/") {
+    const normalizedPath = normalizeRedirectPath(pathname);
+    const aliasDest = BUILTIN_ROUTE_ALIASES[normalizedPath];
+    if (aliasDest) {
+      return NextResponse.redirect(new URL(aliasDest, request.url), 308);
+    }
+
+    const customRule = await lookupCachedRedirect(
+      request.nextUrl.origin,
+      pathname
+    );
+    if (customRule) {
+      const targetUrl = /^https?:\/\//i.test(customRule.destinationPath)
+        ? customRule.destinationPath
+        : new URL(customRule.destinationPath, request.url);
+      return NextResponse.redirect(
+        targetUrl,
+        customRule.permanent ? 308 : 307
+      );
+    }
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-omniflow-pathname", pathname);
 
@@ -160,6 +261,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|uploads/|api/|.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|woff2?|ttf|txt|xml)$).*)",
+    "/((?!_next/static|_next/image|uploads/|api/|.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|woff2?|ttf|txt|xml|webmanifest)$).*)",
   ],
 };

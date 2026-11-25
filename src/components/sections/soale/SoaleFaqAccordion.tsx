@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import type { FaqItem } from "@/types/content";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 import {
   SoaleArrowButton,
   SoaleCard,
@@ -21,21 +23,21 @@ export function SoaleFaqAccordion({
   const [openId, setOpenId] = useState<string | null>(faqs[0]?.id ?? null);
 
   return (
-    <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-12 lg:gap-12">
+    <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
       {/* Left Sticky Column (.faq-grid left side) */}
       <div className="lg:sticky lg:top-28 lg:col-span-5">
         <SoaleEyebrow className="mb-4">Common Questions</SoaleEyebrow>
         <h2 className="soale-h2 text-ink-heading">
-          Clear answers before we write a single line of automation.
+          Frequently Asked Questions
         </h2>
         <p className="soale-lead mt-4">
           Straightforward answers on safety guardrails, CRM compatibility,
-          system ownership, and how discovery calls work.
+          system ownership, and how workflow reviews work.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <SoaleArrowButton href="/contact?intent=call" variant="primary">
-            Ask About Your Workflow
+        <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
+          <SoaleArrowButton href="/contact?intent=call" variant="secondary">
+            Ask a question
           </SoaleArrowButton>
           <SoaleArrowButton href="/faq" variant="outline" size="sm">
             All FAQs
@@ -43,31 +45,50 @@ export function SoaleFaqAccordion({
         </div>
 
         <p className="mt-4 text-xs text-ink-muted">
-          Prefer email? Reach us directly at{" "}
-          <a
-            href={`mailto:${contactEmail}`}
-            className="font-medium text-primary hover:underline"
-          >
-            {contactEmail}
-          </a>
+          {hasConfiguredContactEmail(contactEmail) ? (
+            <>
+              Prefer email? Reach us directly at{" "}
+              <a
+                href={`mailto:${contactEmail}`}
+                className="font-medium text-primary hover:underline"
+              >
+                {contactEmail}
+              </a>
+            </>
+          ) : (
+            <>
+              Have a question not listed here?{" "}
+              <Link
+                href="/contact"
+                className="font-medium text-primary hover:underline"
+              >
+                Send us a quick note →
+              </Link>
+            </>
+          )}
         </p>
       </div>
 
-      {/* Right Smooth Accordion Column with 36x36 Circular Icon Box */}
+      {/* Right Soale Accordion Column with Sunset-Orange Active Badge & Horizon Line */}
       <div className="space-y-3.5 lg:col-span-7">
         {faqs.map((faq) => {
           const isOpen = openId === faq.id;
           const panelId = `faq-panel-${faq.id}`;
 
           return (
-            <SoaleCard key={faq.id} className="overflow-hidden px-5 py-4 sm:px-6">
+            <SoaleCard
+              key={faq.id}
+              className={`overflow-hidden px-4 py-4 sm:px-6 ${
+                isOpen ? "soale-faq-card-open" : ""
+              }`}
+            >
               <h3>
                 <button
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   onClick={() => setOpenId(isOpen ? null : faq.id)}
-                  className="flex w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)]"
+                  className="flex min-h-[40px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)]"
                 >
                   <span className="text-sm font-semibold leading-snug text-ink-heading sm:text-base">
                     {faq.question}
@@ -76,11 +97,11 @@ export function SoaleFaqAccordion({
                     aria-hidden="true"
                     className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-all duration-300 ${
                       isOpen
-                        ? "rotate-45 border-primary bg-primary text-primary-foreground"
+                        ? "rotate-180 border-[#FF7023] bg-[#FF7023] text-white shadow-[0_0_18px_rgba(255,112,35,0.45)]"
                         : "border-line bg-surface-muted text-ink-heading"
                     }`}
                   >
-                    <Plus className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4" />
                   </span>
                 </button>
               </h3>
@@ -95,6 +116,9 @@ export function SoaleFaqAccordion({
                   <p className="mt-3 border-t border-line pt-3.5 text-sm leading-relaxed text-ink-body">
                     {faq.answer}
                   </p>
+                  {isOpen && (
+                    <div aria-hidden="true" className="soale-faq-horizon mt-4 rounded-full" />
+                  )}
                 </div>
               </div>
             </SoaleCard>

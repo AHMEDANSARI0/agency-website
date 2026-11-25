@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleCard } from "@/components/ui/soale";
+
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -12,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PrivacyPolicyPage() {
-  const settings = await db.getSiteSettings();
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="bg-canvas text-ink-body">
@@ -73,10 +76,25 @@ export default async function PrivacyPolicyPage() {
                 permissions. Business contacts in the United States, United
                 Kingdom, Canada, and other jurisdictions may request access to,
                 correction of, or deletion of their enquiry records at any time
-                by contacting{" "}
-                <strong className="text-ink-heading">
-                  {settings.contactEmail}
-                </strong>
+                by{" "}
+                {hasConfiguredContactEmail(settings.contactEmail) ? (
+                  <>
+                    contacting{" "}
+                    <a
+                      href={`mailto:${settings.contactEmail}`}
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      {settings.contactEmail}
+                    </a>
+                  </>
+                ) : (
+                  <Link
+                    href="/contact"
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    submitting a request via our contact page
+                  </Link>
+                )}
                 .
               </p>
             </div>

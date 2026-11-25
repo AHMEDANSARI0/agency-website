@@ -687,7 +687,337 @@ export const ORIGINAL_AGENCY_THEME_ARCHIVED_PRESET: ThemePreset = {
   archivedAt: "2026-11-22T00:00:00.000Z",
 };
 
+export const OMNIFLOW_DARK_PURPLE_AI_PRESET_ID = "omniflow-dark-purple-ai";
+export const OMNIFLOW_DARK_PURPLE_AI_PRESET_NAME = "OmniFlow Dark Purple AI";
+
+/**
+ * OmniFlow Dark Purple AI — Light Variant
+ * - Crisp alabaster & soft violet-tinted surfaces (#FAF8FC / #FFFFFF / #F3EEF9)
+ * - Deep plum-obsidian ink (#140A24 / #3F3356 / #5F5278) — >= 5.5:1 WCAG AA
+ * - Royal electric purple (#7E22CE), magenta (#C026D3), and warm orange (#EA580C) accents
+ */
+export const OMNIFLOW_DARK_PURPLE_AI_LIGHT: ThemeTokenSet = {
+  colors: {
+    primary: "#7E22CE",
+    primaryHover: "#6B21A8",
+    primaryActive: "#581C87",
+    primaryForeground: "#FFFFFF",
+    secondary: "#140A24",
+    secondaryForeground: "#FAF8FC",
+    accent: "#C026D3",
+    accentSubtle: "rgba(126, 34, 206, 0.08)",
+    background: "#FAF8FC",
+    surface: "#FFFFFF",
+    surfaceElevated: "#FFFFFF",
+    surfaceMuted: "#F3EEF9",
+    heading: "#140A24",
+    body: "#3F3356",
+    muted: "#5F5278",
+    border: "#E6DFF2",
+    borderStrong: "#CFC2E6",
+    link: "#7E22CE",
+    linkHover: "#6B21A8",
+    linkActive: "#581C87",
+    success: "#047857",
+    warning: "#B45309",
+    error: "#DC2626",
+  },
+  components: {
+    primaryButtonBg: "#7E22CE",
+    navbarBg: "rgba(250, 248, 252, 0.88)",
+    navbarBorder: "rgba(230, 223, 242, 0.92)",
+    navbarText: "#140A24",
+    footerBg: "#0B0514",
+    footerText: "#D5CBE8",
+    cardBg: "#FFFFFF",
+    cardBorder: "#E6DFF2",
+    borderSecondary: "#EFEAF8",
+    tertiaryBg: "#F1ECF8",
+    glassBg: "rgba(255, 255, 255, 0.80)",
+    glassBorder: "rgba(230, 223, 242, 0.90)",
+    electricAccent: "#EA580C",
+    cyanAccent: "#C026D3",
+    cyanSubtle: "rgba(192, 38, 211, 0.08)",
+    glowOpacity: 0.16,
+    inputBg: "#FFFFFF",
+    inputBorder: "#CFC2E6",
+    inputFocusRing: "#7E22CE",
+    dropdownBg: "#FFFFFF",
+    modalBg: "#FFFFFF",
+    modalOverlay: "rgba(20, 10, 36, 0.56)",
+    badgeBg: "#F3E8FF",
+    badgeText: "#6B21A8",
+    buttonDisabledBg: "#E6DFF2",
+    buttonDisabledText: "#6D6088",
+    gradientFrom: "#7E22CE",
+    gradientVia: "#C026D3",
+    gradientTo: "#EA580C",
+    gradientAngleDeg: 135,
+    gradientIntensity: 10,
+    shadowCard:
+      "0 1px 2px rgba(20, 10, 36, 0.04), 0 14px 34px -14px rgba(88, 28, 135, 0.09)",
+    shadowElevated:
+      "0 6px 20px -4px rgba(20, 10, 36, 0.07), 0 26px 54px -16px rgba(88, 28, 135, 0.16)",
+  },
+};
+
+/**
+ * OmniFlow Dark Purple AI — Signature Dark Variant (Default)
+ * - Deep obsidian-violet canvas (#07030D) & layered command surfaces (#110920 / #180D2C)
+ * - Crisp lavender-white ink (#FAF7FF / #D5CBE8 / #A89BC2) — >= 5.7:1 WCAG AA
+ * - Vibrant purple CTA (#7E22CE / #9333EA), orchid (#C084FC), magenta (#C026D3) & warm orange (#FB923C)
+ */
+export const OMNIFLOW_DARK_PURPLE_AI_DARK: ThemeTokenSet = {
+  colors: {
+    primary: "#C084FC",
+    primaryHover: "#D8B4FE",
+    primaryActive: "#A855F7",
+    primaryForeground: "#FFFFFF",
+    secondary: "#FAF7FF",
+    secondaryForeground: "#07030D",
+    accent: "#E879F9",
+    accentSubtle: "rgba(168, 85, 247, 0.15)",
+    background: "#07030D",
+    surface: "#110920",
+    surfaceElevated: "#180D2C",
+    surfaceMuted: "#140B26",
+    heading: "#FAF7FF",
+    body: "#D5CBE8",
+    muted: "#A89BC2",
+    border: "#281844",
+    borderStrong: "#3D2761",
+    link: "#C084FC",
+    linkHover: "#E9D5FF",
+    linkActive: "#FAF7FF",
+    success: "#34D399",
+    warning: "#FB923C",
+    error: "#F87171",
+  },
+  components: {
+    primaryButtonBg: "#7E22CE",
+    navbarBg: "rgba(7, 3, 13, 0.84)",
+    navbarBorder: "rgba(192, 132, 252, 0.14)",
+    navbarText: "#FAF7FF",
+    footerBg: "#05020A",
+    footerText: "#D5CBE8",
+    cardBg: "#110920",
+    cardBorder: "#281844",
+    borderSecondary: "#1F1236",
+    tertiaryBg: "#0D0619",
+    glassBg: "rgba(17, 9, 32, 0.78)",
+    glassBorder: "rgba(192, 132, 252, 0.16)",
+    electricAccent: "#FB923C",
+    cyanAccent: "#E879F9",
+    cyanSubtle: "rgba(232, 121, 249, 0.13)",
+    glowOpacity: 0.24,
+    inputBg: "#0D0619",
+    inputBorder: "#362157",
+    inputFocusRing: "#C084FC",
+    dropdownBg: "#140B26",
+    modalBg: "#140B26",
+    modalOverlay: "rgba(4, 2, 8, 0.78)",
+    badgeBg: "rgba(168, 85, 247, 0.18)",
+    badgeText: "#E9D5FF",
+    buttonDisabledBg: "#211339",
+    buttonDisabledText: "#8C7DA8",
+    gradientFrom: "#7E22CE",
+    gradientVia: "#C026D3",
+    gradientTo: "#FB923C",
+    gradientAngleDeg: 135,
+    gradientIntensity: 18,
+    shadowCard:
+      "0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 18px 42px -16px rgba(0, 0, 0, 0.68)",
+    shadowElevated:
+      "0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 28px 64px -18px rgba(126, 34, 206, 0.28)",
+  },
+};
+
+export const OMNIFLOW_DARK_PURPLE_AI_PRESET: ThemePreset = {
+  id: OMNIFLOW_DARK_PURPLE_AI_PRESET_ID,
+  name: OMNIFLOW_DARK_PURPLE_AI_PRESET_NAME,
+  description:
+    "Signature Dark Purple AI SaaS system (#07030D canvas, #110920 command cards, #7E22CE -> #C026D3 -> #FB923C gradient accents) with crisp alabaster Light mode.",
+  isBuiltIn: true,
+  version: "1.0.0",
+  defaultMode: "dark",
+  designSystem: { ...DEFAULT_DESIGN_SYSTEM_TOKENS },
+  light: OMNIFLOW_DARK_PURPLE_AI_LIGHT,
+  dark: OMNIFLOW_DARK_PURPLE_AI_DARK,
+  overrides: {},
+};
+
+export const SOALE_CREATIVE_AI_PRESET_ID = "soale-creative-ai-dual";
+export const SOALE_CREATIVE_AI_PRESET_NAME =
+  "Soale Creative AI — Orbital Glow (Dark & Light)";
+
+/**
+ * Soale Creative AI — Daylight Alabaster Variant
+ * - Warm alabaster canvas (#FAF8F6) & pure white cards (#FFFFFF)
+ * - Deep obsidian charcoal ink (#0E0B14 / #3B3447 / #5C536B) — >= 5.6:1 WCAG AA
+ * - Sunset orange (#C2410C), rose-magenta (#BE185D), and orchid-violet (#7E22CE) halo accents
+ */
+export const SOALE_CREATIVE_AI_LIGHT: ThemeTokenSet = {
+  colors: {
+    primary: "#C2410C",
+    primaryHover: "#9A3412",
+    primaryActive: "#7C2D12",
+    primaryForeground: "#FFFFFF",
+    secondary: "#0E0B14",
+    secondaryForeground: "#FAF8F6",
+    accent: "#A21CAF",
+    accentSubtle: "rgba(194, 65, 12, 0.08)",
+    background: "#FAF8F6",
+    surface: "#FFFFFF",
+    surfaceElevated: "#FFFFFF",
+    surfaceMuted: "#F3EFEA",
+    heading: "#0E0B14",
+    body: "#3B3447",
+    muted: "#5C536B",
+    border: "#E6E0EB",
+    borderStrong: "#CEC5D8",
+    link: "#B43B0A",
+    linkHover: "#9A3412",
+    linkActive: "#7C2D12",
+    success: "#047857",
+    warning: "#B45309",
+    error: "#DC2626",
+  },
+  components: {
+    primaryButtonBg: "#0E0B14",
+    navbarBg: "rgba(250, 248, 246, 0.86)",
+    navbarBorder: "rgba(230, 224, 235, 0.92)",
+    navbarText: "#0E0B14",
+    footerBg: "#08070B",
+    footerText: "#D4CEE0",
+    cardBg: "#FFFFFF",
+    cardBorder: "#E6E0EB",
+    borderSecondary: "#EFEBF3",
+    tertiaryBg: "#EAE4F0",
+    glassBg: "rgba(255, 255, 255, 0.82)",
+    glassBorder: "rgba(230, 224, 235, 0.90)",
+    electricAccent: "#EA580C",
+    cyanAccent: "#C026D3",
+    cyanSubtle: "rgba(192, 38, 211, 0.08)",
+    glowOpacity: 0.14,
+    inputBg: "#FFFFFF",
+    inputBorder: "#CEC5D8",
+    inputFocusRing: "#C2410C",
+    dropdownBg: "#FFFFFF",
+    modalBg: "#FFFFFF",
+    modalOverlay: "rgba(14, 11, 20, 0.56)",
+    badgeBg: "#FFF1EB",
+    badgeText: "#9A3412",
+    buttonDisabledBg: "#E6E0EB",
+    buttonDisabledText: "#685E78",
+    gradientFrom: "#FF7023",
+    gradientVia: "#BF4A91",
+    gradientTo: "#C823FF",
+    gradientAngleDeg: 105,
+    gradientIntensity: 14,
+    shadowCard:
+      "0 1px 2px rgba(14, 11, 20, 0.04), 0 14px 34px -14px rgba(14, 11, 20, 0.08)",
+    shadowElevated:
+      "0 6px 20px -4px rgba(14, 11, 20, 0.08), 0 26px 54px -16px rgba(126, 34, 206, 0.14)",
+  },
+};
+
+/**
+ * Soale Creative AI — Obsidian Orbital Dark Variant
+ * - Deep obsidian canvas (#060609) & sleek charcoal bento surfaces (#0D0C12 / #14121C)
+ * - Luminous sunset-orange (#FF7023), rose-pink (#BF4A91), and orchid-violet (#C823FF) halo glow
+ * - Crisp WCAG AA alabaster ink (#FAF8FF / #D4CEE0 / #A69FB8)
+ */
+export const SOALE_CREATIVE_AI_DARK: ThemeTokenSet = {
+  colors: {
+    primary: "#FF8547",
+    primaryHover: "#FFA06E",
+    primaryActive: "#F97316",
+    primaryForeground: "#FFFFFF",
+    secondary: "#FAF8FF",
+    secondaryForeground: "#060609",
+    accent: "#E879F9",
+    accentSubtle: "rgba(255, 112, 35, 0.14)",
+    background: "#060609",
+    surface: "#0D0C12",
+    surfaceElevated: "#14121C",
+    surfaceMuted: "#111018",
+    heading: "#FAF8FF",
+    body: "#D4CEE0",
+    muted: "#A69FB8",
+    border: "#252230",
+    borderStrong: "#3A354A",
+    link: "#FF945C",
+    linkHover: "#FFB38A",
+    linkActive: "#FAF8FF",
+    success: "#34D399",
+    warning: "#FBBF24",
+    error: "#F87171",
+  },
+  components: {
+    primaryButtonBg: "#C2410C",
+    navbarBg: "rgba(6, 6, 9, 0.82)",
+    navbarBorder: "rgba(255, 255, 255, 0.10)",
+    navbarText: "#FAF8FF",
+    footerBg: "#040406",
+    footerText: "#D4CEE0",
+    cardBg: "#0D0C12",
+    cardBorder: "#252230",
+    borderSecondary: "#1B1924",
+    tertiaryBg: "#1A1724",
+    glassBg: "rgba(13, 12, 18, 0.78)",
+    glassBorder: "rgba(255, 255, 255, 0.10)",
+    electricAccent: "#FF7023",
+    cyanAccent: "#C823FF",
+    cyanSubtle: "rgba(200, 35, 255, 0.13)",
+    glowOpacity: 0.24,
+    inputBg: "#0A090E",
+    inputBorder: "#3A354A",
+    inputFocusRing: "#FF8547",
+    dropdownBg: "#14121C",
+    modalBg: "#14121C",
+    modalOverlay: "rgba(4, 4, 6, 0.80)",
+    badgeBg: "rgba(255, 112, 35, 0.16)",
+    badgeText: "#FFB38A",
+    buttonDisabledBg: "#1E1B29",
+    buttonDisabledText: "#8C859E",
+    gradientFrom: "#FF7023",
+    gradientVia: "#BF4A91",
+    gradientTo: "#C823FF",
+    gradientAngleDeg: 105,
+    gradientIntensity: 20,
+    shadowCard:
+      "0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 18px 42px -16px rgba(0, 0, 0, 0.72)",
+    shadowElevated:
+      "0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 28px 64px -18px rgba(200, 35, 255, 0.24)",
+  },
+};
+
+export const SOALE_CREATIVE_AI_DUAL_PRESET: ThemePreset = {
+  id: SOALE_CREATIVE_AI_PRESET_ID,
+  name: SOALE_CREATIVE_AI_PRESET_NAME,
+  description:
+    "Exact Soale Creative AI dual-mode system: obsidian (#060609) & daylight alabaster (#FAF8F6) paired with the rotating sunset-orange -> rose -> electric-orchid (#FF7023 -> #BF4A91 -> #C823FF) orbital halo glow.",
+  isBuiltIn: true,
+  version: "3.0.0",
+  defaultMode: "dark",
+  designSystem: {
+    typography: "editorial",
+    buttonStyle: "rounded",
+    borderRadius: "generous",
+    spacing: "spacious",
+    animationIntensity: "full",
+    headingWeight: "500",
+    bodyLineHeight: "editorial",
+    letterSpacing: "tight",
+  },
+  light: SOALE_CREATIVE_AI_LIGHT,
+  dark: SOALE_CREATIVE_AI_DARK,
+  overrides: {},
+};
+
 export const BUILT_IN_THEME_PRESETS: ThemePreset[] = [
+  OMNIFLOW_DARK_PURPLE_AI_PRESET,
+  SOALE_CREATIVE_AI_DUAL_PRESET,
   {
     id: "omniflow-light-signature",
     name: "OmniFlow Indigo Signature",
@@ -746,7 +1076,7 @@ export const BUILT_IN_THEME_PRESETS: ThemePreset[] = [
   SOALE_INSPIRED_PREMIUM_PRESET,
 ];
 
-export const DEFAULT_THEME_PRESET_ID = "omniflow-light-signature";
+export const DEFAULT_THEME_PRESET_ID = OMNIFLOW_DARK_PURPLE_AI_PRESET_ID;
 
 export function createArchivedOriginalThemeSnapshot(
   source?: Partial<ThemeConfiguration> | null
@@ -775,7 +1105,7 @@ export function createDefaultThemeConfiguration(): ThemeConfiguration {
     BUILT_IN_THEME_PRESETS[0];
   return {
     activePresetId: defaultPreset.id,
-    defaultMode: "light",
+    defaultMode: defaultPreset.defaultMode ?? "dark",
     designSystem: { ...DEFAULT_DESIGN_SYSTEM_TOKENS },
     published: {
       light: structuredClone(defaultPreset.light),
@@ -795,9 +1125,10 @@ export function createDefaultThemeConfiguration(): ThemeConfiguration {
 }
 
 /**
- * Safely upgrades untouched legacy pre-Phase-2 seed themes (`omniflow-editorial-ember` / `omniflow-signature`
- * with `defaultMode: "dark"`, no `updatedBy`, no `previousPublished`, and no custom presets)
- * to the Phase 2 Light-First Indigo Signature system, while 100% preserving any admin-customized theme.
+ * Safely upgrades untouched legacy default seed themes (`omniflow-editorial-ember`, `omniflow-signature`,
+ * `atlantic-jade`, `omniflow-light-signature`, `soale-inspired-premium-agency`
+ * with no `updatedBy`, no `previousPublished`, and no custom presets)
+ * to the Dark Purple AI default preset, while 100% preserving any admin-customized theme.
  */
 export function normalizeStoredThemeConfig(
   raw: ThemeConfiguration | null | undefined
@@ -809,11 +1140,19 @@ export function normalizeStoredThemeConfig(
   const isLegacySeedId =
     raw.activePresetId === "omniflow-editorial-ember" ||
     raw.activePresetId === "omniflow-signature" ||
-    raw.activePresetId === "atlantic-jade";
+    raw.activePresetId === "atlantic-jade" ||
+    raw.activePresetId === "omniflow-light-signature" ||
+    raw.activePresetId === SOALE_INSPIRED_PRESET_ID;
+
+  const isSystemUpdatedBy =
+    !raw.updatedBy ||
+    raw.updatedBy === "system" ||
+    raw.updatedBy === "system@omniflow.local" ||
+    raw.updatedBy === "system@omniflow.advisory";
 
   const hasAdminCustomization = Boolean(
-    raw.updatedBy ||
-      raw.previousPublished ||
+    !isSystemUpdatedBy ||
+      (raw.previousPublished && !isSystemUpdatedBy) ||
       (Array.isArray(raw.customPresets) && raw.customPresets.length > 0)
   );
 

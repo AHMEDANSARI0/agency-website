@@ -339,7 +339,7 @@ export function SeoAnalyticsClient({
               type="text"
               value={canonicalUrl}
               onChange={(e) => setCanonicalUrl(e.target.value)}
-              placeholder="https://omniflow.example"
+              placeholder="https://yourdomain.com"
               className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-heading"
             />
           </div>
@@ -363,7 +363,7 @@ export function SeoAnalyticsClient({
             </p>
             <p className="mt-2 truncate font-mono text-[11px] text-ink-muted">
               {canonicalUrl.trim() ||
-                `https://omniflow.example${
+                `https://yourdomain.com${
                   selectedPageSlug === "home" ? "" : `/${selectedPageSlug}`
                 }`}
             </p>

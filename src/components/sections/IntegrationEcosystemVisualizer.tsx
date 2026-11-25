@@ -189,7 +189,7 @@ export function IntegrationEcosystemVisualizer() {
         <div
           role="tabpanel"
           aria-live="polite"
-          className="rounded-2xl border border-line bg-surface/95 p-5 shadow-card backdrop-blur lg:col-span-5 sm:p-6"
+          className="rounded-2xl border border-line bg-surface p-5 shadow-card lg:col-span-5 sm:p-6"
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3.5">
             <Badge variant="accent">{activeNode.protocol}</Badge>

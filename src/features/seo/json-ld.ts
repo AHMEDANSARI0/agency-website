@@ -6,6 +6,7 @@ import type {
   SiteSettings,
 } from "@/types/content";
 import type { BrandAssetConfig } from "@/types/brand";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 
 export function getCanonicalSiteUrl(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -60,9 +61,13 @@ export function buildOrganizationAndWebsiteJsonLd(
   brand: BrandAssetConfig,
   baseUrl = getCanonicalSiteUrl()
 ) {
-  const logoUrl = brand.lightLogoUrl || brand.darkLogoUrl || brand.symbolUrl;
+  const logoUrl =
+    brand.lightLogoUrl || brand.darkLogoUrl || brand.symbolUrl || "/logo.svg";
   const resolvedLogo =
     logoUrl && logoUrl.startsWith("/") ? `${baseUrl}${logoUrl}` : logoUrl;
+  const validEmail = hasConfiguredContactEmail(settings.contactEmail)
+    ? settings.contactEmail
+    : undefined;
 
   return [
     {
@@ -72,7 +77,7 @@ export function buildOrganizationAndWebsiteJsonLd(
       name: settings.companyName,
       description: `${settings.positioning}. ${settings.tagline}`,
       url: baseUrl,
-      email: settings.contactEmail,
+      ...(validEmail ? { email: validEmail } : {}),
       founder: {
         "@type": "Person",
         name: settings.founderName,
@@ -81,7 +86,7 @@ export function buildOrganizationAndWebsiteJsonLd(
         {
           "@type": "ContactPoint",
           contactType: "sales and customer support",
-          email: settings.contactEmail,
+          ...(validEmail ? { email: validEmail } : { url: `${baseUrl}/contact` }),
           availableLanguage: ["English"],
           areaServed: ["US", "GB", "CA"],
         },

@@ -14,9 +14,11 @@ coverage/
 data/
 patches/
 upgrade-phase-*.mjs
+sync-phase*.mjs
 .patch-backups/
 .omniflow-patch-state.json
 public/uploads/
+uploads/
 
 # Environment variables (NEVER commit secrets)
 .env

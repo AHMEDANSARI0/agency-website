@@ -2,435 +2,521 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BellRing,
-  Bot,
-  CheckCircle2,
-  Database,
-  Filter,
-  Inbox,
-  Pause,
-  Play,
-  ShieldCheck,
-  UserCheck,
-} from "lucide-react";
-import {
-  SoaleArrowButton,
-  SoaleCard,
-  SoaleChip,
-  SoaleEyebrow,
-} from "@/components/ui/soale";
+import { SoaleArrowButton } from "@/components/ui/soale";
 
-interface PinnedHeroProps {
-  companyName: string;
-  tagline: string;
-  primaryCtaLabel: string;
-  primaryCtaHref: string;
-  secondaryCtaLabel: string;
-  secondaryCtaHref: string;
+export interface PinnedHeroProps {
+  companyName?: string;
+  tagline?: string;
+  primaryCtaLabel?: string;
+  primaryCtaHref?: string;
+  secondaryCtaLabel?: string;
+  secondaryCtaHref?: string;
 }
 
-interface CommandStep {
-  id: string;
-  stepNumber: string;
+type CommandTabId = "overview" | "leads" | "workflows" | "support" | "reports";
+
+interface CommandViewData {
+  id: CommandTabId;
   label: string;
-  shortStatus: string;
-  latency: string;
-  businessOutcome: string;
-  systemTrace: string;
-  icon: React.ComponentType<{ className?: string }>;
+  metrics: [
+    { label: string; value: string; delta: string },
+    { label: string; value: string; delta: string },
+    { label: string; value: string; delta: string },
+  ];
+  chartTitle: string;
+  chartPathLine: string;
+  chartPathArea: string;
+  runsTitle: string;
+  runs: Array<{
+    name: string;
+    status: "Done" | "Needs approval";
+  }>;
 }
 
-const COMMAND_SEQUENCE: CommandStep[] = [
+const COMMAND_VIEWS: CommandViewData[] = [
   {
-    id: "incoming-enquiry",
-    stepNumber: "01",
-    label: "Incoming customer enquiry",
-    shortStatus: "Captured 24/7",
-    latency: "0.12s",
-    businessOutcome:
-      "Every web form, booking request, or inbound email is captured immediately—even after hours or on weekends.",
-    systemTrace:
-      "POST /intake -> Verified business contact · Region: UK/US · Spam check: Passed",
-    icon: Inbox,
+    id: "overview",
+    label: "Overview",
+    metrics: [
+      { label: "Avg. response", value: "1.8 min", delta: "faster than last week" },
+      { label: "Leads handled", value: "2,481", delta: "this month" },
+      { label: "Hours saved", value: "126 h", delta: "this month" },
+    ],
+    chartTitle: "Enquiries answered",
+    chartPathLine:
+      "M 18 134 C 68 132, 95 128, 132 110 C 168 92, 205 98, 248 92 C 292 86, 326 98, 362 84 C 398 70, 420 46, 466 44 C 504 42, 524 44, 546 34",
+    chartPathArea:
+      "M 18 134 C 68 132, 95 128, 132 110 C 168 92, 205 98, 248 92 C 292 86, 326 98, 362 84 C 398 70, 420 46, 466 44 C 504 42, 524 44, 546 34 L 546 158 L 18 158 Z",
+    runsTitle: "Recent runs",
+    runs: [
+      { name: "Lead scored", status: "Done" },
+      { name: "CRM updated", status: "Done" },
+      { name: "Quote reply", status: "Needs approval" },
+      { name: "WhatsApp alert", status: "Done" },
+    ],
   },
   {
-    id: "ai-analysis",
-    stepNumber: "02",
-    label: "AI analysis",
-    shortStatus: "Intent extracted",
-    latency: "0.48s",
-    businessOutcome:
-      "Service need, urgency, and bottleneck details are summarized in plain English without anyone reading raw inbox threads.",
-    systemTrace:
-      "Policy-grounded classifier -> Need: Lead & CRM Automation · Urgency: Within 30 days",
-    icon: Bot,
+    id: "leads",
+    label: "Leads",
+    metrics: [
+      { label: "Qualified today", value: "38", delta: "scored automatically" },
+      { label: "CRM sync rate", value: "100%", delta: "zero duplicate deals" },
+      { label: "Owner brief SLA", value: "42 sec", delta: "avg. delivery" },
+    ],
+    chartTitle: "Qualified inbound leads",
+    chartPathLine:
+      "M 18 138 C 72 130, 108 118, 152 108 C 198 98, 238 88, 286 78 C 334 68, 382 64, 434 48 C 478 36, 514 38, 546 28",
+    chartPathArea:
+      "M 18 138 C 72 130, 108 118, 152 108 C 198 98, 238 88, 286 78 C 334 68, 382 64, 434 48 C 478 36, 514 38, 546 28 L 546 158 L 18 158 Z",
+    runsTitle: "Recent lead actions",
+    runs: [
+      { name: "Web form validated", status: "Done" },
+      { name: "HubSpot deal created", status: "Done" },
+      { name: "Custom scope quote", status: "Needs approval" },
+      { name: "Calendar link sent", status: "Done" },
+    ],
   },
   {
-    id: "lead-qualification",
-    stepNumber: "03",
-    label: "Lead qualification",
-    shortStatus: "High-Fit (92/100)",
-    latency: "0.64s",
-    businessOutcome:
-      "High-intent buyers are prioritized automatically while repeat contacts and low-fit requests are flagged cleanly.",
-    systemTrace:
-      "Deterministic fit rules -> Tier: Fast-Track Discovery · Duplicate CRM match: None",
-    icon: Filter,
+    id: "workflows",
+    label: "Workflows",
+    metrics: [
+      { label: "Active workflows", value: "12", delta: "all healthy" },
+      { label: "Steps executed", value: "9,840", delta: "this month" },
+      { label: "Failed handoffs", value: "0", delta: "retry queue clear" },
+    ],
+    chartTitle: "Automated workflow runs",
+    chartPathLine:
+      "M 18 128 C 64 124, 110 116, 156 102 C 204 88, 244 94, 294 76 C 344 58, 392 62, 444 42 C 488 32, 518 34, 546 26",
+    chartPathArea:
+      "M 18 128 C 64 124, 110 116, 156 102 C 204 88, 244 94, 294 76 C 344 58, 392 62, 444 42 C 488 32, 518 34, 546 26 L 546 158 L 18 158 Z",
+    runsTitle: "Workflow stages",
+    runs: [
+      { name: "Incoming customer enquiry", status: "Done" },
+      { name: "Lead qualification", status: "Done" },
+      { name: "Optional human approval", status: "Needs approval" },
+      { name: "Completed workflow", status: "Done" },
+    ],
   },
   {
-    id: "crm-update",
-    stepNumber: "04",
-    label: "CRM update",
-    shortStatus: "Pipeline synced",
-    latency: "0.85s",
-    businessOutcome:
-      "Contact details, source attribution, and a pre-call briefing note land in your CRM with zero copy-pasting.",
-    systemTrace:
-      "Atomic SQL / CRM commit -> Stage: Qualified · Source: Website Discovery Funnel",
-    icon: Database,
+    id: "support",
+    label: "Support inbox",
+    metrics: [
+      { label: "First reply", value: "54 sec", delta: "approved SOPs only" },
+      { label: "Auto-answered", value: "74%", delta: "routine questions" },
+      { label: "Escalated cleanly", value: "26%", delta: "with full summary" },
+    ],
+    chartTitle: "Support threads triaged",
+    chartPathLine:
+      "M 18 132 C 70 126, 118 112, 164 106 C 212 100, 258 84, 308 74 C 358 64, 404 54, 456 46 C 496 40, 522 36, 546 30",
+    chartPathArea:
+      "M 18 132 C 70 126, 118 112, 164 106 C 212 100, 258 84, 308 74 C 358 64, 404 54, 456 46 C 496 40, 522 36, 546 30 L 546 158 L 18 158 Z",
+    runsTitle: "Latest inbox triage",
+    runs: [
+      { name: "Hours & booking FAQ", status: "Done" },
+      { name: "Onboarding checklist", status: "Done" },
+      { name: "Refund exception", status: "Needs approval" },
+      { name: "Slack team summary", status: "Done" },
+    ],
   },
   {
-    id: "whatsapp-email-alert",
-    stepNumber: "05",
-    label: "WhatsApp / email notification",
-    shortStatus: "Alert dispatched",
-    latency: "1.10s",
-    businessOutcome:
-      "The right team owner receives an instant WhatsApp or email brief, and the prospect gets a fast, personal confirmation.",
-    systemTrace:
-      "Dispatched owner brief (WhatsApp + Email) · Prospect SLA confirmation delivered",
-    icon: BellRing,
-  },
-  {
-    id: "human-approval",
-    stepNumber: "06",
-    label: "Optional human approval",
-    shortStatus: "1-click sign-off",
-    latency: "Guardrailed",
-    businessOutcome:
-      "Custom quotes, sensitive replies, or contract exceptions pause safely for your team's one-click approval.",
-    systemTrace:
-      "Human-in-the-loop gate -> Routine steps auto-run · Custom scope held for owner approval",
-    icon: UserCheck,
-  },
-  {
-    id: "completed-workflow",
-    stepNumber: "07",
-    label: "Completed workflow",
-    shortStatus: "Verified & logged",
-    latency: "1.35s total",
-    businessOutcome:
-      "Follow-up reminders are scheduled, every system is connected, and a complete audit log is saved.",
-    systemTrace:
-      "Workflow complete -> Zero manual re-entry · Follow-up reminder queued · Audit trail saved",
-    icon: CheckCircle2,
+    id: "reports",
+    label: "Reports",
+    metrics: [
+      { label: "Weekly digest", value: "Sent", delta: "every Monday 8am" },
+      { label: "Pipeline hygiene", value: "99.4%", delta: "fields complete" },
+      { label: "Audit log trail", value: "100%", delta: "client-owned" },
+    ],
+    chartTitle: "Team hours reclaimed",
+    chartPathLine:
+      "M 18 140 C 68 134, 114 124, 162 112 C 210 100, 256 90, 306 76 C 356 62, 404 52, 454 40 C 496 32, 524 30, 546 24",
+    chartPathArea:
+      "M 18 140 C 68 134, 114 124, 162 112 C 210 100, 256 90, 306 76 C 356 62, 404 52, 454 40 C 496 32, 524 30, 546 24 L 546 158 L 18 158 Z",
+    runsTitle: "Scheduled reports",
+    runs: [
+      { name: "Response-time summary", status: "Done" },
+      { name: "Source ROI breakdown", status: "Done" },
+      { name: "Quarterly scope review", status: "Needs approval" },
+      { name: "Backup verification", status: "Done" },
+    ],
   },
 ];
 
-const OUTCOME_PILLS = [
-  "Faster customer responses",
-  "Reduced repetitive work",
-  "Connected CRM & operations",
-  "100% client-owned systems",
+const HERO_ARCHITECTURAL_FACTS = [
+  { metric: "5 Demos", label: "Interactive workflow sandboxes" },
+  { metric: "US · UK · CA", label: "Working-hours overlap" },
+  { metric: "Fixed Scope", label: "Written quote before kickoff" },
+  { metric: "100% Yours", label: "Code, prompts & runbooks" },
 ];
 
 export function PinnedHero({
-  companyName,
-  tagline,
   primaryCtaLabel,
   primaryCtaHref,
   secondaryCtaLabel,
   secondaryCtaHref,
 }: PinnedHeroProps) {
-  const [activeStep, setActiveStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [activeTab, setActiveTab] = useState<CommandTabId>("overview");
+  const [repeatVisit, setRepeatVisit] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (mq.matches) {
-      setReducedMotion(true);
-      setIsPlaying(false);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    try {
+      if (window.sessionStorage.getItem("of_hero_seen") === "1") {
+        setRepeatVisit(true);
+      } else {
+        window.sessionStorage.setItem("of_hero_seen", "1");
+      }
+    } catch {
+      // Ignore storage restrictions in private browsing
     }
-    const onChange = (e: MediaQueryListEvent) => {
-      setReducedMotion(e.matches);
-      if (e.matches) setIsPlaying(false);
+
+    const onVisibility = () => {
+      if (document.hidden) return;
     };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  useEffect(() => {
-    if (!isPlaying || reducedMotion) return;
+  const currentView =
+    COMMAND_VIEWS.find((v) => v.id === activeTab) ?? COMMAND_VIEWS[0];
 
-    const tick = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      setActiveStep((prev) => (prev + 1) % COMMAND_SEQUENCE.length);
-    };
-
-    const timer = window.setInterval(tick, 2800);
-    return () => window.clearInterval(timer);
-  }, [isPlaying, reducedMotion]);
-
-  const currentStep = COMMAND_SEQUENCE[activeStep] ?? COMMAND_SEQUENCE[0];
-  const progressRatio = (activeStep + 1) / COMMAND_SEQUENCE.length;
-
-  const effectivePrimaryLabel =
-    primaryCtaLabel?.trim() || "Book a Free Discovery Call";
   const effectivePrimaryHref = primaryCtaHref?.trim() || "/contact?intent=call";
-  const effectiveSecondaryLabel =
-    secondaryCtaLabel?.trim() || "Explore Live Demos";
   const effectiveSecondaryHref = secondaryCtaHref?.trim() || "/demos";
+  const effectivePrimaryText =
+    primaryCtaLabel &&
+    !primaryCtaLabel.toLowerCase().includes("discovery")
+      ? primaryCtaLabel
+      : "Book a free workflow review";
+  const effectiveSecondaryText =
+    secondaryCtaLabel &&
+    !secondaryCtaLabel.toLowerCase().includes("explore")
+      ? secondaryCtaLabel
+      : "See live demo";
 
   return (
     <section
-      aria-label="AI Automation Command Center"
-      className="soale-ambient-wash relative overflow-hidden pb-14 pt-24 sm:pb-20 sm:pt-28 lg:pb-24 lg:pt-32"
+      aria-label="OmniFlow AI workflow automation hero"
+      data-hero-repeat={repeatVisit ? "true" : "false"}
+      className="of-hero-shell relative overflow-hidden pb-14 pt-24 sm:pb-20 sm:pt-32 lg:pb-24 lg:pt-36"
     >
-      <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
-        {/* Editorial Soale Hero Header + Split Showcase */}
-        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-12">
-          {/* Left Column — Spacious Soale Editorial Typography & Dual-Arrow CTAs */}
-          <div className="lg:col-span-6 lg:pt-4">
-            <SoaleEyebrow className="mb-6">
-              {companyName} · AI &amp; Workflow Automation Partner
-            </SoaleEyebrow>
+      {/* Soale Orbital Halo Light Ring + Corner Ambient Orbs + Starfield (Dark & Light Mode) */}
+      <div aria-hidden="true" className="soale-hero-circle-wrapper">
+        <div className="soale-gradient-circle" />
+        <div className="soale-core-circle" />
+      </div>
+      <div aria-hidden="true" className="soale-ambient-orb-left" />
+      <div aria-hidden="true" className="soale-ambient-orb-right" />
+      <div aria-hidden="true" className="soale-starfield" />
 
-            <h1 className="soale-display text-ink-heading">
-              Eliminate repetitive work.{" "}
-              <span className="text-primary">
-                Respond faster &amp; scale cleanly.
-              </span>
-            </h1>
+      {/* Subtle Radial Wash + Perspective Horizon Grid */}
+      <div
+        aria-hidden="true"
+        className="of-hero-glow pointer-events-none absolute inset-0"
+      />
+      <div
+        aria-hidden="true"
+        className="of-hero-grid pointer-events-none absolute inset-x-0 bottom-0 h-[56%]"
+      />
 
-            <p className="soale-lead mt-6">
-              {companyName} designs reliable AI and deterministic workflow
-              automation for service businesses, consultants, and agencies —
-              connecting enquiries, CRM, customer support, and back-office
-              operations so nothing slips through the cracks.
-            </p>
-
-            {/* Signature Soale Connected Capsule + Dual Sliding Arrow Buttons */}
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <SoaleArrowButton href={effectivePrimaryHref} variant="primary">
-                {effectivePrimaryLabel}
-              </SoaleArrowButton>
-
-              <SoaleArrowButton href={effectiveSecondaryHref} variant="surface">
-                {effectiveSecondaryLabel}
-              </SoaleArrowButton>
-            </div>
-
-            <p className="mt-4 text-xs text-ink-muted">
-              Free 25-minute workflow review · Written scope &amp; honest advice
-              · Zero obligation
-            </p>
-
-            {/* Clean 14px Soale Outcome Chips */}
-            <div
-              aria-label="Key business outcomes"
-              className="mt-8 flex flex-wrap gap-2.5 border-t border-line pt-7"
+      <div className="relative z-10 mx-auto max-w-[1140px] px-4 sm:px-6 lg:px-8">
+        {/* Centered Soale-Style Hero Copy */}
+        <div className="mx-auto max-w-3xl text-center">
+          {/* Dual-Mode Soale Star Pill Eyebrow */}
+          <div
+            data-reveal="fade"
+            style={{ "--d": 0 } as React.CSSProperties}
+            className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-line-strong/80 bg-surface-glass px-4 py-2 text-[0.74rem] font-medium text-ink-heading shadow-card backdrop-blur-md sm:text-xs"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5 shrink-0 text-[#FF7023]"
+              fill="currentColor"
             >
-              {OUTCOME_PILLS.map((outcome) => (
-                <SoaleChip key={outcome}>
-                  <ShieldCheck
-                    className="h-3.5 w-3.5 shrink-0 text-primary"
-                    aria-hidden="true"
-                  />
-                  <span>{outcome}</span>
-                </SoaleChip>
-              ))}
-            </div>
+              <path d="M8 0.5L9.85 6.15L15.5 8L9.85 9.85L8 15.5L6.15 9.85L0.5 8L6.15 6.15L8 0.5Z" />
+            </svg>
+            <span className="truncate">
+              AI automation for service businesses
+              <span className="hidden text-ink-muted sm:inline">
+                {" "}
+                | US · UK · Canada
+              </span>
+            </span>
           </div>
 
-          {/* Right Column — 24px Soale Showcase Card: Live 7-Step Automation Sequence */}
-          <div
-            className="lg:col-span-6"
-            onMouseEnter={() => {
-              if (!reducedMotion) setIsPlaying(false);
-            }}
-            onMouseLeave={() => {
-              if (!reducedMotion) setIsPlaying(true);
-            }}
+          {/* 2-Line Centered Display Headline */}
+          <h1
+            data-reveal=""
+            style={{ "--d": 1 } as React.CSSProperties}
+            className="mt-6 font-display text-[2.2rem] font-bold leading-[1.07] tracking-[-0.036em] text-ink-heading sm:mt-7 sm:text-[3.45rem] lg:text-[4.4rem]"
           >
-            <SoaleCard elevated className="p-5 sm:p-7">
-              {/* Showcase Top Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="relative flex h-2.5 w-2.5"
-                    aria-hidden="true"
+            <span className="block">Automate the work.</span>
+            <span className="of-hero-gradient-text mt-1 block">
+              Accelerate the business.
+            </span>
+          </h1>
+
+          {/* 2-Line Plain-English Subcopy (<= 60ch) */}
+          <p
+            data-reveal=""
+            style={{ "--d": 2 } as React.CSSProperties}
+            className="mx-auto mt-5 max-w-[56ch] text-[0.96rem] leading-relaxed text-ink-body sm:mt-6 sm:text-[1.125rem]"
+          >
+            AI workflows that answer every lead, update your CRM and alert your
+            team, with a person approving the important steps.
+          </p>
+
+          {/* Soale Dual-Capsule Sliding-Arrow CTA + Secondary Demo Pill */}
+          <div
+            data-reveal=""
+            style={{ "--d": 3 } as React.CSSProperties}
+            className="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-3.5"
+          >
+            <SoaleArrowButton href={effectivePrimaryHref} variant="secondary">
+              {effectivePrimaryText}
+            </SoaleArrowButton>
+            <Link
+              href={effectiveSecondaryHref}
+              className="inline-flex min-h-[45px] items-center justify-center rounded-[17px] border border-line-strong bg-surface-glass px-6 py-3 text-[0.92rem] font-medium text-ink-heading backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              {effectiveSecondaryText}
+            </Link>
+          </div>
+
+          {/* 1-Line Reassurance */}
+          <p className="mt-4 text-xs text-ink-muted">
+            Free 25-minute review. Written scope. Zero obligation.
+          </p>
+        </div>
+
+        {/* Soale 4-Column Monospace Architectural Strip (2x2 on Mobile, 4-col on Tablet/Desktop) */}
+        <div
+          data-reveal=""
+          style={{ "--d": 2 } as React.CSSProperties}
+          className="mx-auto mt-10 grid max-w-[920px] grid-cols-2 gap-x-5 gap-y-6 sm:mt-14 sm:grid-cols-4 sm:gap-x-8"
+        >
+          {HERO_ARCHITECTURAL_FACTS.map((item) => (
+            <div key={item.metric} className="text-left">
+              <div
+                aria-hidden="true"
+                className="mb-2.5 h-[1.5px] w-11 bg-gradient-to-r from-[#FF7023] via-[#BF4A91] to-[#C823FF]"
+              />
+              <p className="font-mono text-lg font-semibold tracking-tight text-ink-heading sm:text-xl">
+                {item.metric}
+              </p>
+              <p className="mt-1 text-xs leading-snug text-ink-muted">
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Dual-Mode Live HTML/CSS/SVG "Workflow command center" Bento Window */}
+        <div
+          data-reveal="card"
+          data-scroll-card=""
+          style={{ "--d": 2 } as React.CSSProperties}
+          className="of-command-window of-command-window-3d mx-auto mt-10 max-w-[1020px] overflow-hidden rounded-[22px] border border-line-strong/80 bg-surface-elevated/95 text-ink-heading shadow-elevated backdrop-blur-xl sm:mt-14"
+        >
+          {/* Window Top Chrome Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-muted/80 px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5" aria-hidden="true">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#FF7023]/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#BF4A91]/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#C823FF]/80" />
+              </div>
+              <span className="text-xs font-semibold text-ink-heading">
+                Workflow command center
+              </span>
+            </div>
+
+            <span
+              title="Illustrative preview metrics — not a client performance claim"
+              className="inline-flex items-center rounded-full border border-[#FF7023]/35 bg-[#FF7023]/12 px-2.5 py-0.5 text-[0.68rem] font-semibold text-status-warning"
+            >
+              Sample data
+            </span>
+          </div>
+
+          {/* Dashboard Body: Left Sidebar + Right Metrics/Chart/Runs */}
+          <div className="grid grid-cols-1 md:grid-cols-12">
+            {/* Sidebar Navigation (Touch-Friendly Horizontal Scroll on Mobile) */}
+            <div
+              role="tablist"
+              aria-label="Command center views"
+              className="flex gap-1.5 overflow-x-auto border-b border-line bg-surface/70 p-2.5 sm:p-3 md:col-span-3 md:flex-col md:border-b-0 md:border-r md:p-4"
+            >
+              {COMMAND_VIEWS.map((tab) => {
+                const active = tab.id === activeTab;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`min-h-[40px] shrink-0 rounded-xl px-3.5 py-2 text-left text-xs font-medium transition-all sm:text-[0.82rem] ${
+                      active
+                        ? "bg-accent-subtle font-semibold text-primary shadow-xs"
+                        : "text-ink-muted hover:bg-surface-muted hover:text-ink-heading"
+                    }`}
                   >
-                    <span
-                      className={`inline-flex h-full w-full rounded-full bg-status-success ${
-                        isPlaying && !reducedMotion
-                          ? "absolute animate-ping opacity-75"
-                          : ""
-                      }`}
-                    />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-status-success" />
-                  </span>
-                  <div>
-                    <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-ink-heading">
-                      Live Workflow Command Showcase
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Main Metrics, SVG Chart & Recent Runs */}
+            <div className="space-y-4 p-4 sm:p-6 md:col-span-9">
+              {/* 3 Metric Cards */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3.5">
+                {currentView.metrics.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="rounded-[16px] border border-line bg-surface-card p-4 shadow-card"
+                  >
+                    <p className="text-xs text-ink-muted">{metric.label}</p>
+                    <p className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink-heading sm:text-[1.7rem]">
+                      {metric.value}
                     </p>
-                    <p className="text-xs text-ink-muted">
-                      End-to-end intake-to-delivery sequence · Click any stage
+                    <p className="mt-1 text-xs font-semibold text-status-success">
+                      {metric.delta}
                     </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom Split: Enquiries Answered SVG Area Chart + Recent Runs */}
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+                {/* SVG Area Chart */}
+                <div className="rounded-[16px] border border-line bg-surface-card p-4 sm:p-5 lg:col-span-8">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-ink-heading">
+                      {currentView.chartTitle}
+                    </p>
+                    <span className="text-[0.68rem] text-ink-muted">
+                      Last 30 days (sample)
+                    </span>
+                  </div>
+
+                  <div className="mt-3">
+                    <svg
+                      viewBox="0 0 560 164"
+                      className="h-32 w-full overflow-visible sm:h-40"
+                      role="img"
+                      aria-label={`${currentView.chartTitle} sample trend chart`}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="ofHeroAreaGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#C823FF"
+                            stopOpacity="0.34"
+                          />
+                          <stop
+                            offset="55%"
+                            stopColor="#FF7023"
+                            stopOpacity="0.12"
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#FF7023"
+                            stopOpacity="0"
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="ofHeroStrokeGrad"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="0"
+                        >
+                          <stop offset="0%" stopColor="#FF7023" />
+                          <stop offset="52%" stopColor="#BF4A91" />
+                          <stop offset="100%" stopColor="#C823FF" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Subtle horizontal reference lines */}
+                      <line
+                        x1="18"
+                        y1="48"
+                        x2="546"
+                        y2="48"
+                        stroke="var(--of-color-border)"
+                        strokeDasharray="3 5"
+                      />
+                      <line
+                        x1="18"
+                        y1="98"
+                        x2="546"
+                        y2="98"
+                        stroke="var(--of-color-border)"
+                        strokeDasharray="3 5"
+                      />
+                      <line
+                        x1="18"
+                        y1="148"
+                        x2="546"
+                        y2="148"
+                        stroke="var(--of-color-border)"
+                      />
+
+                      <path
+                        d={currentView.chartPathArea}
+                        fill="url(#ofHeroAreaGrad)"
+                      />
+                      <path
+                        d={currentView.chartPathLine}
+                        fill="none"
+                        stroke="url(#ofHeroStrokeGrad)"
+                        strokeWidth="2.75"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsPlaying((prev) => !prev)}
-                  aria-label={
-                    isPlaying
-                      ? "Pause workflow animation"
-                      : "Play workflow animation"
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3.5 py-1.5 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-ink-heading transition-colors hover:border-primary/40"
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="h-3 w-3 text-primary" />
-                      <span>Live</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-3 w-3 text-primary" />
-                      <span>Paused</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Pure GPU Transform Progress Rail */}
-              <div
-                aria-hidden="true"
-                className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted"
-              >
-                <div
-                  className="h-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
-                  style={{ transform: `scaleX(${progressRatio})` }}
-                />
-                {isPlaying && !reducedMotion && (
-                  <div className="animate-signal-flow pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-full bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-                )}
-              </div>
-
-              {/* 7-Step Connected Automation Sequence */}
-              <ol
-                aria-label="7-step automated business workflow"
-                className="mt-4 space-y-1.5"
-              >
-                {COMMAND_SEQUENCE.map((step, idx) => {
-                  const Icon = step.icon;
-                  const isCurrent = idx === activeStep;
-                  const isCompleted = idx < activeStep;
-
-                  return (
-                    <li key={step.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveStep(idx);
-                          setIsPlaying(false);
-                        }}
-                        aria-current={isCurrent ? "step" : undefined}
-                        className={`flex w-full items-center justify-between gap-3 rounded-[16px] border px-3.5 py-2.5 text-left transition-all duration-200 ${
-                          isCurrent
-                            ? "border-primary/45 bg-accent-subtle shadow-sm"
-                            : isCompleted
-                              ? "border-line bg-surface hover:border-line-strong"
-                              : "border-transparent bg-surface-muted/55 opacity-85 hover:border-line hover:opacity-100"
-                        }`}
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
+                {/* Recent Runs Status List */}
+                <div className="rounded-[16px] border border-line bg-surface-card p-4 sm:p-5 lg:col-span-4">
+                  <p className="text-xs font-semibold text-ink-heading">
+                    {currentView.runsTitle}
+                  </p>
+                  <ul className="mt-3.5 space-y-3">
+                    {currentView.runs.map((run) => {
+                      const needsApproval = run.status === "Needs approval";
+                      return (
+                        <li
+                          key={run.name}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="truncate text-ink-body">
+                            {run.name}
+                          </span>
                           <span
-                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[0.7rem] font-semibold transition-colors ${
-                              isCurrent
-                                ? "bg-primary text-primary-foreground"
-                                : isCompleted
-                                  ? "bg-status-success/15 text-status-success"
-                                  : "bg-surface text-ink-muted"
+                            className={`shrink-0 font-semibold ${
+                              needsApproval
+                                ? "text-status-warning"
+                                : "text-status-success"
                             }`}
                           >
-                            {isCompleted ? (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            ) : (
-                              <Icon className="h-3.5 w-3.5" />
-                            )}
+                            {run.status}
                           </span>
-
-                          <p className="truncate text-xs font-semibold text-ink-heading sm:text-[0.84rem]">
-                            <span className="mr-1.5 font-mono text-[0.68rem] text-ink-muted">
-                              {step.stepNumber}
-                            </span>
-                            {step.label}
-                          </p>
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 font-mono text-[0.65rem] font-semibold ${
-                              isCurrent
-                                ? "bg-primary text-primary-foreground"
-                                : isCompleted
-                                  ? "bg-surface-muted text-ink-heading"
-                                  : "text-ink-muted"
-                            }`}
-                          >
-                            {step.shortStatus}
-                          </span>
-                          <span className="hidden font-mono text-[0.65rem] text-ink-muted sm:inline">
-                            {step.latency}
-                          </span>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-
-              {/* Active Step Outcome Card */}
-              <div
-                aria-live="polite"
-                className="mt-4 rounded-[18px] border border-line bg-surface p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
-                    Stage {currentStep.stepNumber} · {currentStep.label}
-                  </span>
-                  <span className="font-mono text-[0.68rem] text-ink-muted">
-                    {currentStep.latency}
-                  </span>
-                </div>
-
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-body sm:text-[0.84rem]">
-                  {currentStep.businessOutcome}
-                </p>
-
-                <p className="mt-3 truncate rounded-xl border border-line bg-surface-muted px-3 py-1.5 font-mono text-[0.68rem] text-ink-heading">
-                  {currentStep.systemTrace}
-                </p>
-
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-                  <Link
-                    href="/contact?intent=call&source=hero_command_center"
-                    className="inline-flex items-center gap-1 font-semibold text-primary hover:text-primary-hover"
-                  >
-                    <span>Scope this workflow for your team</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                  <span className="font-mono text-[0.68rem] text-ink-muted">
-                    {tagline}
-                  </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               </div>
-            </SoaleCard>
+            </div>
           </div>
         </div>
       </div>

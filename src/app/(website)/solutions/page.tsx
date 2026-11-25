@@ -7,7 +7,7 @@ import {
   Layers,
   Users,
 } from "lucide-react";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -16,6 +16,8 @@ import {
   SoaleChip,
 } from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Solutions by Industry",
@@ -106,7 +108,7 @@ const SEGMENTS = [
 ];
 
 export default async function SolutionsPage() {
-  const settings = await db.getSiteSettings();
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="bg-canvas text-ink-body">

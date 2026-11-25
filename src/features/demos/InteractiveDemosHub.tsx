@@ -111,6 +111,13 @@ export function InteractiveDemosHub({
   const tabButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlTab = new URLSearchParams(window.location.search).get("tab");
+      if (urlTab && TABS.some((t) => t.id === urlTab)) {
+        setActiveTab(urlTab as DemoTabId);
+        return;
+      }
+    }
     setActiveTab(initialTab);
   }, [initialTab]);
 

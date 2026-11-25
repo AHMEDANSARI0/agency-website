@@ -11,7 +11,13 @@ import {
   UserCheck,
   Workflow,
 } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedActiveRedirects,
+  getCachedPublishedCaseStudies,
+  getCachedPublishedServices,
+  getCachedServiceBySlug,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -29,7 +35,12 @@ import {
 import { getServiceConversionBlueprint } from "@/features/services/blueprint";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
+
+export async function generateStaticParams() {
+  const services = await getCachedPublishedServices();
+  return services.map((s) => ({ slug: s.slug }));
+}
 
 const LEGACY_SERVICE_SLUG_REDIRECTS: Record<string, string> = {
   "ai-lead-generation": "/services/lead-management",
@@ -66,7 +77,7 @@ export async function generateMetadata({
   const resolvedSlug = legacyTarget
     ? legacyTarget.replace(/^\/services\//, "")
     : slug;
-  const service = await db.getServiceBySlug(resolvedSlug);
+  const service = await getCachedServiceBySlug(resolvedSlug);
   if (!service || service.status !== "published") {
     return {
       title: "Service Not Found",
@@ -74,8 +85,11 @@ export async function generateMetadata({
     };
   }
   const baseUrl = getCanonicalSiteUrl();
+  const cleanTitle = (service.seo.seoTitle || service.title)
+    .replace(/(?:\s*[|—–\-:]\s*OmniFlow(?:\s+Insights)?)+\s*$/i, "")
+    .trim();
   return {
-    title: service.seo.seoTitle || service.title,
+    title: cleanTitle || service.title,
     description: service.seo.seoDescription || service.shortSummary,
     alternates: {
       canonical:
@@ -96,14 +110,18 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
   }
 
   const [service, allServices, caseStudies, settings] = await Promise.all([
-    db.getServiceBySlug(slug),
-    db.listServices(true),
-    db.listCaseStudies(true),
-    db.getSiteSettings(),
+    getCachedServiceBySlug(slug),
+    getCachedPublishedServices(),
+    getCachedPublishedCaseStudies(),
+    getCachedSiteSettings(),
   ]);
 
   if (!service || service.status !== "published") {
-    const dbRule = await db.findActiveRedirect(`/services/${slug}`);
+    const targetPath = `/services/${slug}`.toLowerCase();
+    const redirects = await getCachedActiveRedirects();
+    const dbRule = redirects.find(
+      (r) => r.sourcePath.replace(/\/+$/, "").toLowerCase() === targetPath
+    );
     if (dbRule) {
       if (dbRule.permanent) permanentRedirect(dbRule.destinationPath);
       redirect(dbRule.destinationPath);

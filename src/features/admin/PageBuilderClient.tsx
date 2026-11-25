@@ -32,6 +32,18 @@ interface PageBuilderClientProps {
   canPublish: boolean;
 }
 
+export const CLEAN_HOME_9_SECTIONS: PageSectionBlock[] = [
+  { id: "sec-hero", type: "hero", title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
+  { id: "sec-trust", type: "trust_strip", title: "Works with your stack", isVisible: true, order: 2, config: {} },
+  { id: "sec-problems", type: "problems_outcomes", title: "Plain-English Outcomes & Before/After Workflow", isVisible: true, order: 3, config: {} },
+  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 4, config: {} },
+  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 5, config: {} },
+  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 6, config: {} },
+  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 7, config: {} },
+  { id: "sec-roi", type: "roi_framing", title: "Transparent Pricing & Scopes", isVisible: true, order: 8, config: {} },
+  { id: "sec-faq", type: "faq_section", title: "Frequently Asked Questions & Final Review CTA", isVisible: true, order: 9, config: {} },
+];
+
 export const SECTION_CATALOG: {
   type: PageSectionType;
   label: string;
@@ -40,105 +52,57 @@ export const SECTION_CATALOG: {
 }[] = [
   {
     type: "hero",
-    label: "01 · Executive Architectural Hero",
+    label: "Core 01 · Dark Purple AI Hero & Command Center",
     description:
-      "Light-first architectural split hero with live deterministic triage telemetry.",
+      "Centered AI SaaS hero with live HTML/CSS/SVG 'Workflow command center' (Sample data).",
   },
   {
     type: "trust_strip",
-    label: "02 · Engineering Standards & Stack Strip",
+    label: "Core 02 · Works With Your Stack Bar",
     description:
-      "Verification standards, integration stack, and US/UK/Canada timezone overlap.",
+      "Inline SVGs + wordmarks for HubSpot, Slack, Notion, Stripe, WhatsApp & Google Workspace.",
   },
   {
     type: "problems_outcomes",
-    label: "03 · Operational Bottlenecks vs. Outcomes",
+    label: "Core 03 · Plain-English Outcomes & Before/After",
     description:
-      "5-point revenue & operations leak diagnosis paired with engineered outcomes.",
+      "3 practical outcome cards paired with interactive Before vs. After workflow compare.",
   },
   {
     type: "flagship_systems",
-    label: "04 · Three Flagship Priority Systems",
+    label: "Core 04 · Three Flagship Automation Services",
     description:
-      "Lead Management, Policy-Grounded AI Support, and End-to-End Workflow Automation.",
-  },
-  {
-    type: "services_overview",
-    label: "05 · Core AI & Automation Practice Pillars",
-    description:
-      "Structured practice grid across all 5 AI & operational engineering domains.",
+      "Lead Management, AI Customer Support, and Workflow Automation (with toggle for all 8).",
   },
   {
     type: "interactive_demos_preview",
-    label: "06 · Live Interactive Automation Lab Preview",
+    label: "Core 05 · Interactive Lead Scorer Preview",
     description:
-      "Embedded zero-API deterministic sandbox preview linking to all 5 live demos.",
-  },
-  {
-    type: "workflow_demo",
-    label: "07 · Deterministic Workflow Execution Trace",
-    description:
-      "Interactive 4-stage payload inspector and automated vs. manual comparison.",
+      "Live client-side Lead Scorer & FAQ triage preview linking to all 5 sandboxes.",
   },
   {
     type: "how_it_works",
-    label: "08 · 4-Stage Engineering Delivery Process",
+    label: "Core 06 · 4-Phase Scroll-Synced Process",
     description:
-      "Audit, deterministic architecture, staged QA verification, and full handover.",
-  },
-  {
-    type: "industry_use_cases",
-    label: "09 · Industry Playbooks (US · UK · Canada)",
-    description:
-      "Tailored playbooks for service businesses, consultants, and boutique agencies.",
-  },
-  {
-    type: "architecture_governance",
-    label: "10 · Safety, Guardrails & Data Ownership",
-    description:
-      "Deterministic-first routing, grounded knowledge boundaries, and 100% IP ownership.",
-  },
-  {
-    type: "roi_framing",
-    label: "11 · Transparent Economics & Cost Control",
-    description:
-      "Honest cost-controlled architecture framing vs. brittle SaaS sprawl.",
+      "Workflow Review, Guardrails & Approval Gates, Staging Walkthrough, and Handover.",
   },
   {
     type: "case_studies_highlight",
-    label: "12 · Reference Architectures & Verified Work",
+    label: "Core 07 · Proof: Blueprints & Founder Card",
     description:
-      "Transparently badged workflow case studies and reference system blueprints.",
+      "Transparently badged workflow blueprints + Founder accountability & {{FOUNDER_PHOTO_URL}} slot.",
   },
   {
-    type: "founder_intro",
-    label: "13 · Principal-Led Engineering (Founder)",
+    type: "roi_framing",
+    label: "Core 08 · Transparent Pricing & Scopes",
     description:
-      "Direct principal accountability card led by Ahmed Ansari.",
-  },
-  {
-    type: "insights_preview",
-    label: "14 · Engineering Briefings & Insights",
-    description:
-      "Latest published operational engineering articles and implementation guides.",
-  },
-  {
-    type: "testimonials",
-    label: "15 · Verified Client Feedback Gate",
-    description:
-      "Renders strictly when authorized + verified client testimonials exist.",
+      "4-tier pricing ('Projects typically start from {{PRICE_FROM}}', zero Coming Soon badges).",
   },
   {
     type: "faq_section",
-    label: "16A · Executive FAQ Accordion",
+    label: "Core 09 · 5 Plain-English FAQs + Final CTA",
     description:
-      "Accessible expandable answers for technical, security, and scoping questions.",
-  },
-  {
-    type: "cta_banner",
-    label: "16B · Executive Consultation Banner",
-    description:
-      "High-contrast midnight-indigo conversion island with audit & lab CTAs.",
+      "5 top FAQs paired with the closing 'Book a free workflow review' conversion banner.",
   },
   {
     type: "rich_text",
@@ -146,6 +110,54 @@ export const SECTION_CATALOG: {
     description:
       "Safe structured Markdown block (headings, paragraphs, bullet lists, quotes).",
     allowMultiple: true,
+  },
+  {
+    type: "services_overview",
+    label: "Optional · 5 Practice Pillars Matrix",
+    description:
+      "Optional expanded practice grid across all 5 AI & operational domains.",
+  },
+  {
+    type: "workflow_demo",
+    label: "Optional · Integration Ecosystem Visualizer",
+    description:
+      "Optional interactive cross-tool orchestration diagram.",
+  },
+  {
+    type: "industry_use_cases",
+    label: "Optional · Industry Playbooks (US · UK · CA)",
+    description:
+      "Optional segment cards for service businesses, consultants, and agencies.",
+  },
+  {
+    type: "architecture_governance",
+    label: "Optional · Safety, Guardrails & Ownership",
+    description:
+      "Optional 3-card security & client-ownership summary.",
+  },
+  {
+    type: "founder_intro",
+    label: "Optional · Standalone Founder Spotlight",
+    description:
+      "Optional standalone founder card (included automatically in Core 07 when hidden).",
+  },
+  {
+    type: "insights_preview",
+    label: "Optional · Latest Blog Articles Preview",
+    description:
+      "Optional 3-column preview of latest published blog guides.",
+  },
+  {
+    type: "testimonials",
+    label: "Optional · Verified Client Testimonials",
+    description:
+      "Renders strictly when authorized + verified client testimonials exist.",
+  },
+  {
+    type: "cta_banner",
+    label: "Optional · Standalone Closing CTA Banner",
+    description:
+      "Optional standalone CTA banner (included automatically in Core 09 when hidden).",
   },
 ];
 
@@ -713,6 +725,28 @@ export function PageBuilderClient({
               <Plus className="h-3.5 w-3.5" />
               <span>Add Approved Block</span>
             </button>
+
+            {selectedSlug === "home" && (
+              <button
+                type="button"
+                onClick={() => {
+                  commitSections(
+                    CLEAN_HOME_9_SECTIONS.map((sec, idx) => ({
+                      ...sec,
+                      order: idx + 1,
+                      config: { ...sec.config },
+                    }))
+                  );
+                  setFeedback({
+                    type: "success",
+                    text: "Loaded clean 9-section Homepage layout into draft (click Publish Live to apply).",
+                  });
+                }}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-control border border-primary/35 bg-accent-subtle/60 px-3 py-2 text-xs font-semibold text-primary hover:bg-accent-subtle"
+              >
+                <span>Restore Default 9-Section Home</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import type {
   LeadRecord,
   MediaAsset,
   PageDocument,
+  PageSectionBlock,
   RedirectRule,
   ServiceCategoryPillar,
   ServiceItem,
@@ -20,10 +21,35 @@ import { DEFAULT_PRICING_CONFIG } from "@/features/pricing/default-pricing";
 import { isProductionEnvironment } from "@/lib/env";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
-export const CURRENT_SEED_VERSION = 8;
+export const CURRENT_SEED_VERSION = 13;
+
+export const DEFAULT_HOME_SECTIONS: PageSectionBlock[] = [
+  { id: "sec-hero", type: "hero", title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
+  { id: "sec-trust", type: "trust_strip", title: "Works with your stack", isVisible: true, order: 2, config: {} },
+  { id: "sec-problems", type: "problems_outcomes", title: "Plain-English Outcomes & Before/After Workflow", isVisible: true, order: 3, config: {} },
+  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 4, config: {} },
+  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 5, config: {} },
+  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 6, config: {} },
+  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 7, config: {} },
+  { id: "sec-roi", type: "roi_framing", title: "Transparent Pricing & Scopes", isVisible: true, order: 8, config: {} },
+  { id: "sec-faq", type: "faq_section", title: "Frequently Asked Questions & Final Review CTA", isVisible: true, order: 9, config: {} },
+];
 
 export interface StoredDatabaseBackup extends DatabaseBackupSummary {
   snapshot: Omit<OmniFlowDatabaseSnapshot, "databaseBackups">;
+}
+
+export interface SiteErrorIncident {
+  id: string;
+  severity: "critical" | "warning";
+  source: "client_runtime" | "error_boundary" | "api" | "database";
+  route: string;
+  message: string;
+  digest?: string;
+  occurrences: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolved: boolean;
 }
 
 export interface OmniFlowDatabaseSnapshot {
@@ -49,6 +75,7 @@ export interface OmniFlowDatabaseSnapshot {
     { leadId: string; createdAt: string; expiresAt: string }
   >;
   databaseBackups?: StoredDatabaseBackup[];
+  siteErrorIncidents?: SiteErrorIncident[];
 }
 
 export function buildBootstrapSuperAdmin(nowIso = new Date().toISOString()): UserRecord | null {
@@ -132,16 +159,16 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
   const siteSettings: SiteSettings = {
     companyName: "OmniFlow",
     positioning: "AI Automation & Business Operations Partner",
-    tagline: "Eliminate repetitive work. Respond faster. Scale connected operations.",
+    tagline: "Automate the work. Accelerate the business.",
     founderName: "Ahmed Ansari",
     targetMarkets: ["United States", "United Kingdom", "Canada"],
     targetCustomers: ["Service Businesses", "Consultants & Advisory Firms", "Boutique & Small Agencies"],
-    contactEmail: "hello@omniflow.example",
+    contactEmail: "{{CONTACT_EMAIL}}",
     supportHours: "Monday – Friday, aligned with EST / GMT overlapping business hours",
     bookingUrl: "/contact?intent=call",
-    primaryCtaLabel: "Book a Free Discovery Call",
+    primaryCtaLabel: "Book a free workflow review",
     primaryCtaHref: "/contact?intent=call",
-    secondaryCtaLabel: "Explore Live Demos",
+    secondaryCtaLabel: "See live demo",
     secondaryCtaHref: "/demos",
     navigation: [
       { id: "nav-home", label: "Home", href: "/", isVisible: true, order: 1 },
@@ -284,7 +311,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 1,
       seo: {
-        seoTitle: "Lead Management & AI Qualification Systems | OmniFlow",
+        seoTitle: "Lead Management & AI Qualification Systems",
         seoDescription:
           "Automated lead capture, qualification, and CRM routing for service businesses, consultants, and agencies in the USA, UK, and Canada.",
       },
@@ -338,7 +365,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 2,
       seo: {
-        seoTitle: "AI Customer Support & Triage Automation | OmniFlow",
+        seoTitle: "AI Customer Support & Triage Automation",
         seoDescription:
           "Policy-grounded AI customer support and intelligent ticket triage with human handoff guardrails for growing service businesses.",
       },
@@ -387,7 +414,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 3,
       seo: {
-        seoTitle: "Business Workflow Automation for Agencies & Consultants | OmniFlow",
+        seoTitle: "Business Workflow Automation for Agencies & Consultants",
         seoDescription:
           "Reliable workflow automation connecting CRM, onboarding, operations, and reporting for US, UK, and Canadian businesses.",
       },
@@ -434,7 +461,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 4,
       seo: {
-        seoTitle: "Operational & Pipeline AI Analytics | OmniFlow",
+        seoTitle: "Operational & Pipeline AI Analytics",
         seoDescription: "Clean operational reporting and automated executive digests for service businesses.",
       },
       updatedAt: now,
@@ -480,7 +507,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 5,
       seo: {
-        seoTitle: "Custom AI Systems & Internal Workflow Tools | OmniFlow",
+        seoTitle: "Custom AI Systems & Internal Workflow Tools",
         seoDescription: "Bespoke internal AI tools, SOP assistants, and custom API orchestrations by OmniFlow.",
       },
       updatedAt: now,
@@ -527,7 +554,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 6,
       seo: {
-        seoTitle: "AI Sales Intelligence Systems | OmniFlow",
+        seoTitle: "AI Sales Intelligence Systems",
         seoDescription: "Inbound qualification, CRM enrichment, and speed-to-lead systems for service businesses.",
       },
       updatedAt: now,
@@ -573,7 +600,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 7,
       seo: {
-        seoTitle: "AI Customer Experience & Support Workflows | OmniFlow",
+        seoTitle: "AI Customer Experience & Support Workflows",
         seoDescription: "Policy-grounded customer support and guided client onboarding systems.",
       },
       updatedAt: now,
@@ -619,7 +646,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       status: "published",
       order: 8,
       seo: {
-        seoTitle: "AI Operations & Back-Office Automation | OmniFlow",
+        seoTitle: "AI Operations & Back-Office Automation",
         seoDescription: "Cross-system operational orchestration and client onboarding automation.",
       },
       updatedAt: now,
@@ -660,7 +687,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       testimonialId: null,
       status: "published",
       seo: {
-        seoTitle: "B2B Consultancy Lead Triage Reference Blueprint | OmniFlow",
+        seoTitle: "B2B Consultancy Lead Triage Reference Blueprint",
         seoDescription:
           "Concept demonstration showing how OmniFlow structures automated lead qualification, duplicate checks, and CRM routing.",
       },
@@ -696,7 +723,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       testimonialId: null,
       status: "published",
       seo: {
-        seoTitle: "Client Onboarding & Support Triage Prototype | OmniFlow",
+        seoTitle: "Client Onboarding & Support Triage Prototype",
         seoDescription:
           "Internal workflow architecture demonstrating policy-grounded support triage and automated agency onboarding.",
       },
@@ -732,7 +759,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       testimonialId: null,
       status: "published",
       seo: {
-        seoTitle: "Service Business Intake & Follow-Up Blueprint | OmniFlow",
+        seoTitle: "Service Business Intake & Follow-Up Blueprint",
         seoDescription: "Concept architecture for structured service enquiry capture and automated follow-up tracking.",
       },
       updatedAt: now,
@@ -760,7 +787,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       scheduledFor: null,
       revisions: [],
       seo: {
-        seoTitle: "Deterministic Rules vs. AI in Business Workflows | OmniFlow Insights",
+        seoTitle: "Deterministic Rules vs. AI in Business Workflows",
         seoDescription:
           "Learn how service businesses combine deterministic automation with grounded AI to keep operations reliable and cost-effective.",
       },
@@ -786,7 +813,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       scheduledFor: null,
       revisions: [],
       seo: {
-        seoTitle: "Designing AI Customer Support Without Hallucinations | OmniFlow",
+        seoTitle: "Designing AI Customer Support Without Hallucinations",
         seoDescription:
           "How service businesses deploy policy-grounded AI support triage with reliable human escalation.",
       },
@@ -812,7 +839,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       scheduledFor: null,
       revisions: [],
       seo: {
-        seoTitle: "Structuring Inbound Lead Management for Small Agencies | OmniFlow",
+        seoTitle: "Structuring Inbound Lead Management for Small Agencies",
         seoDescription:
           "Practical steps to automate lead capture, qualification, and CRM follow-ups without enterprise bloat.",
       },
@@ -900,25 +927,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
     },
   ];
 
-  const homeSections = [
-    { id: "sec-hero", type: "hero" as const, title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
-    { id: "sec-trust", type: "trust_strip" as const, title: "Deterministic Engineering Standards & Stack", isVisible: true, order: 2, config: {} },
-    { id: "sec-problems", type: "problems_outcomes" as const, title: "Operational Bottlenecks vs. Engineered Outcomes", isVisible: true, order: 3, config: {} },
-    { id: "sec-flagship", type: "flagship_systems" as const, title: "Three Flagship Automation Systems", isVisible: true, order: 4, config: {} },
-    { id: "sec-services", type: "services_overview" as const, title: "Five AI & Automation Practice Pillars", isVisible: true, order: 5, config: {} },
-    { id: "sec-demos-preview", type: "interactive_demos_preview" as const, title: "Test Live Deterministic Systems in Your Browser", isVisible: true, order: 6, config: {} },
-    { id: "sec-workflow", type: "workflow_demo" as const, title: "End-to-End Deterministic Execution Trace", isVisible: true, order: 7, config: {} },
-    { id: "sec-how", type: "how_it_works" as const, title: "Four-Stage Engineering Delivery Methodology", isVisible: true, order: 8, config: {} },
-    { id: "sec-industries", type: "industry_use_cases" as const, title: "Playbooks for Service Businesses, Consultants & Agencies", isVisible: true, order: 9, config: {} },
-    { id: "sec-governance", type: "architecture_governance" as const, title: "Safety Guardrails, Policy Grounding & Full Ownership", isVisible: true, order: 10, config: {} },
-    { id: "sec-roi", type: "roi_framing" as const, title: "Lean, Cost-Controlled Operational Economics", isVisible: true, order: 11, config: {} },
-    { id: "sec-cases", type: "case_studies_highlight" as const, title: "Reference Architectures & Verified Work", isVisible: true, order: 12, config: {} },
-    { id: "sec-founder", type: "founder_intro" as const, title: "Principal-Led Engineering by Ahmed Ansari", isVisible: true, order: 13, config: {} },
-    { id: "sec-insights", type: "insights_preview" as const, title: "Operational Engineering Briefings & Guides", isVisible: true, order: 14, config: {} },
-    { id: "sec-testimonials", type: "testimonials" as const, title: "Verified Client Feedback", isVisible: true, order: 15, config: {} },
-    { id: "sec-faq", type: "faq_section" as const, title: "Frequently Asked Questions", isVisible: true, order: 16, config: {} },
-    { id: "sec-cta", type: "cta_banner" as const, title: "Ready to Replace Manual Bottlenecks with Reliable Systems?", isVisible: true, order: 17, config: {} },
-  ];
+  const homeSections: PageSectionBlock[] = structuredClone(DEFAULT_HOME_SECTIONS);
 
   const pages: PageDocument[] = [
     {
@@ -930,7 +939,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       sections: homeSections,
       draftSections: structuredClone(homeSections),
       seo: {
-        seoTitle: "OmniFlow | AI Automation & Business Solutions for US, UK & Canada",
+        seoTitle: "OmniFlow — AI Automation & Business Solutions for US, UK & Canada",
         seoDescription:
           "OmniFlow builds practical lead management, AI customer support, and workflow automation systems for service businesses, consultants, and small agencies.",
       },

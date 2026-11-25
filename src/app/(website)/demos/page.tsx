@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { ShieldCheck, Sparkles, Zap } from "lucide-react";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleArrowButton, SoaleCard } from "@/components/ui/soale";
-import { InteractiveDemosHub } from "@/features/demos/InteractiveDemosHub";
-import type { DemoTabId } from "@/features/demos/engine";
+import { LazyInteractiveDemosHub } from "@/components/sections/LazyClientIslands";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
@@ -13,32 +12,16 @@ import {
   buildInteractiveDemosJsonLd,
 } from "@/features/seo/json-ld";
 
+export const revalidate = 600;
+
 export const metadata: Metadata = {
   title: "Interactive Automation Demos & Calculators",
   description:
     "Test OmniFlow’s 5 live interactive workflow demonstrations: Lead Qualification, Grounded AI Customer Support, Workflow Simulator, Multi-Currency Savings Calculator, and Readiness Assessment.",
 };
 
-const VALID_TABS: DemoTabId[] = [
-  "lead-qualification",
-  "support-generator",
-  "workflow-builder",
-  "savings-calculator",
-  "readiness-assessment",
-];
-
-interface DemosPageProps {
-  searchParams: Promise<{ tab?: string }>;
-}
-
-export default async function DemosPage({ searchParams }: DemosPageProps) {
-  const [{ tab }, settings] = await Promise.all([
-    searchParams,
-    db.getSiteSettings(),
-  ]);
-  const initialTab = VALID_TABS.includes(tab as DemoTabId)
-    ? (tab as DemoTabId)
-    : "lead-qualification";
+export default async function DemosPage() {
+  const settings = await getCachedSiteSettings();
   const demosSchema = buildInteractiveDemosJsonLd(settings);
   const breadcrumbSchema = buildBreadcrumbJsonLd([
     { name: "Home", path: "/" },
@@ -50,37 +33,42 @@ export default async function DemosPage({ searchParams }: DemosPageProps) {
       <JsonLdScript data={[demosSchema, breadcrumbSchema]} />
       <PageHeader
         breadcrumbs={[{ label: "Interactive Demos" }]}
-        badge="Live Interactive Lab · Zero Login Required"
-        title="Test How OmniFlow Systems Think, Qualify & Guardrail"
-        description="Explore five deterministic interactive tools built to demonstrate how OmniFlow structures lead scoring, grounded support answers, fault-tolerant workflows, and operational savings across US, UK, and Canadian teams."
+        badge="5 Live Interactive Sandboxes"
+        title="See How OmniFlow Workflows Run Before You Book a Call"
+        description="Try sample enquiries inside our live lead scorer, approved-FAQ support responder, workflow simulator, time-saved calculator, and readiness check."
         actions={
-          <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
-            {settings.primaryCtaLabel}
-          </SoaleArrowButton>
+          <>
+            <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
+              {settings.primaryCtaLabel}
+            </SoaleArrowButton>
+            <SoaleArrowButton href="/services" variant="surface">
+              View Services
+            </SoaleArrowButton>
+          </>
         }
       />
 
-      {/* Transparency & Deterministic Lab Strip */}
-      <div className="border-b border-line bg-canvas-tertiary/45 py-8">
-        <Container className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      {/* Trust Strip */}
+      <div className="border-b border-line bg-canvas-tertiary/45 py-6">
+        <Container className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
             {
-              icon: Zap,
-              title: "Instant Browser Execution",
+              icon: Sparkles,
+              title: "Interactive Client-Side Sandboxes",
               detail:
-                "Runs deterministically with zero external paid AI calls or login walls.",
+                "Adjust inputs in real time to inspect scoring rules, citations, and fallback behavior.",
             },
             {
               icon: ShieldCheck,
-              title: "Guardrail Transparency",
+              title: "Transparent Guardrails",
               detail:
-                "See exactly when a query matches approved SOPs vs. escalates to a human.",
+                "See exactly when routine tasks execute automatically vs. when human sign-off triggers.",
             },
             {
-              icon: Sparkles,
-              title: "Multi-Market Support",
+              icon: Zap,
+              title: "Exportable Scoping Briefs",
               detail:
-                "Test realistic US (USD), UK (GBP), and Canadian (CAD) team scenarios.",
+                "Carry your simulator configuration straight into a tailored discovery review.",
             },
           ].map((item) => {
             const Icon = item.icon;
@@ -108,7 +96,7 @@ export default async function DemosPage({ searchParams }: DemosPageProps) {
 
       <section className="py-14 sm:py-20">
         <Container>
-          <InteractiveDemosHub initialTab={initialTab} />
+          <LazyInteractiveDemosHub />
         </Container>
       </section>
 
@@ -117,9 +105,11 @@ export default async function DemosPage({ searchParams }: DemosPageProps) {
         title="Want a workflow like these tailored to your own CRM and SOPs?"
         description="Tell us which process you tested above and what tools your team currently uses. We will map out a production implementation plan."
         primaryLabel={settings.primaryCtaLabel}
-        primaryHref={settings.primaryCtaHref}
-        secondaryLabel="Explore All 8 Services"
-        secondaryHref="/services"
+        primaryHref={`${settings.primaryCtaHref}${
+          settings.primaryCtaHref.includes("?") ? "&" : "?"
+        }source=demos_footer`}
+        secondaryLabel="Compare Pricing Scopes"
+        secondaryHref="/pricing"
       />
     </div>
   );

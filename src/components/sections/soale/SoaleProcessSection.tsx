@@ -1,108 +1,79 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, FileCheck2, RotateCcw } from "lucide-react";
+import { CheckCircle2, FileCheck2, RotateCcw } from "lucide-react";
 import {
   SoaleArrowButton,
   SoaleCard,
   SoaleSectionHeader,
 } from "@/components/ui/soale";
 
-interface ProcessPillStep {
+interface ProcessPhaseItem {
   num: string;
-  phaseIndex: number;
+  phaseLabel: string;
+  duration: string;
   title: string;
   detail: string;
   deliverable: string;
+  checkpoints: string[];
 }
 
-const PHASE_COLUMNS = [
-  { index: 0, code: "Phase I", title: "Discovery & Audit" },
-  { index: 1, code: "Phase II", title: "Schema & Guardrails" },
-  { index: 2, code: "Phase III", title: "Staged Engineering" },
-  { index: 3, code: "Phase IV", title: "Launch & Handover" },
-];
-
-const PROCESS_STEPS_10: ProcessPillStep[] = [
+export const PROCESS_PHASES_4: ProcessPhaseItem[] = [
   {
     num: "01",
-    phaseIndex: 0,
-    title: "Workflow & Bottleneck Mapping",
+    phaseLabel: "Phase 01",
+    duration: "Days 1–3",
+    title: "Workflow Review & Written Scope",
     detail:
-      "We trace how enquiries, client messages, and tasks currently travel across your inbox, forms, and spreadsheets.",
-    deliverable: "Current-State Bottleneck Map",
+      "We map how enquiries, messages, and admin tasks move through your inbox and CRM today, then give you a plain-English scope before any build starts.",
+    deliverable: "Written Bottleneck Map & Fixed Scope",
+    checkpoints: [
+      "25-minute review of your current lead & support flow",
+      "Clear list of what runs automatically vs. what stays human",
+      "Fixed scope and timeline agreed upfront",
+    ],
   },
   {
     num: "02",
-    phaseIndex: 0,
-    title: "Human vs. Automation Boundary",
+    phaseLabel: "Phase 02",
+    duration: "Week 1",
+    title: "Rules, Guardrails & Approval Gates",
     detail:
-      "We decide explicitly which routine steps should run automatically and which high-judgment steps stay human-approved.",
-    deliverable: "Human-in-the-Loop Escalation Matrix",
+      "We set strict validation rules, duplicate protection, and human sign-off gates so AI never invents prices, discounts, or unapproved promises.",
+    deliverable: "Approved Rules & Escalation Guardrails",
+    checkpoints: [
+      "Answers restricted strictly to your approved FAQs and policies",
+      "One-click human approval for quotes and custom requests",
+      "Duplicate-safe CRM contact and deal matching",
+    ],
   },
   {
     num: "03",
-    phaseIndex: 1,
-    title: "Strict Data Schema & Validation",
+    phaseLabel: "Phase 03",
+    duration: "Week 2",
+    title: "Staging Build & Team Walkthrough",
     detail:
-      "Incoming payloads are validated deterministically with Zod/SQL constraints before any downstream tool is touched.",
-    deliverable: "Typed Intake & CRM Data Contracts",
+      "We connect your forms, CRM, WhatsApp/Slack alerts, and calendar inside a safe test environment and walk your team through real sample runs.",
+    deliverable: "Tested Staging Workflow & Live Walkthrough",
+    checkpoints: [
+      "Connected end-to-end in staging without disrupting live leads",
+      "Tested against after-hours spikes, spam, and edge cases",
+      "Plain-English walkthrough with your team before go-live",
+    ],
   },
   {
     num: "04",
-    phaseIndex: 1,
-    title: "Approved SOP Knowledge Grounding",
+    phaseLabel: "Phase 04",
+    duration: "Launch & Beyond",
+    title: "Go-Live, Training & Full Ownership",
     detail:
-      "AI classification and draft replies are strictly bounded to your approved policies — zero invented pricing or promises.",
-    deliverable: "Policy-Bounded Prompt & Retrieval Spec",
-  },
-  {
-    num: "05",
-    phaseIndex: 1,
-    title: "Duplicate & Idempotency Locks",
-    detail:
-      "Repeat form clicks, webhook retries, and returning leads are matched cleanly so duplicate CRM deals never pile up.",
-    deliverable: "Idempotency & Deduplication Rules",
-  },
-  {
-    num: "06",
-    phaseIndex: 2,
-    title: "Cross-Stack API & CRM Wiring",
-    detail:
-      "We connect your forms, CRM, Slack/WhatsApp alerts, calendars, and databases with signed webhooks and clean audit logs.",
-    deliverable: "Connected Sandbox Workflow",
-  },
-  {
-    num: "07",
-    phaseIndex: 2,
-    title: "Dead-Letter & Outage Fallback",
-    detail:
-      "Every enquiry commits atomically first; if an external API hiccups, nothing is lost and your team gets alerted.",
-    deliverable: "Fail-Safe Persistence & Retry Queue",
-  },
-  {
-    num: "08",
-    phaseIndex: 2,
-    title: "Adversarial & Edge-Case QA",
-    detail:
-      "We test malformed inputs, spam bots, after-hours spikes, and out-of-scope questions before production cutover.",
-    deliverable: "Verified Staging QA Report",
-  },
-  {
-    num: "09",
-    phaseIndex: 3,
-    title: "Production Cutover & Team Walkthrough",
-    detail:
-      "We launch cleanly alongside your existing operations and walk your team through daily usage in plain English.",
-    deliverable: "Live Cutover & Recorded Walkthrough",
-  },
-  {
-    num: "10",
-    phaseIndex: 3,
-    title: "100% Client IP & Runbook Handover",
-    detail:
-      "You receive full repository/workflow ownership, plain-English runbooks, and post-launch operational tuning.",
-    deliverable: "Complete Admin Access & Runbooks",
+      "We switch the workflow live, monitor early runs closely, and hand over full admin access and simple guides — your business owns everything.",
+    deliverable: "100% Client-Owned System & Plain-English Guide",
+    checkpoints: [
+      "Full admin ownership of workflows, prompts, and accounts",
+      "Short written & recorded guide for new staff",
+      "Post-launch check-in to tune rules once real volume flows",
+    ],
   },
 ];
 
@@ -123,9 +94,9 @@ export function SoaleProcessSection() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const vh = window.innerHeight || 800;
-      const raw = (vh * 0.68 - rect.top) / Math.max(rect.height * 0.82, 320);
+      const raw = (vh * 0.68 - rect.top) / Math.max(rect.height * 0.82, 280);
       const clamped = Math.max(0, Math.min(0.999, raw));
-      const idx = Math.floor(clamped * PROCESS_STEPS_10.length);
+      const idx = Math.floor(clamped * PROCESS_PHASES_4.length);
       setActiveIndex(idx);
     };
 
@@ -143,8 +114,8 @@ export function SoaleProcessSection() {
     };
   }, [userPinned]);
 
-  const activeStep = PROCESS_STEPS_10[activeIndex] ?? PROCESS_STEPS_10[0];
-  const progressRatio = (activeIndex + 1) / PROCESS_STEPS_10.length;
+  const activePhase = PROCESS_PHASES_4[activeIndex] ?? PROCESS_PHASES_4[0];
+  const progressRatio = (activeIndex + 1) / PROCESS_PHASES_4.length;
 
   const handlePillKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
@@ -154,7 +125,7 @@ export function SoaleProcessSection() {
     e.preventDefault();
     const delta = e.key === "ArrowRight" ? 1 : -1;
     const nextIdx =
-      (idx + delta + PROCESS_STEPS_10.length) % PROCESS_STEPS_10.length;
+      (idx + delta + PROCESS_PHASES_4.length) % PROCESS_PHASES_4.length;
     setActiveIndex(nextIdx);
     setUserPinned(true);
     pillRefs.current[nextIdx]?.focus();
@@ -164,180 +135,137 @@ export function SoaleProcessSection() {
     <div ref={sectionRef}>
       <SoaleSectionHeader
         align="split"
-        eyebrow="10-Stage Delivery Process"
-        title="Deterministic engineering from first bottleneck audit to full handover."
-        description="Scroll or select any stage below to inspect how OmniFlow designs, tests, and hands over reliable automation systems without black-box lock-in."
+        eyebrow="How We Work"
+        title="Four clear phases from workflow review to handover."
+        description="No open-ended retainers or black-box setups. Every project follows four predictable steps with your team in control."
         action={
           <SoaleArrowButton href="/how-it-works" variant="surface">
-            Full Methodology
+            See how it works
           </SoaleArrowButton>
         }
       />
 
-      {/* Scroll-Linked GPU Progress Rail Across Stages 01 – 10 */}
+      {/* Scroll-Synced 4-Phase Progress Bar */}
       <div className="mt-10">
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
-          <span className="font-mono uppercase tracking-[0.12em]">
-            Delivery Progress · Stage {activeStep.num} of 10
+          <span className="font-medium">
+            {activePhase.phaseLabel} of 04 · {activePhase.title}
           </span>
-          {userPinned ? (
+          {userPinned && (
             <button
               type="button"
               onClick={() => setUserPinned(false)}
-              className="inline-flex items-center gap-1 font-mono text-[0.7rem] font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-hover"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Resume scroll sync</span>
             </button>
-          ) : (
-            <span className="font-mono text-[0.7rem]">
-              Scroll-synced · Click or use arrow keys to inspect
-            </span>
           )}
         </div>
-        <div
-          aria-hidden="true"
-          className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted"
-        >
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
           <div
-            className="h-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out will-change-transform"
+            className="h-full origin-left rounded-full bg-primary transition-transform duration-300"
             style={{ transform: `scaleX(${progressRatio})` }}
           />
         </div>
       </div>
 
-      {/* Signature Soale Top-Bordered 4-Phase Grid with 10 Rounded 100px Process Pills */}
-      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-        {PHASE_COLUMNS.map((col) => {
-          const steps = PROCESS_STEPS_10.filter(
-            (s) => s.phaseIndex === col.index
-          );
-          const phaseActive = activeStep.phaseIndex === col.index;
-
-          return (
-            <div
-              key={col.code}
-              className={`border-t-2 pt-5 transition-colors duration-300 ${
-                phaseActive ? "border-primary" : "border-line"
-              }`}
-            >
-              <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-primary">
-                {col.code}
-              </p>
-              <h3 className="mt-1 text-base font-semibold text-ink-heading">
-                {col.title}
-              </h3>
-
-              <div className="mt-5 space-y-3">
-                {steps.map((step) => {
-                  const idx = Number(step.num) - 1;
-                  const isCurrent = idx === activeIndex;
-                  const isPassed = idx <= activeIndex;
-
-                  return (
-                    <button
-                      key={step.num}
-                      ref={(el) => {
-                        pillRefs.current[idx] = el;
-                      }}
-                      type="button"
-                      data-active={isCurrent ? "true" : "false"}
-                      onClick={() => {
-                        setActiveIndex(idx);
-                        setUserPinned(true);
-                      }}
-                      onKeyDown={(e) => handlePillKeyDown(e, idx)}
-                      className="soale-process-pill text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)]"
-                    >
-                      <span
-                        className={`soale-process-num ${
-                          isCurrent
-                            ? "bg-primary text-primary-foreground"
-                            : isPassed
-                              ? "bg-accent-subtle text-primary"
-                              : "bg-surface-muted text-ink-muted"
-                        }`}
-                      >
-                        {step.num}
-                      </span>
-                      <span className="truncate text-xs font-semibold text-ink-heading sm:text-[0.82rem]">
-                        {step.title}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Active Stage Deliverable Inspector Card with Smooth Transition & Prev/Next */}
-      <SoaleCard className="mt-8 p-6 sm:p-7">
+      {/* 4-Phase Selector Pills + Active Phase Detail Card */}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div
-          key={activeStep.num}
-          className="soale-filter-enter grid grid-cols-1 items-center gap-6 lg:grid-cols-12"
+          role="tablist"
+          aria-label="4-phase delivery process"
+          className="flex flex-col gap-3 lg:col-span-5"
         >
-          <div className="lg:col-span-8">
-            <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="rounded-full bg-primary px-3 py-1 font-mono text-xs font-semibold text-primary-foreground">
-                  Stage {activeStep.num} / 10
+          {PROCESS_PHASES_4.map((step, idx) => {
+            const active = idx === activeIndex;
+            return (
+              <button
+                key={step.num}
+                ref={(el) => {
+                  pillRefs.current[idx] = el;
+                }}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-active={active ? "true" : "false"}
+                onClick={() => {
+                  setActiveIndex(idx);
+                  setUserPinned(true);
+                }}
+                onKeyDown={(e) => handlePillKeyDown(e, idx)}
+                className="soale-process-pill text-left"
+              >
+                <span
+                  className={`soale-process-num ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-surface-muted text-ink-muted"
+                  }`}
+                >
+                  {step.num}
                 </span>
-                <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
-                  {PHASE_COLUMNS[activeStep.phaseIndex]?.title}
-                </span>
-              </div>
+                <div className="min-w-0 flex-1 py-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-ink-heading">
+                      {step.title}
+                    </span>
+                    <span className="shrink-0 text-[0.7rem] text-ink-muted">
+                      {step.duration}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label="Previous process stage"
-                  onClick={() => {
-                    setActiveIndex(
-                      (p) =>
-                        (p - 1 + PROCESS_STEPS_10.length) %
-                        PROCESS_STEPS_10.length
-                    );
-                    setUserPinned(true);
-                  }}
-                  className="grid h-8 w-8 place-items-center rounded-full border border-line bg-surface text-ink-heading transition-colors hover:border-primary"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next process stage"
-                  onClick={() => {
-                    setActiveIndex((p) => (p + 1) % PROCESS_STEPS_10.length);
-                    setUserPinned(true);
-                  }}
-                  className="grid h-8 w-8 place-items-center rounded-full border border-line bg-surface text-ink-heading transition-colors hover:border-primary"
-                >
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+        <SoaleCard className="flex flex-col justify-between p-6 sm:p-8 lg:col-span-7">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center rounded-full border border-primary/30 bg-accent-subtle px-3 py-1 text-xs font-semibold text-primary">
+                {activePhase.phaseLabel} · {activePhase.duration}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+                <FileCheck2 className="h-3.5 w-3.5 text-primary" />
+                <span>{activePhase.deliverable}</span>
+              </span>
             </div>
 
-            <h4 className="soale-h3 mt-3 text-ink-heading">
-              {activeStep.title}
-            </h4>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-body">
-              {activeStep.detail}
+            <h3 className="soale-h3 mt-4 text-ink-heading">
+              {activePhase.title}
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-ink-body sm:text-base">
+              {activePhase.detail}
             </p>
+
+            <ul className="mt-6 space-y-2.5 border-t border-line pt-5">
+              {activePhase.checkpoints.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-2.5 text-xs text-ink-body sm:text-sm"
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div className="rounded-2xl border border-line bg-surface-muted/70 p-4 lg:col-span-4">
-            <p className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-primary">
-              Verified Client Deliverable
-            </p>
-            <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-ink-heading">
-              <FileCheck2 className="h-4 w-4 shrink-0 text-primary" />
-              <span>{activeStep.deliverable}</span>
-            </p>
+          <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+            <span className="text-xs text-ink-muted">
+              You keep 100% admin access to every workflow we deliver.
+            </span>
+            <SoaleArrowButton
+              href="/contact?intent=call&source=process_section"
+              variant="primary"
+              size="sm"
+            >
+              Book a free workflow review
+            </SoaleArrowButton>
           </div>
-        </div>
-      </SoaleCard>
+        </SoaleCard>
+      </div>
     </div>
   );
 }

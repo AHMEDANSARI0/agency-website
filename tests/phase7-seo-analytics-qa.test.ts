@@ -325,11 +325,18 @@ describe("Phase 7 — Technical SEO, Sitemap/Robots, JSON-LD, Redirects & Consen
     );
     expect(okGa.status).toBe(200);
 
-    // Health endpoint reports phase 7
-    const healthRes = await healthHandler(
+    // Public health endpoint exposes strictly ok/degraded; authenticated admin gets details
+    const publicHealthRes = await healthHandler(
       new Request("http://localhost:3000/api/health")
     );
-    const healthJson = await healthRes.json();
+    expect(await publicHealthRes.json()).toEqual({ status: "ok" });
+
+    const adminHealthRes = await healthHandler(
+      new Request("http://localhost:3000/api/health", {
+        headers: makeJsonHeaders(adminToken),
+      })
+    );
+    const healthJson = await adminHealthRes.json();
     expect(healthJson.status).toBe("ok");
     expect(healthJson.phase).toBe(7);
   });
@@ -434,7 +441,7 @@ describe("Phase 7 — Technical SEO, Sitemap/Robots, JSON-LD, Redirects & Consen
         db.getBrandAssets(),
       ]);
       expect(settings.companyName).toBe("OmniFlow");
-      expect(theme.defaultMode).toBe("light");
+      expect(theme.defaultMode).toBe("dark");
       expect(brand.brandName).toBe("OmniFlow");
     } finally {
       process.env.OMNIFLOW_LOCAL_DB_PATH = prevLocalPath;

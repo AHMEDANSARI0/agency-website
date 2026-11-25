@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ExternalLink,
   MessageSquareText,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import { SoaleArrowButton } from "@/components/ui/soale";
@@ -76,8 +77,11 @@ export function ContactForm({
     defaultIntent === "enquiry" ? "workflow_enquiry" : "discovery_call"
   );
 
+  const [urlService, setUrlService] = useState<string>(defaultService);
+  const [urlContext, setUrlContext] = useState<string>(defaultContext);
+
   const resolvedDefaultService = React.useMemo(() => {
-    const trimmed = defaultService.trim();
+    const trimmed = urlService.trim();
     if (!trimmed) return "";
     const bySlugOrTitle = serviceOptions.find(
       (opt) =>
@@ -86,11 +90,11 @@ export function ContactForm({
     );
     if (bySlugOrTitle) return bySlugOrTitle.title;
     return "Discovery Call & Workflow Review";
-  }, [defaultService, serviceOptions]);
+  }, [urlService, serviceOptions]);
 
   const safeDefaultContext = React.useMemo(
-    () => defaultContext.replace(/[<>]/g, "").trim().slice(0, 500),
-    [defaultContext]
+    () => urlContext.replace(/[<>]/g, "").trim().slice(0, 500),
+    [urlContext]
   );
 
   const [showOptionalDetails, setShowOptionalDetails] = useState<boolean>(
@@ -123,6 +127,26 @@ export function ContactForm({
     const utmMedium = params.get("utm_medium")?.trim();
     const utmCampaign = params.get("utm_campaign")?.trim();
     const serviceParam = params.get("service")?.trim();
+    const intentParam = params.get("intent")?.trim();
+    const contextParam = params.get("context")?.trim();
+    const tierParam = params.get("tier")?.trim();
+
+    if (intentParam === "enquiry") {
+      setEnquiryMode("workflow_enquiry");
+    } else if (intentParam === "call") {
+      setEnquiryMode("discovery_call");
+    }
+    if (serviceParam && !defaultService) {
+      setUrlService(serviceParam);
+      setShowOptionalDetails(true);
+    }
+    if ((contextParam || tierParam) && !defaultContext) {
+      setUrlContext(
+        contextParam ||
+          `Interested in Engagement Tier: ${String(tierParam).toUpperCase()}`
+      );
+      setShowOptionalDetails(true);
+    }
 
     const base =
       urlSource ||
@@ -134,18 +158,17 @@ export function ContactForm({
       utmParts.length > 0 ? `${base} [utm:${utmParts.join("/")}]` : base;
 
     setAttributedSource(composed.slice(0, 110));
-  }, [defaultSource]);
+  }, [defaultSource, defaultService, defaultContext]);
 
+  const formRef = React.useRef<HTMLFormElement | null>(null);
   const idempotencyKeyRef = React.useRef<string>(
     `idem_of_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
   );
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitFormElement(form: HTMLFormElement) {
     setSubmitting(true);
     setStatus({ type: "idle" });
 
-    const form = event.currentTarget;
     const formData = new FormData(form);
 
     const name = String(formData.get("name") || "");
@@ -208,7 +231,7 @@ export function ContactForm({
           type: "error",
           message:
             result.error ||
-            "Unable to submit your request. Please check the highlighted fields and try again.",
+            "Unable to submit your request. Please check your details and try again.",
         });
         setSubmitting(false);
         return;
@@ -239,11 +262,21 @@ export function ContactForm({
       setStatus({
         type: "error",
         message:
-          "Network error while submitting your request. Please check your connection and retry.",
+          "Network connection interrupted while sending your request. Your entries are still here — click Try Again below.",
       });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitFormElement(event.currentTarget);
+  }
+
+  async function handleRetry() {
+    if (submitting || !formRef.current) return;
+    await submitFormElement(formRef.current);
   }
 
   const inputClasses =
@@ -362,6 +395,7 @@ export function ContactForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       noValidate
       className="soale-card p-6 sm:p-9"
@@ -747,10 +781,26 @@ export function ContactForm({
         <div
           role="alert"
           aria-live="polite"
-          className="mt-5 flex items-start gap-2.5 rounded-control border border-status-error/40 bg-surface-muted p-4 text-sm text-status-error"
+          className="mt-5 flex flex-col justify-between gap-3 rounded-control border border-status-error/40 bg-status-error/10 p-4 text-sm text-status-error sm:flex-row sm:items-center"
         >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-status-error" />
-          <span>{status.message}</span>
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-status-error" />
+            <div>
+              <p className="font-semibold text-ink-heading">
+                Could not complete submission
+              </p>
+              <p className="mt-0.5 text-xs text-ink-body">{status.message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRetry}
+            disabled={submitting}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control border border-status-error/40 bg-surface px-3.5 py-2 text-xs font-semibold text-ink-heading transition-colors hover:bg-surface-muted disabled:opacity-60"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>{submitting ? "Retrying…" : "Try Again"}</span>
+          </button>
         </div>
       )}
 

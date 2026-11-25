@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { escapeXml, getCanonicalSiteUrl } from "@/features/seo/json-ld";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedBlogPosts,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export async function GET() {
   const baseUrl = getCanonicalSiteUrl();
   const [settings, posts] = await Promise.all([
-    db.getSiteSettings(),
-    db.listBlogPosts(true),
+    getCachedSiteSettings(),
+    getCachedPublishedBlogPosts(),
   ]);
 
   const indexablePosts = posts.filter((p) => !p.seo?.noIndex);

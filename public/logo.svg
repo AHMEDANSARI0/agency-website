@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 44" fill="none" role="img" aria-label="OmniFlow">
+  <defs>
+    <linearGradient id="ofMarkGrad" x1="2" y1="2" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7E22CE"/>
+      <stop offset="58%" stop-color="#C026D3"/>
+      <stop offset="100%" stop-color="#FB923C"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="36" height="36" rx="10" fill="url(#ofMarkGrad)"/>
+  <text x="52" y="29" fill="#1A1028" font-family="system-ui, -apple-system, 'Segoe UI', Inter, sans-serif" font-size="22" font-weight="700" letter-spacing="-0.03em">OmniFlow</text>
+</svg>

@@ -1,77 +1,51 @@
-import { headers } from "next/headers";
-import { permanentRedirect, redirect } from "next/navigation";
-import { Compass } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ArrowUpRight, Compass } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import {
-  SoaleArrowButton,
-  SoaleCard,
-  SoaleEyebrow,
-} from "@/components/ui/soale";
-import { db } from "@/lib/database";
 
-const BUILTIN_ROUTE_ALIASES: Record<string, string> = {
-  "/about-us": "/about",
-  "/contact-us": "/contact",
-  "/our-work": "/work",
-  "/insights": "/blog",
-  "/pricing-plans": "/pricing",
-};
-
-export default async function NotFoundPage() {
-  let requestedPath: string | null = null;
-  try {
-    const reqHeaders = await headers();
-    requestedPath = reqHeaders.get("x-omniflow-pathname");
-  } catch {
-    requestedPath = null;
-  }
-
-  if (requestedPath) {
-    const normalized = requestedPath.replace(/\/+$/, "") || "/";
-    const aliasDest = BUILTIN_ROUTE_ALIASES[normalized.toLowerCase()];
-    if (aliasDest) {
-      permanentRedirect(aliasDest);
-    }
-
-    const rule = await db.findActiveRedirect(requestedPath);
-    if (rule) {
-      if (rule.permanent) {
-        permanentRedirect(rule.destinationPath);
-      }
-      redirect(rule.destinationPath);
-    }
-  }
-
+export default function NotFoundPage() {
   return (
     <main
       id="main-content"
-      className="soale-ambient-wash flex min-h-[78vh] items-center bg-canvas py-20"
+      className="flex min-h-[78vh] items-center bg-canvas py-20 text-ink-body"
     >
-      <Container className="max-w-2xl">
-        <SoaleCard elevated className="p-8 text-center sm:p-12">
-          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-[18px] bg-accent-subtle text-primary">
-            <Compass className="h-6 w-6" />
+      <Container className="max-w-xl">
+        <div className="rounded-[20px] border border-line bg-surface-card p-8 text-center sm:p-12">
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-surface-muted text-primary">
+            <Compass className="h-5 w-5" />
           </div>
-          <SoaleEyebrow className="mb-4">Error 404 · Route Not Found</SoaleEyebrow>
-          <h1 className="soale-h2 text-ink-heading">
-            This page has moved or does not exist.
-          </h1>
-          <p className="soale-lead mx-auto mt-4">
-            Explore our 8 automation services, test the five interactive
-            workflow simulators, or book a direct operational review.
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Page not found · 404
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3.5">
-            <SoaleArrowButton href="/" variant="primary">
-              Back to Homepage
-            </SoaleArrowButton>
-            <SoaleArrowButton href="/services" variant="surface">
-              All 8 Services
-            </SoaleArrowButton>
-            <SoaleArrowButton href="/contact?intent=call" variant="outline">
-              Contact OmniFlow
-            </SoaleArrowButton>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink-heading sm:text-3xl">
+            We couldn’t find that page.
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-muted sm:text-base">
+            The link may be outdated or the address may have moved. Use one of
+            the links below to get back on track.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Home</span>
+            </Link>
+            <Link
+              href="/services"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink-heading transition-colors hover:bg-surface-muted"
+            >
+              <span>Browse Services</span>
+            </Link>
+            <Link
+              href="/contact"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink-heading transition-colors hover:bg-surface-muted"
+            >
+              <span>Contact Us</span>
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+            </Link>
           </div>
-        </SoaleCard>
+        </div>
       </Container>
     </main>
   );

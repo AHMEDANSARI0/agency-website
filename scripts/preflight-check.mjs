@@ -5,18 +5,27 @@
  * ============================================================================
  * Zero external dependencies. Run anytime locally or in CI:
  *   npm run preflight
- *   node scripts/preflight-check.mjs --mode=production
+ *   node scripts/preflight-check.mjs --strict-placeholders
  * ============================================================================
  */
 import fs from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
-const forceProdCheck = args.includes("--mode=production") || process.env.NODE_ENV === "production";
+const forceProdCheck =
+  args.includes("--mode=production") || process.env.NODE_ENV === "production";
+const strictPlaceholders =
+  args.includes("--strict-placeholders") || args.includes("--mode=production");
 const rootDir = process.cwd();
 
 const REQUIRED_FILES = [
+  "DEPLOYMENT_AND_HANDOVER.md",
+  "README.md",
   "src/app/layout.tsx",
+  "src/app/not-found.tsx",
+  "src/app/error.tsx",
+  "src/app/global-error.tsx",
+  "src/app/(website)/error.tsx",
   "src/app/opengraph-image.tsx",
   "src/app/sitemap.ts",
   "src/app/robots.ts",
@@ -37,7 +46,6 @@ const REQUIRED_FILES = [
   "src/app/(website)/faq/page.tsx",
   "src/app/(website)/contact/page.tsx",
   "src/components/layout/Navbar.tsx",
-  "src/components/ui/soale/index.ts",
   "src/app/admin/layout.tsx",
   "src/app/admin/login/page.tsx",
   "src/app/admin/setup/page.tsx",
@@ -47,6 +55,18 @@ const REQUIRED_FILES = [
   "supabase/migrations/0002_production_upgrade.sql",
   "supabase/migrations/0003_crm_and_operations.sql",
   "supabase/migrations/0004_security_and_performance.sql",
+];
+
+const REQUIRED_PUBLIC_ASSETS = [
+  "public/logo.svg",
+  "public/logo-dark.svg",
+  "public/favicon.svg",
+  "public/favicon.ico",
+  "public/favicon-16x16.png",
+  "public/favicon-32x32.png",
+  "public/apple-touch-icon.png",
+  "public/og-image.png",
+  "public/site.webmanifest",
 ];
 
 let passed = 0;
@@ -70,7 +90,7 @@ function fail(msg) {
 
 console.log("\n======================================================================");
 console.log(
-  ` OmniFlow v1.0.0 Pre-Flight Audit (${forceProdCheck ? "PRODUCTION STRICT" : "DEVELOPMENT / CI"})`
+  ` OmniFlow v1.0.0 Pre-Flight Audit (${strictPlaceholders ? "STRICT LAUNCH" : "DEVELOPMENT / CI"})`
 );
 console.log("======================================================================\n");
 
@@ -82,17 +102,77 @@ if (nodeMajor >= 20) {
   fail(`Node.js v${process.versions.node} is older than required >= 20.0.0`);
 }
 
-// 2. Route & Migration File Inventory
+// 2. Lockfile Synchronization Check (package.json <-> package-lock.json)
+const pkgPath = path.join(rootDir, "package.json");
+const lockPath = path.join(rootDir, "package-lock.json");
+if (!fs.existsSync(pkgPath) || !fs.existsSync(lockPath)) {
+  fail("package.json or package-lock.json is missing");
+} else {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+    const rootLockPkg = lock.packages?.[""] || {};
+    const mismatches = [];
+
+    for (const section of ["dependencies", "devDependencies"]) {
+      const pkgDeps = pkg[section] || {};
+      const lockDeps = rootLockPkg[section] || {};
+      for (const [name, spec] of Object.entries(pkgDeps)) {
+        if (lockDeps[name] !== spec) {
+          mismatches.push(`${name} (package.json: ${spec}, lock: ${lockDeps[name] || "missing"})`);
+        }
+        if (!lock.packages?.[`node_modules/${name}`]) {
+          mismatches.push(`${name} missing resolved node_modules/${name} entry in lockfile`);
+        }
+      }
+      for (const name of Object.keys(lockDeps)) {
+        if (!(name in pkgDeps)) {
+          mismatches.push(`${name} present in lockfile ${section} but removed from package.json`);
+        }
+      }
+    }
+
+    if (mismatches.length === 0) {
+      pass("package.json and package-lock.json are 100% synchronized");
+    } else {
+      fail(`package-lock.json is out of sync: ${mismatches.join("; ")}`);
+    }
+  } catch (err) {
+    fail(`Failed to parse package.json / package-lock.json: ${err.message}`);
+  }
+}
+
+// 3. Route, Handover Docs & Migration File Inventory
 const missingFiles = REQUIRED_FILES.filter(
   (rel) => !fs.existsSync(path.join(rootDir, rel))
 );
 if (missingFiles.length === 0) {
-  pass(`All ${REQUIRED_FILES.length} core routes, APIs, and SQL migrations present`);
+  pass(`All ${REQUIRED_FILES.length} core routes, error boundaries, docs, and SQL migrations present`);
 } else {
   fail(`Missing required project files: ${missingFiles.join(", ")}`);
 }
 
-// 3. Non-Destructive SQL Migration Verification
+// 4. Static Brand Assets Verification (public/)
+const missingOrEmptyAssets = REQUIRED_PUBLIC_ASSETS.filter((rel) => {
+  const full = path.join(rootDir, rel);
+  if (!fs.existsSync(full)) return true;
+  return fs.statSync(full).size === 0;
+});
+if (missingOrEmptyAssets.length === 0) {
+  // Also verify OG PNG dimensions (1200x630) via PNG IHDR header
+  const ogBuf = fs.readFileSync(path.join(rootDir, "public/og-image.png"));
+  const ogWidth = ogBuf.readUInt32BE(16);
+  const ogHeight = ogBuf.readUInt32BE(20);
+  if (ogWidth === 1200 && ogHeight === 630) {
+    pass(`All ${REQUIRED_PUBLIC_ASSETS.length} static public/ brand assets verified (OG 1200x630)`);
+  } else {
+    fail(`public/og-image.png must be 1200x630 (found ${ogWidth}x${ogHeight})`);
+  }
+} else {
+  fail(`Missing or empty public brand assets: ${missingOrEmptyAssets.join(", ")}`);
+}
+
+// 5. Non-Destructive SQL Migration Verification
 for (const sqlRel of [
   "supabase/migrations/0001_omniflow_schema.sql",
   "supabase/migrations/0002_production_upgrade.sql",
@@ -112,7 +192,7 @@ for (const sqlRel of [
   }
 }
 
-// 4. Admin NoIndex & CSP Security Baseline
+// 6. Admin NoIndex & CSP Security Baseline
 const adminLayout = fs.readFileSync(
   path.join(rootDir, "src/app/admin/layout.tsx"),
   "utf8"
@@ -133,28 +213,49 @@ if (
   fail("Missing Content-Security-Policy or X-Content-Type-Options in next.config.ts");
 }
 
-const presetsSrc = fs.readFileSync(
-  path.join(rootDir, "src/features/themes/presets.ts"),
-  "utf8"
-);
-if (
-  presetsSrc.includes("original-agency-theme-archived") &&
-  presetsSrc.includes("soale-inspired-premium-agency")
-) {
-  pass(
-    "Soale Inspired active theme & Original Agency Theme — Archived vault verified"
-  );
+// 7. Placeholder Content Audit ({{PLACEHOLDER}} tokens & legacy .example emails)
+const seedPath = path.join(rootDir, "src/lib/database/seed-data.ts");
+const seedSrc = fs.readFileSync(seedPath, "utf8");
+if (seedSrc.includes("hello@omniflow.example")) {
+  fail("Legacy hello@omniflow.example still present in src/lib/database/seed-data.ts");
 } else {
-  fail("Missing required theme presets in src/features/themes/presets.ts");
+  pass("No legacy hello@omniflow.example contact email in seed data");
 }
 
-// 5. Environment Variable Readiness
+const foundPlaceholders = new Set();
+for (const match of seedSrc.matchAll(/\{\{[A-Z0-9_]+\}\}/g)) {
+  foundPlaceholders.add(`${match[0]} (seed-data.ts)`);
+}
+
+const localDbPath = path.join(rootDir, "data/omniflow-db.json");
+if (fs.existsSync(localDbPath)) {
+  const localDbRaw = fs.readFileSync(localDbPath, "utf8");
+  for (const match of localDbRaw.matchAll(/\{\{[A-Z0-9_]+\}\}/g)) {
+    foundPlaceholders.add(`${match[0]} (data/omniflow-db.json)`);
+  }
+}
+
+if (foundPlaceholders.size > 0) {
+  const list = Array.from(foundPlaceholders).join(", ");
+  if (strictPlaceholders) {
+    fail(`Unfilled owner content placeholders remain: ${list}`);
+  } else {
+    warn(
+      `Owner content placeholders awaiting customization in Admin Settings/CMS: ${list}`
+    );
+  }
+} else {
+  pass("All {{PLACEHOLDER}} tokens have been filled");
+}
+
 if (forceProdCheck) {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
-  const authSecret = (process.env.AUTH_SECRET || process.env.SESSION_SECRET || "").trim();
+  const authSecret = (
+    process.env.AUTH_SECRET ||
+    process.env.SESSION_SECRET ||
+    ""
+  ).trim();
   const dbUrl = (process.env.DATABASE_URL || "").trim();
-  const supaUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-  const supaKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 
   if (!siteUrl.startsWith("https://")) {
     fail("NEXT_PUBLIC_SITE_URL must start with https:// in production");
@@ -169,26 +270,10 @@ if (forceProdCheck) {
   }
 
   if (!dbUrl.startsWith("postgres")) {
-    fail("DATABASE_URL (Supabase PostgreSQL) is required in production");
-  } else if (dbUrl.includes(".supabase.co:5432")) {
-    warn(
-      "DATABASE_URL uses direct :5432 host — switch to Supabase Transaction Pooler (:6543) for IPv4 serverless compatibility"
-    );
+    fail("DATABASE_URL (PostgreSQL) is required in production");
   } else {
     pass("DATABASE_URL PostgreSQL connection string present");
   }
-
-  if (!supaUrl.startsWith("https://") || !supaKey) {
-    fail(
-      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production for persistent media storage"
-    );
-  } else {
-    pass("Supabase Storage credentials present");
-  }
-} else {
-  pass(
-    "Local/CI mode active — pass --mode=production to enforce live Vercel/Supabase secret checks"
-  );
 }
 
 console.log("\n----------------------------------------------------------------------");

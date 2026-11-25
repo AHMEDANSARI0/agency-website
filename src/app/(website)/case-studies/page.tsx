@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedCaseStudies,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -12,7 +15,7 @@ import {
 import { WORK_TYPE_META } from "@/features/case-studies/constants";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Case Studies & Workflow Blueprints",
@@ -22,8 +25,8 @@ export const metadata: Metadata = {
 
 export default async function CaseStudiesPage() {
   const [items, settings] = await Promise.all([
-    db.listCaseStudies(true),
-    db.getSiteSettings(),
+    getCachedPublishedCaseStudies(),
+    getCachedSiteSettings(),
   ]);
 
   return (

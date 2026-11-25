@@ -60,17 +60,17 @@ describe("Soale Redesign Phase 4 — Inner Pages Redesign, Sticky Service Deck, 
     expect(fs.existsSync(pricingPagePath)).toBe(true);
     const pricingSrc = fs.readFileSync(pricingPagePath, "utf8");
     expect(pricingSrc).toContain("SoalePricingSection");
-    expect(pricingSrc).toContain("SoaleFaqAccordion");
+    expect(pricingSrc).toMatch(/SoaleFaqAccordion|LazyFaqAccordion/);
 
     const entries = await sitemap();
     expect(entries.some((e) => e.url.endsWith("/pricing"))).toBe(true);
 
-    const notFoundSrc = fs.readFileSync(
-      path.join(process.cwd(), "src/app/not-found.tsx"),
+    const middlewareSrc = fs.readFileSync(
+      path.join(process.cwd(), "src/middleware.ts"),
       "utf8"
     );
-    expect(notFoundSrc).toContain('"/about-us": "/about"');
-    expect(notFoundSrc).toContain('"/contact-us": "/contact"');
-    expect(notFoundSrc).toContain('"/pricing-plans": "/pricing"');
+    expect(middlewareSrc).toContain('"/about-us": "/about"');
+    expect(middlewareSrc).toContain('"/contact-us": "/contact"');
+    expect(middlewareSrc).toContain('"/pricing-plans": "/pricing"');
   });
 });

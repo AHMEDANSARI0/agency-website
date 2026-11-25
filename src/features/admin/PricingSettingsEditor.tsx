@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Clock, Plus, Sparkles, Trash2 } from "lucide-react";
 import type { PricingConfig, PricingPackageItem } from "@/types/content";
+import { PLACEHOLDER_TOKENS } from "@/lib/placeholders";
 
 interface PricingSettingsEditorProps {
   pricing: PricingConfig;
@@ -13,6 +14,21 @@ export function PricingSettingsEditor({
   pricing,
   onChange,
 }: PricingSettingsEditorProps) {
+  const [quickStartingRate, setQuickStartingRate] = useState("");
+  const hasUnfilledPriceToken = JSON.stringify(pricing).includes(
+    PLACEHOLDER_TOKENS.PRICE_FROM
+  );
+
+  function applyStartingPriceToken() {
+    const clean = quickStartingRate.trim();
+    if (!clean) return;
+    const replaced = JSON.parse(
+      JSON.stringify(pricing).replaceAll(PLACEHOLDER_TOKENS.PRICE_FROM, clean)
+    ) as PricingConfig;
+    onChange(replaced);
+    setQuickStartingRate("");
+  }
+
   function updateField<K extends keyof PricingConfig>(
     key: K,
     value: PricingConfig[K]
@@ -44,17 +60,17 @@ export function PricingSettingsEditor({
       badge: "Scoped Build",
       isPopular: false,
       targetAudience: "Service teams automating recurring operations",
-      projectPriceLabel: "Custom Scoped",
+      projectPriceLabel: "Custom Fixed Scope",
       retainerPriceLabel: "Optional Monthly Care",
-      comingSoonNote: "Published Rate Coming Soon",
+      comingSoonNote: "Fixed written quote after free review",
       summary:
-        "Deterministic workflow design, implementation, and clean documentation.",
+        "Practical workflow design, staging walkthrough, and clean handover.",
       deliverables: [
-        "Written workflow audit & architecture brief",
-        "End-to-end implementation & staging QA",
-        "100% client IP & runbook ownership",
+        "Written workflow review & fixed scope",
+        "End-to-end staging build & testing",
+        "100% client ownership & plain-English guide",
       ],
-      ctaLabel: "Request Scope Call",
+      ctaLabel: "Book a free workflow review",
       ctaHref: "/contact?intent=call",
     };
     onChange({
@@ -107,6 +123,43 @@ export function PricingSettingsEditor({
       </div>
 
       {/* Section Copy & Scope Toggle Labels */}
+      {hasUnfilledPriceToken && (
+        <div className="flex flex-col justify-between gap-3 rounded-control border border-primary/35 bg-accent-subtle/60 p-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-xs font-semibold text-ink-heading">
+              Owner Placeholder Active:{" "}
+              <code className="font-mono text-primary">
+                {PLACEHOLDER_TOKENS.PRICE_FROM}
+              </code>
+            </p>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Enter your starting project rate once (for example{" "}
+              <code>$1,200</code> or <code>£950</code>) to replace{" "}
+              <code>{PLACEHOLDER_TOKENS.PRICE_FROM}</code> across all pricing
+              banners and cards, then click <strong>Save Settings</strong>.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <input
+              type="text"
+              value={quickStartingRate}
+              onChange={(e) => setQuickStartingRate(e.target.value)}
+              placeholder="e.g. $1,200"
+              aria-label="Starting project rate"
+              className="w-32 rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-heading"
+            />
+            <button
+              type="button"
+              disabled={!quickStartingRate.trim()}
+              onClick={applyStartingPriceToken}
+              className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            >
+              Apply Starting Rate
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-xs font-medium text-ink-muted">

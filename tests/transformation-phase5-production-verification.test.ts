@@ -351,11 +351,22 @@ describe("Transformation Phase 5 — End-to-End Production Verification & Handov
     const rssXml = await rssRes.text();
     expect(rssXml).toContain("<rss version=\"2.0\"");
 
-    const healthRes = await healthHandler(
+    // Public /api/health returns only status, while authenticated admin gets full diagnostics
+    const publicHealthRes = await healthHandler(
       new Request("http://localhost:3000/api/health")
     );
-    expect(healthRes.status).toBe(200);
-    const healthJson = (await healthRes.json()) as {
+    expect(publicHealthRes.status).toBe(200);
+    expect(await publicHealthRes.json()).toEqual({ status: "ok" });
+
+    const superUser = (await db.listUsers()).find((u) => u.role === "SUPER_ADMIN")!;
+    const adminToken = createSessionToken(superUser);
+    const adminHealthRes = await healthHandler(
+      new Request("http://localhost:3000/api/health", {
+        headers: { Cookie: `${SESSION_COOKIE_NAME}=${adminToken}` },
+      })
+    );
+    expect(adminHealthRes.status).toBe(200);
+    const healthJson = (await adminHealthRes.json()) as {
       status: string;
       database: { schemaReady: boolean };
     };

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { PricingConfig } from "@/types/content";
 import { requireAdminApiAuth } from "@/lib/auth/server";
+import { CACHE_TAGS, revalidatePublicContent } from "@/lib/cache/public-cache";
 import { db } from "@/lib/database";
+import { PLACEHOLDER_TOKENS } from "@/lib/placeholders";
 import { extractClientIp } from "@/lib/security/rate-limit";
 import { sanitizePlainText } from "@/lib/validation/common";
 
@@ -45,7 +47,16 @@ const siteSettingsSchema = z.object({
   positioning: z.string().trim().min(2).max(120),
   tagline: z.string().trim().min(2).max(140),
   founderName: z.string().trim().min(2).max(80),
-  contactEmail: z.string().trim().email().max(140),
+  contactEmail: z
+    .string()
+    .trim()
+    .max(140)
+    .refine(
+      (val) =>
+        val === PLACEHOLDER_TOKENS.CONTACT_EMAIL ||
+        z.string().email().safeParse(val).success,
+      "Enter a valid contact email or keep {{CONTACT_EMAIL}} until ready."
+    ),
   supportHours: z.string().trim().min(2).max(160),
   bookingUrl: z.string().trim().min(1).max(200),
   primaryCtaLabel: z.string().trim().min(2).max(60),
@@ -144,7 +155,10 @@ export async function PUT(request: Request) {
     positioning: sanitizePlainText(d.positioning, 120),
     tagline: sanitizePlainText(d.tagline, 140),
     founderName: sanitizePlainText(d.founderName, 80),
-    contactEmail: d.contactEmail.toLowerCase(),
+    contactEmail:
+      d.contactEmail.trim() === PLACEHOLDER_TOKENS.CONTACT_EMAIL
+        ? PLACEHOLDER_TOKENS.CONTACT_EMAIL
+        : d.contactEmail.trim().toLowerCase(),
     supportHours: sanitizePlainText(d.supportHours, 160),
     bookingUrl: cleanHref(d.bookingUrl),
     primaryCtaLabel: sanitizePlainText(d.primaryCtaLabel, 60),
@@ -171,6 +185,11 @@ export async function PUT(request: Request) {
       : "Updated global Navigation, Footer links, and CTA settings.",
     ipAddress: extractClientIp(request.headers),
   });
+
+  revalidatePublicContent(
+    [CACHE_TAGS.settings],
+    ["/", "/pricing", "/contact", "/faq"]
+  );
 
   return NextResponse.json({ ok: true, settings: updated });
 }

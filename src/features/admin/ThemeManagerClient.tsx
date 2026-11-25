@@ -38,7 +38,11 @@ import {
   isValidCssColor,
   sanitizeDesignSystemTokens,
 } from "@/features/themes/color-utils";
-import { ORIGINAL_AGENCY_ARCHIVED_PRESET_ID } from "@/features/themes/presets";
+import {
+  OMNIFLOW_DARK_PURPLE_AI_PRESET_ID,
+  ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
+  SOALE_CREATIVE_AI_PRESET_ID,
+} from "@/features/themes/presets";
 import { ThemeLivePreviewStage } from "./theme/ThemeLivePreviewStage";
 
 interface ThemeManagerClientProps {
@@ -93,7 +97,9 @@ export function ThemeManagerClient({
   builtInPresets,
 }: ThemeManagerClientProps) {
   const [config, setConfig] = useState<ThemeConfiguration>(initialConfig);
-  const [editingMode, setEditingMode] = useState<ResolvedThemeMode>("light");
+  const [editingMode, setEditingMode] = useState<ResolvedThemeMode>(
+    initialConfig.defaultMode === "light" ? "light" : "dark"
+  );
   const [customPresetName, setCustomPresetName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -326,8 +332,8 @@ export function ThemeManagerClient({
             }
             className="rounded-control border border-line bg-surface-input px-3 py-1.5 text-xs font-semibold text-ink-heading"
           >
-            <option value="light">Light Mode First (Warm Off-White — Recommended)</option>
-            <option value="dark">Dark Mode First (Obsidian Charcoal)</option>
+            <option value="dark">Dark Mode First (Dark Purple AI — Default)</option>
+            <option value="light">Light Mode First (Crisp Alabaster)</option>
             <option value="system">Automatic / Match Visitor OS Preference</option>
           </select>
         </div>
@@ -457,18 +463,79 @@ export function ThemeManagerClient({
         </div>
       </div>
 
-      {/* Extended Theme Library */}
-      <section className="rounded-card border border-line bg-surface-card p-6 shadow-card">
+      {/* Featured Soale Creative AI Dual-Mode Theme Content Library Card */}
+      <div className="flex flex-col justify-between gap-4 rounded-card border border-primary/35 bg-accent-subtle/35 p-5 lg:flex-row lg:items-center">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-primary px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+              Saved in Theme Content Library · Dark &amp; Light
+            </span>
+            {config.activePresetId === SOALE_CREATIVE_AI_PRESET_ID && (
+              <span className="rounded-full border border-primary/40 bg-surface px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
+                Currently Active
+              </span>
+            )}
+          </div>
+          <h2 className="mt-1.5 text-sm font-semibold text-ink-heading">
+            Soale Creative AI — Orbital Glow (Dark &amp; Light)
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Obsidian (#060609) &amp; daylight alabaster (#FAF8F6) dual-mode system with the rotating sunset-orange → rose-pink → electric-orchid (#FF7023 → #BF4A91 → #C823FF) hero orbital halo, sticky scroll cards, and WCAG AA contrast.
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              postThemeAction(
+                {
+                  action: "duplicate_preset",
+                  sourcePresetId: SOALE_CREATIVE_AI_PRESET_ID,
+                  name: "Soale Creative AI (Custom Copy)",
+                },
+                'Saved a customizable copy of "Soale Creative AI" in your Theme Content Library.'
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
+          >
+            <Copy className="h-3 w-3" />
+            <span>Save Custom Copy</span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              postThemeAction(
+                {
+                  action: "apply_preset",
+                  presetId: SOALE_CREATIVE_AI_PRESET_ID,
+                  publish: true,
+                },
+                'Applied & published "Soale Creative AI — Orbital Glow (Dark & Light)" live across the website.'
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-full bg-[var(--of-btn-primary-bg,var(--of-color-primary))] px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Apply &amp; Publish Soale UI</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Extended Theme Content Library */}
+      <section className="rounded-card border border-line bg-surface-card p-4 shadow-card sm:p-6">
         <div className="flex flex-col justify-between gap-3 border-b border-line pb-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-base font-semibold text-ink-heading">
-              Extended Theme Library ({allPresets.length} Presets)
+              Theme Content Library ({allPresets.length} Saved Presets)
             </h2>
             <p className="text-xs text-ink-muted">
               Activate, duplicate, rename, edit, reset, or save custom Light &amp; Dark palettes without losing prior work.
             </p>
           </div>
-          <form onSubmit={handleSaveCustomPreset} className="flex gap-2">
+          <form onSubmit={handleSaveCustomPreset} className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={customPresetName}
@@ -539,6 +606,16 @@ export function ThemeManagerClient({
                           <h3 className="text-sm font-semibold text-ink-heading">
                             {preset.name}
                           </h3>
+                          {preset.id === OMNIFLOW_DARK_PURPLE_AI_PRESET_ID && (
+                            <span className="rounded-full border border-primary/35 bg-accent-subtle px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-primary">
+                              Default SaaS
+                            </span>
+                          )}
+                          {preset.id === SOALE_CREATIVE_AI_PRESET_ID && (
+                            <span className="rounded-full border border-primary/35 bg-accent-subtle px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-primary">
+                              Soale Orbital · Dark &amp; Light
+                            </span>
+                          )}
                           {isActive && (
                             <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-primary-foreground">
                               Active

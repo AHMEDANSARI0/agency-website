@@ -1,101 +1,112 @@
 import type { PricingConfig, SiteSettings } from "@/types/content";
 
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
-  comingSoonMode: true,
-  sectionEyebrow: "Engagement Scopes & Pricing",
-  sectionTitle: "Transparent, scoped delivery — never open-ended guesswork.",
+  comingSoonMode: false,
+  sectionEyebrow: "Pricing & Scopes",
+  sectionTitle: "Clear written scopes before any work begins.",
   sectionSubtitle:
-    "Every engagement begins with a written workflow audit and clear scope boundaries. Fixed-package pricing tiers are coming soon — request a tailored scope on a free discovery call today.",
-  projectToggleLabel: "Fixed-Scope Implementation",
-  retainerToggleLabel: "Ongoing Ops & Advisory",
-  statusBannerText:
-    "Published Tier Rates Coming Soon — All engagements are currently custom-scoped following a free 25-minute workflow audit.",
+    "Projects typically start from {{PRICE_FROM}} depending on how many tools and approval steps we connect. Every engagement starts with a free 25-minute workflow review.",
+  projectToggleLabel: "Fixed-Scope Build",
+  retainerToggleLabel: "Ongoing Care & Tuning",
+  statusBannerText: "Projects typically start from {{PRICE_FROM}}",
   packages: [
     {
       id: "tier-starter",
       name: "Starter",
       badge: "Single Workflow",
       isPopular: false,
-      targetAudience: "Independent consultants & lean service teams",
-      projectPriceLabel: "Custom Scoped",
-      retainerPriceLabel: "Optional Post-Launch Care",
-      comingSoonNote: "Published Rate Coming Soon",
+      targetAudience: "Solo consultants & small clinics",
+      projectPriceLabel: "From {{PRICE_FROM}}",
+      retainerPriceLabel: "Optional Monthly Care",
+      comingSoonNote: "Fixed written quote after free review",
       summary:
-        "Eliminate one high-friction bottleneck — structured lead capture, instant qualification, and clean CRM handoff.",
+        "Fix one daily bottleneck — capture every enquiry 24/7, qualify it cleanly, and send your team an instant brief.",
       deliverables: [
-        "1 end-to-end deterministic workflow",
-        "Structured 24/7 enquiry intake & validation",
-        "CRM sync + instant owner email/WhatsApp brief",
-        "Plain-English runbook & 100% client ownership",
+        "1 end-to-end lead or booking workflow",
+        "24/7 form validation & spam filtering",
+        "CRM update + instant WhatsApp or email alert",
+        "Plain-English guide & 100% client ownership",
       ],
-      ctaLabel: "Scope Starter Build",
+      ctaLabel: "Book a free workflow review",
       ctaHref: "/contact?intent=call&tier=starter",
     },
     {
       id: "tier-growth",
       name: "Growth",
-      badge: "Most Requested",
+      badge: "Most Popular",
       isPopular: true,
-      targetAudience: "Growing clinics, agencies & multi-person practices",
-      projectPriceLabel: "Custom Scoped",
-      retainerPriceLabel: "Priority Tuning Available",
-      comingSoonNote: "Published Rate Coming Soon",
+      targetAudience: "Growing clinics, consultancies & agencies",
+      projectPriceLabel: "Custom Fixed Scope",
+      retainerPriceLabel: "Priority Monthly Tuning",
+      comingSoonNote: "Scoped to your CRM & inbox volume",
       summary:
-        "Connect inbound lead qualification, policy-grounded AI support triage, and multi-channel follow-ups into one reliable core.",
+        "Connect lead scoring, approved-FAQ customer replies, and booking follow-ups with human sign-off on important steps.",
       deliverables: [
-        "Lead scoring + duplicate-safe CRM orchestration",
-        "Policy-grounded 24/7 AI support with human escalation",
-        "Automated discovery booking & SLA alerts",
-        "Dead-letter fallback queue & staging QA suite",
+        "Instant lead scoring + duplicate-safe CRM sync",
+        "24/7 FAQ replies strictly from your approved policies",
+        "One-click human approval for quotes & exceptions",
+        "Fallback retry queue so no enquiry is ever lost",
       ],
-      ctaLabel: "Book Discovery Scope",
+      ctaLabel: "Book a free workflow review",
       ctaHref: "/contact?intent=call&tier=growth",
     },
     {
       id: "tier-scale",
       name: "Scale",
-      badge: "Connected Operations",
+      badge: "Multi-Team Ops",
       isPopular: false,
-      targetAudience: "Established firms unifying sales, delivery & reporting",
-      projectPriceLabel: "Custom Scoped",
-      retainerPriceLabel: "Dedicated Monthly Ops",
-      comingSoonNote: "Published Rate Coming Soon",
+      targetAudience: "Established firms connecting sales & delivery",
+      projectPriceLabel: "Multi-Workflow Scope",
+      retainerPriceLabel: "Dedicated Ops Partner",
+      comingSoonNote: "Scoped across 4+ business tools",
       summary:
-        "Synchronize CRM, client onboarding provisioning, billing webhooks, and executive operational reporting without manual re-entry.",
+        "Keep your CRM, client onboarding folders, billing updates, and weekly summary reports in sync without copy-pasting.",
       deliverables: [
-        "Multi-system workflow orchestration across 4+ tools",
-        "Automated client kickoff & workspace provisioning",
-        "Executive pipeline & response-time visibility",
-        "Team training walkthrough & post-launch tuning",
+        "Connected workflows across 4+ tools in your stack",
+        "Automatic client kickoff tasks & folder setup",
+        "Weekly response-time & pipeline summary report",
+        "Live team training & post-launch check-ins",
       ],
-      ctaLabel: "Discuss Scale Architecture",
+      ctaLabel: "Book a free workflow review",
       ctaHref: "/contact?intent=call&tier=scale",
     },
     {
       id: "tier-enterprise",
       name: "Enterprise",
-      badge: "Bespoke Systems",
+      badge: "Custom Systems",
       isPopular: false,
-      targetAudience: "Multi-region teams requiring custom internal AI tools",
-      projectPriceLabel: "Bespoke Proposal",
+      targetAudience: "Multi-site teams needing custom internal tools",
+      projectPriceLabel: "Tailored Proposal",
       retainerPriceLabel: "Principal Advisory SLA",
-      comingSoonNote: "Tailored Architecture Brief",
+      comingSoonNote: "Custom architecture & security review",
       summary:
-        "Custom TypeScript/SQL internal tools, role-governed AI assistants, strict audit trails, and principal-led architectural oversight.",
+        "Custom internal portals, role-based approval workflows, audit logs, and direct founder-led architectural oversight.",
       deliverables: [
-        "Custom internal portals, SQL schemas & API gateways",
-        "Strict human-in-the-loop approval & audit logging",
-        "Security review, RBAC & self-hosted deployment option",
-        "Direct Principal Architect oversight (US/UK/CA hours)",
+        "Custom internal dashboards, databases & APIs",
+        "Role-based permissions & complete audit logs",
+        "Security review & self-hosted deployment option",
+        "Direct founder oversight across US/UK/CA hours",
       ],
-      ctaLabel: "Request Architecture Call",
+      ctaLabel: "Book a free workflow review",
       ctaHref: "/contact?intent=call&tier=enterprise",
     },
   ],
 };
 
+function isUntouchedLegacyComingSoonPricing(cfg: PricingConfig): boolean {
+  return Boolean(
+    cfg.comingSoonMode === true &&
+      typeof cfg.statusBannerText === "string" &&
+      cfg.statusBannerText.includes("Published Tier Rates Coming Soon")
+  );
+}
+
 export function resolvePricingConfig(settings?: SiteSettings | null): PricingConfig {
-  if (!settings?.pricingConfig || !Array.isArray(settings.pricingConfig.packages)) {
+  if (
+    !settings?.pricingConfig ||
+    !Array.isArray(settings.pricingConfig.packages) ||
+    isUntouchedLegacyComingSoonPricing(settings.pricingConfig)
+  ) {
     return DEFAULT_PRICING_CONFIG;
   }
   return {

@@ -7,73 +7,48 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedServices,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleArrowButton, SoaleCard } from "@/components/ui/soale";
 import { ContactForm } from "@/components/sections/ContactForm";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
-  title: "Book a Free Discovery Call & Workflow Review",
+  title: "Book a Free Workflow Review",
   description:
-    "Book a free 25-minute discovery call or send a workflow enquiry to OmniFlow. Eliminate repetitive admin, speed up customer responses, and connect your business tools.",
+    "Book a free 25-minute workflow review or send an enquiry to OmniFlow. Answer leads faster, stop manual copy-pasting, and keep a person approving the important steps.",
 };
 
-interface ContactPageProps {
-  searchParams: Promise<{
-    service?: string;
-    context?: string;
-    intent?: string;
-    source?: string;
-    tier?: string;
-  }>;
-}
-
-export default async function ContactPage({ searchParams }: ContactPageProps) {
-  const [
-    {
-      service: preselectedService,
-      context: prefilledContext,
-      intent: rawIntent,
-      source: rawSource,
-      tier: rawTier,
-    },
-    settings,
-    services,
-  ] = await Promise.all([
-    searchParams,
-    db.getSiteSettings(),
-    db.listServices(true),
+export default async function ContactPage() {
+  const [settings, services] = await Promise.all([
+    getCachedSiteSettings(),
+    getCachedPublishedServices(),
   ]);
 
   const serviceOptions = services.map((s) => ({
     slug: s.slug,
     title: s.title,
   }));
-  const defaultIntent = rawIntent === "enquiry" ? "enquiry" : "call";
-  const effectiveContext =
-    prefilledContext ||
-    (rawTier ? `Interested in Engagement Tier: ${rawTier.toUpperCase()}` : undefined);
 
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
-        breadcrumbs={[{ label: "Contact & Discovery" }]}
-        badge="Free 25-Minute Discovery Call"
-        title="Book a Free Discovery Call or Share Your Workflow Bottleneck"
-        description="Tell us where repetitive admin, slow lead follow-up, or disconnected tools are costing your team hours. You get a practical, plain-English recommendation within one business day."
+        breadcrumbs={[{ label: "Contact" }]}
+        badge="Free 25-Minute Workflow Review"
+        title="Book a Free Workflow Review or Share Your Bottleneck"
+        description="Tell us where slow lead follow-ups, repeat inbox questions, or disconnected tools cost your team hours. You get a clear, plain-English recommendation within one business day."
       />
 
       <section className="py-16 sm:py-24">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <ContactForm
-              defaultService={preselectedService}
-              defaultContext={effectiveContext}
-              defaultIntent={defaultIntent}
-              defaultSource={rawSource}
               externalBookingUrl={settings.bookingUrl}
               serviceOptions={serviceOptions}
             />
@@ -133,12 +108,18 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
                 </p>
                 <p className="mt-2 flex items-center gap-2 text-sm font-medium text-ink-heading">
                   <Mail className="h-4 w-4 text-primary" />
-                  <a
-                    href={`mailto:${settings.contactEmail}`}
-                    className="hover:text-primary hover:underline"
-                  >
-                    {settings.contactEmail}
-                  </a>
+                  {hasConfiguredContactEmail(settings.contactEmail) ? (
+                    <a
+                      href={`mailto:${settings.contactEmail}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {settings.contactEmail}
+                    </a>
+                  ) : (
+                    <span className="text-ink-muted">
+                      Use the enquiry form on this page for a 1-business-day reply
+                    </span>
+                  )}
                 </p>
               </div>
             </SoaleCard>

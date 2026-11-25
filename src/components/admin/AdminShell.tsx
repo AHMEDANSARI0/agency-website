@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ArrowRight,
-  Command,
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Database,
   ExternalLink,
   FileEdit,
-  FolderOpen,
+  Globe,
   Image as ImageIcon,
   Inbox,
   KeyRound,
@@ -18,387 +23,649 @@ import {
   LogOut,
   Menu,
   Palette,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
-  SearchCheck,
   Settings,
-  Shield,
+  ShieldCheck,
+  Sparkles,
   Users,
   X,
 } from "lucide-react";
-import type { BrandAssetConfig } from "@/types/brand";
-import type { PermissionAction, RolePolicyConfig, SafeUser } from "@/types/auth";
-import type { DatabaseDriverMode } from "@/lib/database";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { ThemeToggle } from "@/features/themes/ThemeToggle";
+import type { LiveSiteAlertSummary } from "@/features/system/live-site-report";
 import { hasPermission } from "@/lib/auth/rbac";
+import type { DatabaseDriverMode } from "@/lib/database";
+import type {
+  PermissionAction,
+  RolePolicyConfig,
+  SafeUser,
+} from "@/types/auth";
+import type { BrandAssetConfig } from "@/types/brand";
 
 interface AdminShellProps {
   user: SafeUser;
-  rolePolicies: RolePolicyConfig;
-  brand: BrandAssetConfig;
-  databaseMode: DatabaseDriverMode;
-  newLeadsCount: number;
+  companyName: string;
+  brand?: BrandAssetConfig;
+  rolePolicies?: RolePolicyConfig;
+  persistenceDriver?: DatabaseDriverMode;
+  newLeadCount?: number;
+  initialAlertSummary?: LiveSiteAlertSummary;
   children: React.ReactNode;
 }
 
-type NavGroupLabel =
-  | "Operations"
-  | "Content & SEO"
-  | "Design & Identity"
-  | "Security & Access";
-
-interface AdminNavItem {
+interface NavItem {
   href: string;
   label: string;
-  group: NavGroupLabel;
-  keywords: string;
+  shortDesc: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission?: PermissionAction;
-  badge?: number;
+  requiredPermission?: PermissionAction;
+  anyOfPermissions?: PermissionAction[];
+  badgeType?: "leads" | "alerts";
 }
 
-const GROUP_ORDER: NavGroupLabel[] = [
-  "Operations",
-  "Content & SEO",
-  "Design & Identity",
-  "Security & Access",
-];
+interface NavSection {
+  id: string;
+  title: string;
+  items: NavItem[];
+}
 
-export function AdminShell({
-  user,
-  rolePolicies,
-  brand,
-  databaseMode,
-  newLeadsCount,
-  children,
-}: AdminShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [paletteQuery, setPaletteQuery] = useState("");
-  const [paletteIndex, setPaletteIndex] = useState(0);
-  const [signingOut, setSigningOut] = useState(false);
-  const paletteInputRef = useRef<HTMLInputElement | null>(null);
+const SIDEBAR_COLLAPSED_KEY = "omniflow_admin_sidebar_collapsed";
 
-  const navItems: AdminNavItem[] = useMemo(
-    () => [
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: "workspace",
+    title: "Workspace",
+    items: [
       {
         href: "/admin",
         label: "Overview",
-        group: "Operations",
-        keywords: "dashboard health kpi metrics summary",
+        shortDesc: "Executive KPIs, conversion funnel, and quick actions",
         icon: LayoutDashboard,
-        permission: "dashboard:view",
+        requiredPermission: "dashboard:view",
+      },
+      {
+        href: "/admin/diagnostics",
+        label: "Live Site Report",
+        shortDesc: "Real-time site errors, route probes, links & SEO checks",
+        icon: Activity,
+        requiredPermission: "dashboard:view",
+        badgeType: "alerts",
       },
       {
         href: "/admin/leads",
-        label: "Lead & Enquiry CRM",
-        group: "Operations",
-        keywords: "leads enquiries pipeline kanban csv follow up",
+        label: "Leads & CRM",
+        shortDesc: "Pipeline stages, follow-ups, notes, and CSV export",
         icon: Inbox,
-        permission: "leads:view",
-        badge: newLeadsCount > 0 ? newLeadsCount : undefined,
+        requiredPermission: "leads:view",
+        badgeType: "leads",
       },
+    ],
+  },
+  {
+    id: "content",
+    title: "Content & SEO",
+    items: [
       {
         href: "/admin/pages",
-        label: "Page Section Builder",
-        group: "Content & SEO",
-        keywords: "homepage sections layout order visibility builder",
+        label: "Pages & Sections",
+        shortDesc: "Homepage section ordering, visibility, and page copy",
         icon: Layers,
-        permission: "content:edit_any",
+        requiredPermission: "content:edit_any",
       },
       {
         href: "/admin/cms",
-        label: "CMS Content Studio",
-        group: "Content & SEO",
-        keywords: "blog posts case studies services faqs testimonials team",
+        label: "Content Studio",
+        shortDesc: "Services, Case Studies, Insights Blog, FAQs & Team",
         icon: FileEdit,
-        permission: "content:create_draft",
+        anyOfPermissions: [
+          "content:create_draft",
+          "content:edit_own",
+          "content:edit_any",
+          "content:publish",
+        ],
       },
       {
         href: "/admin/media",
         label: "Media Library",
-        group: "Content & SEO",
-        keywords: "images uploads storage svg png webp quota",
-        icon: FolderOpen,
-        permission: "media:manage",
+        shortDesc: "Brand images, portraits, diagrams, and alt-text tags",
+        icon: ImageIcon,
+        anyOfPermissions: ["media:manage"],
       },
       {
         href: "/admin/seo",
-        label: "SEO, Redirects & GA4",
-        group: "Content & SEO",
-        keywords: "sitemap robots metadata redirects analytics consent",
-        icon: SearchCheck,
-        permission: "seo:manage",
+        label: "SEO & Analytics",
+        shortDesc: "Meta tags, XML sitemap, 301 redirects, and GA4/GTM",
+        icon: Globe,
+        requiredPermission: "seo:manage",
       },
+    ],
+  },
+  {
+    id: "appearance",
+    title: "Appearance & Settings",
+    items: [
       {
         href: "/admin/theme",
-        label: "Theme & Color Studio",
-        group: "Design & Identity",
-        keywords: "colors light dark mode tokens contrast presets",
+        label: "Theme Library",
+        shortDesc: "Soale Creative AI & OmniFlow Dark/Light theme presets",
         icon: Palette,
-        permission: "theme:manage",
+        requiredPermission: "theme:manage",
       },
       {
         href: "/admin/brand",
-        label: "Brand & Logo Assets",
-        group: "Design & Identity",
-        keywords: "logo favicon og image symbol identity",
-        icon: ImageIcon,
-        permission: "brand:manage",
+        label: "Brand Identity",
+        shortDesc: "Wordmarks, SVG emblems, favicons, and social cards",
+        icon: Sparkles,
+        requiredPermission: "brand:manage",
       },
       {
         href: "/admin/settings",
-        label: "Nav, Footer & CTAs",
-        group: "Design & Identity",
-        keywords: "navigation menu footer contact email cta booking",
+        label: "Settings & Pricing",
+        shortDesc: "Contact info, navbar/footer menus, CTAs & pricing tiers",
         icon: Settings,
-        permission: "settings:manage",
+        requiredPermission: "settings:manage",
       },
+    ],
+  },
+  {
+    id: "system",
+    title: "System & Security",
+    items: [
       {
         href: "/admin/users",
-        label: "Users & Role Policies",
-        group: "Security & Access",
-        keywords: "staff accounts rbac permissions editor author super admin",
+        label: "Team & Roles",
+        shortDesc: "Admin accounts, RBAC permission matrix & access control",
         icon: Users,
-        permission: "users:manage",
+        requiredPermission: "users:manage",
       },
       {
         href: "/admin/audit-logs",
-        label: "Security Audit Logs",
-        group: "Security & Access",
-        keywords: "audit trail security events ip login history",
-        icon: Shield,
-        permission: "audit:view",
+        label: "Audit Logs",
+        shortDesc: "Immutable security & publishing activity trail",
+        icon: ShieldCheck,
+        requiredPermission: "audit:view",
       },
       {
         href: "/admin/account",
         label: "Account & Backups",
-        group: "Security & Access",
-        keywords: "password security json database backup snapshot",
+        shortDesc: "Password rotation, JSON snapshots & database restores",
         icon: KeyRound,
       },
     ],
-    [newLeadsCount]
+  },
+];
+
+export function AdminShell({
+  user,
+  companyName,
+  brand,
+  rolePolicies,
+  persistenceDriver,
+  newLeadCount = 0,
+  initialAlertSummary,
+  children,
+}: AdminShellProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({});
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [alertSummary, setAlertSummary] = useState<LiveSiteAlertSummary | null>(
+    initialAlertSummary ?? null
   );
 
-  const visibleNav = useMemo(
-    () =>
-      user.mustChangePassword
-        ? navItems.filter((item) => item.href === "/admin/account")
-        : navItems.filter((item) =>
-            item.permission
-              ? hasPermission(user.role, item.permission, rolePolicies)
-              : true
-          ),
-    [user.mustChangePassword, user.role, rolePolicies, navItems]
+  // Restore saved desktop sidebar collapsed state
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+      if (saved === "1") setSidebarCollapsed(true);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const toggleDesktopSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  }, []);
+
+  const fetchAlertSummary = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/system/live-report?summary=1", {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as LiveSiteAlertSummary;
+        setAlertSummary(data);
+      }
+    } catch {
+      // ignore background poll errors
+    }
+  }, []);
+
+  // Live refresh on custom event or every 60s
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchAlertSummary();
+    };
+    window.addEventListener("omniflow:refresh-live-alert", onRefresh);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchAlertSummary();
+      }
+    }, 60_000);
+    return () => {
+      window.removeEventListener("omniflow:refresh-live-alert", onRefresh);
+      window.clearInterval(timer);
+    };
+  }, [fetchAlertSummary]);
+
+  const visibleSections = useMemo(() => {
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.requiredPermission) {
+          return hasPermission(user.role, item.requiredPermission, rolePolicies);
+        }
+        if (item.anyOfPermissions && item.anyOfPermissions.length > 0) {
+          return item.anyOfPermissions.some((perm) =>
+            hasPermission(user.role, perm, rolePolicies)
+          );
+        }
+        return true;
+      }),
+    })).filter((s) => s.items.length > 0);
+  }, [user.role, rolePolicies]);
+
+  const flatItems = useMemo(
+    () => visibleSections.flatMap((s) => s.items),
+    [visibleSections]
   );
 
-  const commandActions = useMemo(() => {
-    const adminLinks = visibleNav.map((item) => ({
-      id: item.href,
-      label: item.label,
-      category: item.group,
-      keywords: item.keywords,
-      href: item.href,
-      external: false,
-    }));
-    const publicLinks = [
-      {
-        id: "public-home",
-        label: "Open Public Homepage",
-        category: "Public Website",
-        keywords: "website live preview home",
-        href: "/",
-        external: true,
-      },
-      {
-        id: "public-demos",
-        label: "Open Interactive Demos Lab",
-        category: "Public Website",
-        keywords: "demos calculator simulator",
-        href: "/demos",
-        external: true,
-      },
-      {
-        id: "public-contact",
-        label: "Open Public Contact Form",
-        category: "Public Website",
-        keywords: "enquiry test lead form",
-        href: "/contact",
-        external: true,
-      },
-    ];
-    return [...adminLinks, ...publicLinks];
-  }, [visibleNav]);
+  const activeNavMeta = useMemo(() => {
+    for (const sec of visibleSections) {
+      for (const item of sec.items) {
+        const active =
+          item.href === "/admin"
+            ? pathname === "/admin"
+            : pathname.startsWith(item.href);
+        if (active) {
+          return { sectionTitle: sec.title, item };
+        }
+      }
+    }
+    return {
+      sectionTitle: "Workspace",
+      item: flatItems[0] ?? NAV_SECTIONS[0].items[0],
+    };
+  }, [visibleSections, pathname, flatItems]);
 
-  const filteredCommands = useMemo(() => {
+  const filteredPaletteItems = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
-    if (!q) return commandActions;
-    return commandActions.filter(
-      (cmd) =>
-        cmd.label.toLowerCase().includes(q) ||
-        cmd.category.toLowerCase().includes(q) ||
-        cmd.keywords.toLowerCase().includes(q)
+    if (!q) return flatItems;
+    return flatItems.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.shortDesc.toLowerCase().includes(q) ||
+        item.href.toLowerCase().includes(q)
     );
-  }, [commandActions, paletteQuery]);
+  }, [flatItems, paletteQuery]);
 
+  // Global keyboard shortcuts: Cmd/Ctrl+K (Quick Jump), Cmd/Ctrl+B (Toggle Sidebar), Escape
   useEffect(() => {
-    setMobileOpen(false);
-    setPaletteOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
         setPaletteOpen((prev) => !prev);
-        setPaletteQuery("");
-        setPaletteIndex(0);
-      } else if (event.key === "Escape") {
+      } else if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key.toLowerCase() === "b" &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        toggleDesktopSidebar();
+      } else if (e.key === "Escape") {
         setPaletteOpen(false);
         setMobileOpen(false);
       }
-    };
+    }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [toggleDesktopSidebar]);
 
-  useEffect(() => {
-    if (paletteOpen) {
-      requestAnimationFrame(() => paletteInputRef.current?.focus());
-    }
-  }, [paletteOpen]);
-
-  async function handleSignOut() {
+  async function handleLogout() {
     setSigningOut(true);
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
-    } finally {
       router.push("/admin/login");
       router.refresh();
+    } finally {
+      setSigningOut(false);
     }
   }
 
-  function isActive(href: string) {
-    if (href === "/admin") return pathname === "/admin";
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
+  const totalAlerts =
+    (alertSummary?.criticalCount ?? 0) + (alertSummary?.warningCount ?? 0);
+  const hasCriticalAlert = (alertSummary?.criticalCount ?? 0) > 0;
 
-  const activeNavItem = visibleNav.find((item) => isActive(item.href));
+  const userInitials = useMemo(() => {
+    const parts = (user.name || "Admin").trim().split(/\s+/);
+    return (
+      (parts[0]?.[0] || "A") + (parts[1]?.[0] || parts[0]?.[1] || "")
+    ).toUpperCase();
+  }, [user.name]);
 
-  const dbLabel =
-    databaseMode === "supabase_postgres"
-      ? "Supabase PostgreSQL"
-      : databaseMode === "unconfigured_production"
-        ? "DB Configuration Required"
-        : "Local Dev JSON Store";
-
-  const dbDescription =
-    databaseMode === "supabase_postgres"
-      ? "Connected to production relational database."
-      : databaseMode === "unconfigured_production"
-        ? "DATABASE_URL missing — production writes blocked."
-        : "Local development JSON store active.";
-
-  const sidebarBody = (
-    <div className="flex h-full flex-col justify-between">
-      <div>
-        <div className="flex h-16 items-center justify-between border-b border-line px-5">
-          <div className="flex items-center gap-2">
-            <BrandMark brand={brand} href="/admin" />
-            <span className="rounded-md bg-accent-subtle px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
-              Console
-            </span>
-          </div>
+  const renderSidebarContent = (isCompactRail: boolean) => (
+    <div className="flex h-full flex-col">
+      {/* Sidebar Top Brand & Collapse Header */}
+      <div
+        className={`flex h-16 shrink-0 items-center border-b border-line ${
+          isCompactRail ? "justify-center px-2" : "justify-between px-4"
+        }`}
+      >
+        {isCompactRail ? (
           <button
             type="button"
-            onClick={() => setMobileOpen(false)}
-            className="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted lg:hidden"
-            aria-label="Close sidebar"
+            onClick={toggleDesktopSidebar}
+            title="Expand sidebar (Ctrl+B)"
+            aria-label="Expand admin sidebar"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface-card text-ink-heading transition-colors hover:border-primary hover:text-primary"
           >
-            <X className="h-4 w-4" />
+            <PanelLeftOpen className="h-4 w-4" />
           </button>
-        </div>
+        ) : (
+          <>
+            <div className="min-w-0 flex-1 pr-2">
+              {brand ? (
+                <BrandMark brand={brand} href="/admin" size="sm" />
+              ) : (
+                <Link
+                  href="/admin"
+                  className="truncate text-sm font-bold text-ink-heading"
+                >
+                  {companyName}
+                </Link>
+              )}
+            </div>
 
-        <nav aria-label="Admin navigation" className="space-y-5 p-3.5">
-          {GROUP_ORDER.map((groupName) => {
-            const groupItems = visibleNav.filter((i) => i.group === groupName);
-            if (groupItems.length === 0) return null;
-            return (
-              <div key={groupName}>
-                <p className="mb-1.5 px-2.5 font-mono text-[0.66rem] font-bold uppercase tracking-[0.14em] text-ink-muted">
-                  {groupName}
-                </p>
-                <div className="space-y-0.5">
-                  {groupItems.map((item) => {
+            {/* Desktop Collapse Button */}
+            <button
+              type="button"
+              onClick={toggleDesktopSidebar}
+              title="Collapse sidebar (Ctrl+B)"
+              aria-label="Collapse admin sidebar"
+              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-card text-ink-muted transition-colors hover:border-primary hover:text-ink-heading lg:inline-flex"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+
+            {/* Mobile Drawer Close Button */}
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close navigation menu"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-ink-muted hover:text-ink-heading lg:hidden"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Quick Search Trigger */}
+      <div className={isCompactRail ? "px-2.5 pt-3" : "px-3.5 pt-3.5"}>
+        {isCompactRail ? (
+          <button
+            type="button"
+            onClick={() => {
+              setMobileOpen(false);
+              setPaletteOpen(true);
+            }}
+            title="Quick jump (Ctrl+K)"
+            aria-label="Quick jump to admin module"
+            className="flex h-10 w-full items-center justify-center rounded-xl border border-line bg-surface-muted/70 text-ink-muted transition-colors hover:border-primary hover:text-ink-heading"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setMobileOpen(false);
+              setPaletteOpen(true);
+            }}
+            className="flex w-full items-center justify-between rounded-xl border border-line bg-surface-muted/65 px-3 py-2 text-xs text-ink-muted transition-colors hover:border-line-strong hover:text-ink-heading"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Search className="h-3.5 w-3.5 text-primary" />
+              <span>Quick jump…</span>
+            </span>
+            <kbd className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px]">
+              ⌘K
+            </kbd>
+          </button>
+        )}
+      </div>
+
+      {/* Grouped & Collapsible Navigation Sections */}
+      <nav
+        aria-label="Admin navigation"
+        className={`flex-1 overflow-y-auto py-3 ${
+          isCompactRail ? "space-y-3 px-2" : "space-y-4 px-3"
+        }`}
+      >
+        {visibleSections.map((section, secIdx) => {
+          const isSecCollapsed = Boolean(collapsedSections[section.id]);
+
+          return (
+            <div
+              key={section.id}
+              className={
+                isCompactRail && secIdx > 0 ? "border-t border-line/70 pt-2.5" : ""
+              }
+            >
+              {!isCompactRail && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCollapsedSections((prev) => ({
+                      ...prev,
+                      [section.id]: !prev[section.id],
+                    }))
+                  }
+                  aria-expanded={!isSecCollapsed}
+                  className="mb-1 flex w-full items-center justify-between rounded-md px-2.5 py-1 text-left font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted transition-colors hover:text-ink-heading"
+                >
+                  <span>{section.title}</span>
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform duration-200 ${
+                      isSecCollapsed ? "-rotate-90" : ""
+                    }`}
+                  />
+                </button>
+              )}
+
+              {(!isSecCollapsed || isCompactRail) && (
+                <div className="space-y-1">
+                  {section.items.map((item) => {
                     const Icon = item.icon;
-                    const active = isActive(item.href);
+                    const active =
+                      item.href === "/admin"
+                        ? pathname === "/admin"
+                        : pathname.startsWith(item.href);
+
+                    const showLeadBadge =
+                      item.badgeType === "leads" && newLeadCount > 0;
+                    const showAlertBadge =
+                      item.badgeType === "alerts" && alertSummary !== null;
+
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
+                        title={
+                          isCompactRail
+                            ? `${item.label} — ${item.shortDesc}`
+                            : undefined
+                        }
                         onClick={() => setMobileOpen(false)}
-                        aria-current={active ? "page" : undefined}
-                        className={`flex items-center justify-between rounded-control px-3 py-2 text-[0.84rem] font-medium transition-colors ${
+                        className={`group relative flex min-h-[40px] items-center rounded-xl transition-all ${
+                          isCompactRail
+                            ? "justify-center px-2 py-2.5"
+                            : "justify-between gap-2.5 px-3 py-2 text-[13px] font-medium"
+                        } ${
                           active
-                            ? "bg-accent-subtle font-semibold text-primary"
+                            ? "bg-primary text-primary-foreground shadow-xs"
                             : "text-ink-body hover:bg-surface-muted hover:text-ink-heading"
                         }`}
                       >
-                        <span className="flex items-center gap-2.5">
+                        <span
+                          className={`inline-flex items-center ${
+                            isCompactRail ? "justify-center" : "gap-2.5 truncate"
+                          }`}
+                        >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-primary" : "text-ink-muted"
+                              active
+                                ? "text-primary-foreground"
+                                : "text-ink-muted group-hover:text-primary"
                             }`}
                           />
-                          <span>{item.label}</span>
+                          {!isCompactRail && (
+                            <span className="truncate">{item.label}</span>
+                          )}
                         </span>
-                        {item.badge !== undefined && (
-                          <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-bold text-primary-foreground">
-                            {item.badge}
+
+                        {/* Expanded Badges */}
+                        {!isCompactRail && showLeadBadge && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                              active
+                                ? "bg-white/20 text-primary-foreground"
+                                : "bg-accent-subtle text-primary"
+                            }`}
+                          >
+                            {newLeadCount}
                           </span>
+                        )}
+
+                        {!isCompactRail && showAlertBadge && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                              active
+                                ? "bg-white/20 text-primary-foreground"
+                                : hasCriticalAlert
+                                  ? "bg-status-error/15 text-status-error"
+                                  : totalAlerts > 0
+                                    ? "bg-status-warning/15 text-status-warning"
+                                    : "bg-status-success/15 text-status-success"
+                            }`}
+                          >
+                            {totalAlerts > 0 ? totalAlerts : "OK"}
+                          </span>
+                        )}
+
+                        {/* Compact Rail Corner Dot Badges */}
+                        {isCompactRail && (showLeadBadge || (showAlertBadge && totalAlerts > 0)) && (
+                          <span
+                            aria-hidden="true"
+                            className={`absolute right-1.5 top-1.5 h-2 w-2 rounded-full ${
+                              item.badgeType === "alerts"
+                                ? hasCriticalAlert
+                                  ? "bg-status-error"
+                                  : "bg-status-warning"
+                                : "bg-primary"
+                            }`}
+                          />
                         )}
                       </Link>
                     );
                   })}
                 </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Clean Compact Sidebar Footer: DB Pill + User Card */}
+      <div className="shrink-0 space-y-2.5 border-t border-line p-3">
+        {!isCompactRail && (
+          <div className="flex items-center justify-between rounded-xl border border-line bg-surface-muted/55 px-3 py-2 text-[11px]">
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink-heading">
+              <Database className="h-3.5 w-3.5 text-status-success" />
+              <span>
+                {persistenceDriver === "supabase_postgres"
+                  ? "PostgreSQL Live"
+                  : "Local JSON Store"}
+              </span>
+            </span>
+            <Link
+              href="/admin/diagnostics"
+              onClick={() => setMobileOpen(false)}
+              className="font-mono text-[10px] font-semibold text-primary hover:underline"
+            >
+              Health →
+            </Link>
+          </div>
+        )}
+
+        <div
+          className={`flex items-center rounded-xl border border-line bg-surface-card ${
+            isCompactRail
+              ? "flex-col gap-2 p-2"
+              : "justify-between gap-2.5 px-3 py-2.5"
+          }`}
+        >
+          <div
+            className={`flex min-w-0 items-center ${
+              isCompactRail ? "justify-center" : "gap-2.5"
+            }`}
+          >
+            <div
+              title={`${user.name} (${user.role.replace("_", " ")})`}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-subtle font-mono text-xs font-bold text-primary"
+            >
+              {userInitials}
+            </div>
+            {!isCompactRail && (
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-ink-heading">
+                  {user.name}
+                </p>
+                <p className="truncate font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                  {user.role.replace("_", " ")}
+                </p>
               </div>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="space-y-3 border-t border-line p-4">
-        <div className="rounded-xl border border-line bg-surface-muted/70 p-3 text-xs">
-          <div className="flex items-center gap-1.5 font-semibold text-ink-heading">
-            <Database className="h-3.5 w-3.5 text-primary" />
-            <span>{dbLabel}</span>
+            )}
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-            {dbDescription}
-          </p>
-        </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink-heading">
-              {user.name}
-            </p>
-            <p className="truncate font-mono text-[11px] text-primary">
-              {user.role.replace("_", " ")}
-            </p>
-          </div>
           <button
             type="button"
-            onClick={handleSignOut}
             disabled={signingOut}
+            onClick={handleLogout}
             title="Sign out"
-            className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-body transition-colors hover:border-line-strong hover:text-ink-heading"
+            aria-label="Sign out"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-ink-muted transition-colors hover:border-status-error/40 hover:bg-status-error/10 hover:text-status-error"
           >
             <LogOut className="h-3.5 w-3.5" />
-            <span>{signingOut ? "..." : "Exit"}</span>
           </button>
         </div>
       </div>
@@ -406,72 +673,164 @@ export function AdminShell({
   );
 
   return (
-    <div className="flex min-h-screen bg-canvas">
-      {/* Desktop Sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface lg:block">
-        <div className="sticky top-0 h-screen overflow-y-auto">{sidebarBody}</div>
+    <div className="flex min-h-screen bg-canvas text-ink-body">
+      {/* Desktop Collapsible Sidebar (`260px` <-> `72px`) */}
+      <aside
+        className={`hidden shrink-0 border-r border-line bg-surface transition-[width] duration-200 ease-out lg:sticky lg:top-0 lg:block lg:h-screen ${
+          sidebarCollapsed ? "w-[72px]" : "w-[260px]"
+        }`}
+      >
+        {renderSidebarContent(sidebarCollapsed)}
       </aside>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Slide-Over Sidebar Drawer */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-50 flex lg:hidden"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-50 flex lg:hidden">
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
             onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
           />
-          <aside className="relative z-10 w-72 max-w-[85vw] bg-surface shadow-elevated">
-            {sidebarBody}
+          <aside className="relative z-10 flex h-full w-[min(86vw,300px)] flex-col border-r border-line bg-surface shadow-elevated">
+            {renderSidebarContent(false)}
           </aside>
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Command Palette Modal (Cmd/Ctrl + K) */}
+      {paletteOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Admin quick jump palette"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 px-4 pt-[10vh] backdrop-blur-xs sm:pt-[13vh]"
+          onClick={() => setPaletteOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-surface shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
+              <Search className="h-4 w-4 text-primary" />
+              <input
+                type="search"
+                autoFocus
+                value={paletteQuery}
+                onChange={(e) => setPaletteQuery(e.target.value)}
+                placeholder="Jump to module (e.g. Live Site Report, Theme, Leads)…"
+                className="w-full bg-transparent text-sm text-ink-heading placeholder:text-ink-muted focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setPaletteOpen(false)}
+                className="rounded border border-line px-2 py-0.5 font-mono text-[10px] text-ink-muted hover:text-ink-heading"
+              >
+                ESC
+              </button>
+            </div>
+            <div className="max-h-[55vh] divide-y divide-line overflow-y-auto">
+              {filteredPaletteItems.length === 0 ? (
+                <p className="px-4 py-8 text-center text-xs text-ink-muted">
+                  No matching admin workspace found.
+                </p>
+              ) : (
+                filteredPaletteItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => {
+                        setPaletteOpen(false);
+                        setPaletteQuery("");
+                        router.push(item.href);
+                      }}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-muted"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-card text-primary">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-ink-heading">
+                            {item.label}
+                          </p>
+                          <p className="truncate text-xs text-ink-muted">
+                            {item.shortDesc}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 shrink-0 text-ink-muted" />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Shell */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        {/* Top Sticky Workspace Header */}
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="rounded-control border border-line p-2 text-ink-body hover:bg-surface-muted lg:hidden"
-              aria-label="Open navigation menu"
+              aria-label="Open admin navigation"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-card text-ink-heading lg:hidden"
             >
               <Menu className="h-4 w-4" />
             </button>
 
-            <div className="hidden items-center gap-2 text-xs sm:flex">
-              <span className="font-mono uppercase tracking-wider text-ink-muted">
-                {activeNavItem?.group || "Workspace"}
+            <nav
+              aria-label="Admin breadcrumb"
+              className="flex min-w-0 items-center gap-1.5 text-xs sm:text-sm"
+            >
+              <span className="hidden font-medium text-ink-muted sm:inline">
+                {activeNavMeta.sectionTitle}
               </span>
-              <span className="text-ink-muted">/</span>
-              <strong className="text-sm font-semibold text-ink-heading">
-                {activeNavItem?.label || "Administration"}
-              </strong>
-            </div>
+              <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-ink-muted sm:inline" />
+              <span className="truncate font-semibold text-ink-heading">
+                {activeNavMeta.item?.label}
+              </span>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            {!user.mustChangePassword && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPaletteQuery("");
-                  setPaletteIndex(0);
-                  setPaletteOpen(true);
-                }}
-                aria-label="Open quick jump command palette"
-                className="inline-flex items-center gap-2 rounded-control border border-line bg-surface-muted px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-primary/40 hover:text-ink-heading"
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            {/* Live Site Health Status Pill -> Always 1 click to /admin/diagnostics */}
+            {alertSummary && (
+              <Link
+                href="/admin/diagnostics"
+                title="Open Live Site Health & Error Report"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-colors sm:px-3 ${
+                  hasCriticalAlert
+                    ? "border-status-error/45 bg-status-error/12 text-status-error hover:bg-status-error/20"
+                    : totalAlerts > 0
+                      ? "border-status-warning/45 bg-status-warning/12 text-status-warning hover:bg-status-warning/20"
+                      : "border-status-success/40 bg-status-success/10 text-status-success hover:bg-status-success/18"
+                }`}
               >
-                <Search className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden md:inline">Quick Jump…</span>
-                <kbd className="hidden rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-muted sm:inline-flex sm:items-center sm:gap-0.5">
-                  <Command className="h-2.5 w-2.5" />K
-                </kbd>
-              </button>
+                {hasCriticalAlert ? (
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                ) : totalAlerts > 0 ? (
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="hidden sm:inline">
+                  {hasCriticalAlert
+                    ? `${alertSummary.criticalCount} Critical Alert${
+                        alertSummary.criticalCount === 1 ? "" : "s"
+                      }`
+                    : totalAlerts > 0
+                      ? `${totalAlerts} Site Warning${totalAlerts === 1 ? "" : "s"}`
+                      : `Site Healthy · ${alertSummary.score}`}
+                </span>
+                <span className="font-mono sm:hidden">
+                  {totalAlerts > 0 ? totalAlerts : "OK"}
+                </span>
+              </Link>
             )}
 
             <ThemeToggle />
@@ -479,126 +838,69 @@ export function AdminShell({
             <Link
               href="/"
               target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:bg-surface-muted"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-card px-3 py-1.5 text-xs font-semibold text-ink-heading transition-colors hover:border-primary hover:text-primary"
             >
-              <span className="hidden sm:inline">Public Site</span>
+              <span className="hidden sm:inline">Live Site</span>
               <ExternalLink className="h-3.5 w-3.5 text-primary" />
             </Link>
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        {/* Global Live Site Problem / Error Alert Strip */}
+        {alertSummary &&
+          totalAlerts > 0 &&
+          !bannerDismissed &&
+          pathname !== "/admin/diagnostics" && (
+            <div
+              role="alert"
+              className={`border-b px-4 py-2.5 text-xs sm:px-6 lg:px-8 ${
+                hasCriticalAlert
+                  ? "border-status-error/35 bg-status-error/10 text-ink-heading"
+                  : "border-status-warning/35 bg-status-warning/10 text-ink-heading"
+              }`}
+            >
+              <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  {hasCriticalAlert ? (
+                    <AlertCircle className="h-4 w-4 shrink-0 text-status-error" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" />
+                  )}
+                  <p className="truncate font-medium">
+                    <span className="font-bold">
+                      {hasCriticalAlert ? "Live Site Error Alert:" : "Live Site Notice:"}
+                    </span>{" "}
+                    {alertSummary.topAlertTitle}
+                    {totalAlerts > 1 ? ` (+${totalAlerts - 1} more)` : ""}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <Link
+                    href="/admin/diagnostics"
+                    className="inline-flex items-center gap-1 rounded-full bg-surface-card px-3 py-1 font-semibold text-primary shadow-2xs hover:underline"
+                  >
+                    <span>Open Live Report</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setBannerDismissed(true)}
+                    aria-label="Dismiss alert banner"
+                    className="rounded p-1 text-ink-muted hover:text-ink-heading"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          {children}
+        </main>
       </div>
-
-      {/* Quick Jump Command Palette Modal */}
-      {paletteOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Admin quick jump palette"
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-xs"
-          onClick={() => setPaletteOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-surface shadow-elevated"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-              <Search className="h-4 w-4 text-primary" />
-              <input
-                ref={paletteInputRef}
-                type="search"
-                value={paletteQuery}
-                onChange={(e) => {
-                  setPaletteQuery(e.target.value);
-                  setPaletteIndex(0);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setPaletteIndex((i) =>
-                      filteredCommands.length ? (i + 1) % filteredCommands.length : 0
-                    );
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setPaletteIndex((i) =>
-                      filteredCommands.length
-                        ? (i - 1 + filteredCommands.length) % filteredCommands.length
-                        : 0
-                    );
-                  } else if (e.key === "Enter" && filteredCommands[paletteIndex]) {
-                    e.preventDefault();
-                    const chosen = filteredCommands[paletteIndex];
-                    setPaletteOpen(false);
-                    if (chosen.external) {
-                      window.open(chosen.href, "_blank", "noopener,noreferrer");
-                    } else {
-                      router.push(chosen.href);
-                    }
-                  }
-                }}
-                placeholder="Jump to CRM, Page Builder, CMS, Theme, SEO, Users..."
-                className="w-full bg-transparent text-sm text-ink-heading placeholder:text-ink-muted focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setPaletteOpen(false)}
-                className="rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-ink-muted hover:text-ink-heading"
-              >
-                ESC
-              </button>
-            </div>
-
-            <div className="max-h-80 overflow-y-auto p-2">
-              {filteredCommands.length === 0 ? (
-                <p className="py-8 text-center text-xs text-ink-muted">
-                  No matching workspace modules found.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {filteredCommands.map((cmd, idx) => {
-                    const selected = idx === paletteIndex;
-                    return (
-                      <li key={cmd.id}>
-                        <button
-                          type="button"
-                          onMouseEnter={() => setPaletteIndex(idx)}
-                          onClick={() => {
-                            setPaletteOpen(false);
-                            if (cmd.external) {
-                              window.open(cmd.href, "_blank", "noopener,noreferrer");
-                            } else {
-                              router.push(cmd.href);
-                            }
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs transition-colors ${
-                            selected
-                              ? "bg-accent-subtle text-primary"
-                              : "text-ink-heading hover:bg-surface-muted"
-                          }`}
-                        >
-                          <div>
-                            <span className="font-semibold">{cmd.label}</span>
-                            <span className="ml-2 font-mono text-[10px] text-ink-muted">
-                              {cmd.category}
-                            </span>
-                          </div>
-                          {cmd.external ? (
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedBlogPosts,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleArrowButton } from "@/components/ui/soale";
 import { BlogFilterList } from "@/components/sections/BlogFilterList";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Insights & Practical Automation Guides",
@@ -16,8 +19,8 @@ export const metadata: Metadata = {
 
 export default async function BlogIndexPage() {
   const [posts, settings] = await Promise.all([
-    db.listBlogPosts(true),
-    db.getSiteSettings(),
+    getCachedPublishedBlogPosts(),
+    getCachedSiteSettings(),
   ]);
 
   return (

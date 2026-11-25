@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/ui/BrandMark";
 import { Container } from "@/components/ui/Container";
 import { SoaleArrowButton } from "@/components/ui/soale";
 import { CookiePreferencesButton } from "@/components/analytics/CookiePreferencesButton";
+import { hasConfiguredContactEmail } from "@/lib/placeholders";
 
 interface FooterProps {
   brand: BrandAssetConfig;
@@ -28,7 +29,7 @@ export function Footer({ brand, settings }: FooterProps) {
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-3.5 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-[var(--of-color-body)]">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              Deterministic Guardrails · 100% Client IP Ownership
+              Human Approval Gates · 100% Client-Owned Systems
             </span>
           </div>
 
@@ -61,16 +62,25 @@ export function Footer({ brand, settings }: FooterProps) {
             </p>
             <div className="mt-5 space-y-2 text-xs text-[var(--of-color-muted)]">
               <p className="font-mono uppercase tracking-[0.12em]">
-                Principal Architect: {settings.founderName}
+                Founder: {settings.founderName}
               </p>
               <p className="inline-flex items-center gap-2 text-[var(--of-color-body)]">
                 <Mail className="h-3.5 w-3.5 text-primary" />
-                <a
-                  href={`mailto:${settings.contactEmail}`}
-                  className="transition-colors hover:text-[var(--of-color-heading)] hover:underline"
-                >
-                  {settings.contactEmail}
-                </a>
+                {hasConfiguredContactEmail(settings.contactEmail) ? (
+                  <a
+                    href={`mailto:${settings.contactEmail}`}
+                    className="transition-colors hover:text-[var(--of-color-heading)] hover:underline"
+                  >
+                    {settings.contactEmail}
+                  </a>
+                ) : (
+                  <Link
+                    href="/contact"
+                    className="transition-colors hover:text-[var(--of-color-heading)] hover:underline"
+                  >
+                    Send an enquiry →
+                  </Link>
+                )}
               </p>
             </div>
           </div>

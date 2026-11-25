@@ -18,10 +18,11 @@ import {
 import type { ThemeConfiguration } from "@/types/theme";
 
 describe("Upgrade Phase 2 — Light-First Design Foundation, CSS Token Architecture & Brand System", () => {
-  it("1. enforces premium Light-First default tokens (white/slate surfaces, indigo/violet/blue accents, deep charcoal text)", () => {
+  it("1. enforces Dark Purple AI default config while preserving Indigo Signature Light & Dark tokens", () => {
     const defaultConfig = createDefaultThemeConfiguration();
-    expect(defaultConfig.defaultMode).toBe("light");
+    expect(defaultConfig.defaultMode).toBe("dark");
     expect(defaultConfig.activePresetId).toBe(DEFAULT_THEME_PRESET_ID);
+    expect(defaultConfig.published.dark.colors.background).toBe("#07030D");
 
     // Light surfaces: clean white + cool grey
     expect(OMNIFLOW_LIGHT_TOKENS.colors.background).toBe("#F8FAFC");
@@ -69,11 +70,11 @@ describe("Upgrade Phase 2 — Light-First Design Foundation, CSS Token Architect
     const css = buildThemeCssVariables(createDefaultThemeConfiguration());
     expect(css).toContain(':root, [data-theme="light"] {');
     expect(css).toContain('[data-theme="dark"], .dark {');
-    expect(css).toContain("--of-color-primary: #4F46E5;");
-    expect(css).toContain("--of-color-bg: #F8FAFC;");
-    expect(css).toContain("--of-color-bg: #090D16;");
-    expect(css).toContain("--of-text-navbar: #0B1120;");
-    expect(css).toContain("--of-text-navbar: #F8FAFC;");
+    expect(css).toContain("--of-color-primary: #7E22CE;");
+    expect(css).toContain("--of-color-bg: #FAF8FC;");
+    expect(css).toContain("--of-color-bg: #07030D;");
+    expect(css).toContain("--of-text-navbar: #140A24;");
+    expect(css).toContain("--of-text-navbar: #FAF7FF;");
     expect(css).toContain("--of-surface-glass:");
     expect(css).toContain("--of-shadow-glow:");
     expect(css).toContain("--of-radius-card: 1rem;");
@@ -83,7 +84,7 @@ describe("Upgrade Phase 2 — Light-First Design Foundation, CSS Token Architect
     expect(isValidCssColor("rgba(255, 255, 255, 0.88)")).toBe(true);
   });
 
-  it("4. non-destructively migrates untouched legacy dark/vermilion seeds while preserving admin customizations", () => {
+  it("4. non-destructively migrates untouched legacy seeds to Dark Purple AI while preserving admin customizations", () => {
     const untouchedLegacySeed: ThemeConfiguration = {
       activePresetId: "omniflow-editorial-ember",
       defaultMode: "dark",
@@ -96,18 +97,18 @@ describe("Upgrade Phase 2 — Light-First Design Foundation, CSS Token Architect
 
     const migrated = normalizeStoredThemeConfig(untouchedLegacySeed);
     expect(migrated.upgraded).toBe(true);
-    expect(migrated.config.defaultMode).toBe("light");
-    expect(migrated.config.activePresetId).toBe("omniflow-light-signature");
+    expect(migrated.config.defaultMode).toBe("dark");
+    expect(migrated.config.activePresetId).toBe("omniflow-dark-purple-ai");
 
     // Admin-customized config (updatedBy set) is strictly preserved
     const adminCustomized: ThemeConfiguration = {
       ...untouchedLegacySeed,
-      defaultMode: "dark",
+      defaultMode: "light",
       updatedBy: "admin@omniflow.example",
     };
     const preserved = normalizeStoredThemeConfig(adminCustomized);
     expect(preserved.upgraded).toBe(false);
-    expect(preserved.config.defaultMode).toBe("dark");
+    expect(preserved.config.defaultMode).toBe("light");
   });
 
   it("5. ensures zero legacy warm-obsidian/vermilion hexes or copied external logos exist in src/", () => {

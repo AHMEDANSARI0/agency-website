@@ -117,7 +117,7 @@ describe("Upgrade Phase 1 — Critical Production Reliability, Auth Security, St
       const leadJson = await leadRes.json();
       expect(leadJson.code).toBe("DB_MISSING_URL");
 
-      // Readiness probe returns 503 without leaking secrets or paths
+      // Public readiness probe returns 503 degraded without leaking any internals, secrets, or paths
       const readinessRes = await healthHandler(
         new Request("http://localhost:3000/api/health")
       );
@@ -126,14 +126,14 @@ describe("Upgrade Phase 1 — Critical Production Reliability, Auth Security, St
       expect(readinessRaw).not.toContain(process.env.AUTH_SECRET!);
       expect(readinessRaw).not.toContain("/home/user");
       const readinessJson = JSON.parse(readinessRaw);
-      expect(readinessJson.database.connected).toBe(false);
-      expect(readinessJson.storage.healthy).toBe(false);
+      expect(readinessJson).toEqual({ status: "degraded" });
 
-      // Liveness probe still returns 200
+      // Liveness probe still returns 200 with minimal public payload
       const livenessRes = await healthHandler(
         new Request("http://localhost:3000/api/health?probe=liveness")
       );
       expect(livenessRes.status).toBe(200);
+      expect(await livenessRes.json()).toEqual({ status: "ok" });
     } finally {
       if (prevStrict === undefined) delete process.env.OMNIFLOW_STRICT_PRODUCTION;
       else process.env.OMNIFLOW_STRICT_PRODUCTION = prevStrict;

@@ -36,22 +36,22 @@ const FLAGSHIP_SYSTEMS = [
   {
     title: "Lead Management & Qualification",
     href: "/services/lead-management",
-    badge: "Priority 01",
-    summary: "Instant multi-channel capture, deterministic scoring, CRM sync, and owner briefs.",
+    badge: "Flagship 01",
+    summary: "Capture every enquiry 24/7, score fit automatically, update your CRM, and alert your team.",
     icon: Filter,
   },
   {
-    title: "Policy-Grounded AI Support",
+    title: "AI Customer Support Assistants",
     href: "/services/ai-customer-support",
-    badge: "Priority 02",
-    summary: "24/7 answers strictly bounded to approved policies with human escalation.",
+    badge: "Flagship 02",
+    summary: "Instant replies from your approved FAQs and policies, with clean human handoff for exceptions.",
     icon: MessageSquareText,
   },
   {
-    title: "End-to-End Workflow Automation",
+    title: "Workflow & Process Automation",
     href: "/services/workflow-automation",
-    badge: "Priority 03",
-    summary: "Eliminate manual copy-paste across forms, CRM, billing, and client onboarding.",
+    badge: "Flagship 03",
+    summary: "Stop copy-pasting client details across forms, CRM, billing, and onboarding folders.",
     icon: Workflow,
   },
 ];
@@ -491,6 +491,7 @@ export function Navbar({ brand, settings }: NavbarProps) {
         {openMega && (
           <div
             ref={panelRef}
+            data-lenis-prevent
             onMouseEnter={clearCloseTimer}
             onMouseLeave={scheduleCloseMega}
             className="absolute inset-x-0 top-[calc(100%+10px)] hidden rounded-2xl border border-line bg-surface p-6 shadow-elevated xl:block"
@@ -728,7 +729,8 @@ export function Navbar({ brand, settings }: NavbarProps) {
       {mobileOpen && (
         <div
           id="omniflow-mobile-menu"
-          className="pointer-events-auto absolute inset-x-3 top-[68px] max-h-[84vh] overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-elevated xl:hidden"
+          data-lenis-prevent
+          className="pointer-events-auto absolute inset-x-2 top-[64px] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-line bg-surface p-4 shadow-elevated sm:inset-x-3 sm:top-[68px] sm:p-5 xl:hidden"
         >
           <div className="space-y-2">
             {/* Group 1: Services */}
@@ -824,7 +826,7 @@ export function Navbar({ brand, settings }: NavbarProps) {
             </div>
 
             {/* Direct Mobile Links */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-1 gap-2 pt-1 min-[380px]:grid-cols-2">
               {[
                 { label: "How It Works", href: "/how-it-works" },
                 { label: "Interactive Demos", href: "/demos" },
@@ -839,7 +841,7 @@ export function Navbar({ brand, settings }: NavbarProps) {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className="rounded-xl border border-line bg-surface-card px-3.5 py-2.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
+                  className="flex min-h-[42px] items-center rounded-xl border border-line bg-surface-card px-3.5 py-2.5 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
                 >
                   {link.label}
                 </Link>

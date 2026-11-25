@@ -1,20 +1,27 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/database";
 import { createInitialSeedSnapshot } from "@/lib/database/seed-data";
 
 describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Homepage & Inner Pages)", () => {
+  let tempDir = "";
+
   beforeEach(() => {
-    const tempDbPath = path.join(
-      process.cwd(),
-      "data",
-      `test-upgrade-phase3-${Date.now()}.json`
-    );
-    process.env.OMNIFLOW_DB_PATH = tempDbPath;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omniflow-upg-p3-"));
+    process.env.OMNIFLOW_LOCAL_DB_PATH = path.join(tempDir, "upg-p3-db.json");
+    delete process.env.DATABASE_URL;
   });
 
-  it("seeds all 16 visible narrative homepage sections plus the strict verified-testimonials gate", async () => {
+  afterEach(() => {
+    delete process.env.OMNIFLOW_LOCAL_DB_PATH;
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("seeds all 9 focused homepage sections plus the strict verified-testimonials gate", async () => {
     const snapshot = createInitialSeedSnapshot();
     const home = snapshot.pages.find((p) => p.slug === "home");
     expect(home).toBeDefined();
@@ -25,28 +32,17 @@ describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Hom
       "trust_strip",
       "problems_outcomes",
       "flagship_systems",
-      "services_overview",
       "interactive_demos_preview",
-      "workflow_demo",
       "how_it_works",
-      "industry_use_cases",
-      "architecture_governance",
-      "roi_framing",
       "case_studies_highlight",
-      "founder_intro",
-      "insights_preview",
-      "testimonials",
+      "roi_framing",
       "faq_section",
-      "cta_banner",
     ]);
 
-    // When verified testimonials are empty (truthful baseline), 16 live sections render
     const verifiedTestimonials = await db.listTestimonials(true);
     expect(verifiedTestimonials).toHaveLength(0);
-    const activeNonTestimonialCount = home!.sections.filter(
-      (s) => s.isVisible && s.type !== "testimonials"
-    ).length;
-    expect(activeNonTestimonialCount).toBe(16);
+    const activeSectionCount = home!.sections.filter((s) => s.isVisible).length;
+    expect(activeSectionCount).toBe(9);
   });
 
   it("includes accessible WAI-ARIA mega-menu controls, 8 service links, and 5 live demo links in Navbar", () => {

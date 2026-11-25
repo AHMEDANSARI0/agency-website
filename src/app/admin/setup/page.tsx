@@ -1,6 +1,7 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { InitialSetupForm } from "@/features/admin/InitialSetupForm";
@@ -8,10 +9,27 @@ import { ThemeToggle } from "@/features/themes/ThemeToggle";
 import { db } from "@/lib/database";
 import { isProductionEnvironment } from "@/lib/env";
 
+export async function generateMetadata(): Promise<Metadata> {
+  const [hasSuperAdmin, userCount] = await Promise.all([
+    db.hasSuperAdmin(),
+    db.countUsers(),
+  ]);
+  if (hasSuperAdmin || userCount > 0) {
+    notFound();
+  }
+  return {
+    title: "Initial Administrator Setup",
+    robots: { index: false, follow: false },
+  };
+}
+
 export default async function AdminInitialSetupPage() {
-  const userCount = await db.countUsers();
-  if (userCount > 0) {
-    redirect("/admin/login");
+  const [hasSuperAdmin, userCount] = await Promise.all([
+    db.hasSuperAdmin(),
+    db.countUsers(),
+  ]);
+  if (hasSuperAdmin || userCount > 0) {
+    notFound();
   }
 
   const [brand, settings] = await Promise.all([

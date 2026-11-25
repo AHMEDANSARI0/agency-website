@@ -44,10 +44,22 @@ function verifyProductionSetupAuthorization(providedToken: string | undefined): 
 
 export async function GET() {
   try {
-    const count = await db.countUsers();
+    const [hasSuperAdmin, count] = await Promise.all([
+      db.hasSuperAdmin(),
+      db.countUsers(),
+    ]);
+    if (hasSuperAdmin || count > 0) {
+      return NextResponse.json(
+        {
+          setupRequired: false,
+          error: "Initial administrator setup is permanently locked.",
+        },
+        { status: 404, headers: NO_STORE_HEADERS }
+      );
+    }
     return NextResponse.json(
       {
-        setupRequired: count === 0,
+        setupRequired: true,
         requiresSetupToken: isProductionEnvironment(),
       },
       { headers: NO_STORE_HEADERS }

@@ -194,34 +194,60 @@ export function SoaleEditorialProof({
         className="flex flex-col justify-between p-7 sm:p-9 lg:col-span-5"
       >
         <div>
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-            Principal-Led Delivery
-          </p>
-          <h3 className="soale-h3 mt-3 text-ink-heading">
-            {founder?.name ?? "Ahmed Ansari"}
-          </h3>
-          <p className="mt-1 text-xs font-medium text-ink-muted">
-            {founder?.role ?? "Founder & Principal Automation Architect"}
-          </p>
+          <div className="flex items-center gap-4">
+            {founder?.avatarUrl && !founder.avatarUrl.includes("{{") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={founder.avatarUrl}
+                alt={founder.name}
+                className="h-14 w-14 rounded-2xl border border-line object-cover"
+              />
+            ) : (
+              <div
+                aria-label="Founder avatar placeholder ({{FOUNDER_PHOTO_URL}})"
+                title="Upload founder photo in Admin → Team ({{FOUNDER_PHOTO_URL}})"
+                className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-accent-subtle font-display text-lg font-bold text-primary"
+              >
+                AA
+              </div>
+            )}
+
+            <div>
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Founder-Led Delivery
+              </p>
+              <h3 className="soale-h4 mt-0.5 text-ink-heading">
+                {founder?.name ?? "Ahmed Ansari"}
+              </h3>
+              <p className="text-xs font-medium text-ink-muted">
+                {founder?.role ?? "Founder & Principal Automation Architect"}
+              </p>
+            </div>
+          </div>
 
           <p className="mt-4 text-sm leading-relaxed text-ink-body">
             {founder?.bio ??
-              "Direct architectural oversight from discovery audit through staging QA and team handover — aligned with US, UK, and Canadian business hours."}
+              "Direct founder oversight from workflow review through staging walkthrough and handover — aligned with US, UK, and Canadian business hours."}
           </p>
 
           {founder?.focusAreas && founder.focusAreas.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-2">
-              {founder.focusAreas.slice(0, 4).map((area) => (
+              {founder.focusAreas.slice(0, 3).map((area) => (
                 <SoaleChip key={area}>{area}</SoaleChip>
               ))}
             </div>
           )}
         </div>
 
-        <div className="mt-7 border-t border-line pt-5">
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
           <SoaleArrowButton href="/about" variant="outline" size="sm">
-            Meet Leadership &amp; Standards
+            About &amp; Standards
           </SoaleArrowButton>
+          {(!founder?.avatarUrl || founder.avatarUrl.includes("{{")) && (
+            <span className="font-mono text-[0.68rem] text-ink-muted">
+              Slot: {"{{FOUNDER_PHOTO_URL}}"}
+            </span>
+          )}
         </div>
       </SoaleCard>
     </div>

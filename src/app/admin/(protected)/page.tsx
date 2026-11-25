@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import {
+  Activity,
   AlertTriangle,
   ArrowRight,
   CalendarClock,
@@ -23,6 +24,7 @@ import { getSystemHealthReport } from "@/features/system/health";
 import { hasPermission } from "@/lib/auth/rbac";
 import { requireAdminPageAuth } from "@/lib/auth/server";
 import { computeLeadDashboardMetrics, db } from "@/lib/database";
+import { findUnfilledPlaceholders } from "@/lib/placeholders";
 import type { LeadStatus } from "@/types/content";
 
 const FUNNEL_STAGES: LeadStatus[] = [
@@ -129,9 +131,70 @@ export default async function AdminDashboardPage() {
     100,
     Math.round((health.storage.usedBytes / Math.max(1, health.storage.totalQuotaBytes)) * 100)
   );
+  const unfilledPlaceholders = findUnfilledPlaceholders({
+    settings,
+    pages,
+    services,
+    caseStudies,
+    blogPosts,
+    faqs,
+    teamMembers,
+  });
 
   return (
     <div className="space-y-8">
+      {unfilledPlaceholders.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-card border border-status-warning/45 bg-status-warning/10 p-5 shadow-card"
+        >
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-status-warning" />
+              <div>
+                <h2 className="text-sm font-bold text-ink-heading">
+                  Launch Checklist: {unfilledPlaceholders.length} placeholder{" "}
+                  {unfilledPlaceholders.length === 1 ? "value needs" : "values need"} owner content
+                </h2>
+                <p className="mt-1 text-xs text-ink-body">
+                  Public pages safely hide broken links while placeholders are set, but replace each{" "}
+                  <code className="rounded bg-surface px-1 py-0.5 font-mono text-[11px]">
+                    {"{{PLACEHOLDER}}"}
+                  </code>{" "}
+                  below before going live:
+                </p>
+                <ul className="mt-2.5 space-y-1.5 text-xs text-ink-heading">
+                  {unfilledPlaceholders.map((item) => (
+                    <li
+                      key={`${item.token}-${item.location}`}
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      <code className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                        {item.token}
+                      </code>
+                      <span className="text-ink-muted">({item.location})</span>
+                      <Link
+                        href={item.adminHref}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        Edit →
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <Link
+              href="/admin/settings"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              <span>Open Site Settings</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Executive Header + Quick Action Launcher */}
       <div className="flex flex-col justify-between gap-5 rounded-card border border-[var(--of-border-card)] bg-surface-card p-6 shadow-card lg:flex-row lg:items-center">
         <div>
@@ -147,6 +210,13 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/admin/diagnostics"
+            className="inline-flex items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3.5 py-2 text-xs font-semibold text-ink-heading hover:border-primary hover:text-primary"
+          >
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            <span>Live Site Report</span>
+          </Link>
           {canViewLeads && (
             <Link
               href="/admin/leads"

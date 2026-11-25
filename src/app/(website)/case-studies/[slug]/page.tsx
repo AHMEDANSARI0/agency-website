@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Cpu, Info, XCircle } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedCaseStudyBySlug,
+  getCachedPublishedCaseStudies,
+  getCachedPublishedServices,
+  getCachedPublishedTestimonials,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -20,7 +26,12 @@ import {
   getCanonicalSiteUrl,
 } from "@/features/seo/json-ld";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
+
+export async function generateStaticParams() {
+  const items = await getCachedPublishedCaseStudies();
+  return items.map((c) => ({ slug: c.slug }));
+}
 
 interface CaseStudyDetailProps {
   params: Promise<{ slug: string }>;
@@ -30,13 +41,16 @@ export async function generateMetadata({
   params,
 }: CaseStudyDetailProps): Promise<Metadata> {
   const { slug } = await params;
-  const item = await db.getCaseStudyBySlug(slug, true);
+  const item = await getCachedCaseStudyBySlug(slug);
   if (!item) {
     return { title: "Case Study Not Found" };
   }
   const baseUrl = getCanonicalSiteUrl();
+  const cleanTitle = (item.seo.seoTitle || item.title)
+    .replace(/(?:\s*[|—–\-:]\s*OmniFlow(?:\s+Insights)?)+\s*$/i, "")
+    .trim();
   return {
-    title: item.seo.seoTitle || item.title,
+    title: cleanTitle || item.title,
     description: item.seo.seoDescription || item.problemSummary,
     alternates: {
       canonical:
@@ -52,11 +66,11 @@ export default async function CaseStudyDetailPage({
   const { slug } = await params;
   const [study, allItems, allServices, testimonials, settings] =
     await Promise.all([
-      db.getCaseStudyBySlug(slug, true),
-      db.listCaseStudies(true),
-      db.listServices(true),
-      db.listTestimonials(true),
-      db.getSiteSettings(),
+      getCachedCaseStudyBySlug(slug),
+      getCachedPublishedCaseStudies(),
+      getCachedPublishedServices(),
+      getCachedPublishedTestimonials(),
+      getCachedSiteSettings(),
     ]);
 
   if (!study) {

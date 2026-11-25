@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomBytes } from "node:crypto";
+import { revalidatePath, revalidateTag } from "next/cache";
 import postgres from "postgres";
 import type {
   AuditLogEntry,
@@ -28,13 +29,7 @@ import type {
   TestimonialItem,
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
-import {
-  createArchivedOriginalThemeSnapshot,
-  normalizeStoredThemeConfig,
-  SOALE_INSPIRED_DESIGN_SYSTEM,
-  SOALE_INSPIRED_PREMIUM_PRESET,
-  SOALE_INSPIRED_PRESET_ID,
-} from "@/features/themes/presets";
+import { normalizeStoredThemeConfig } from "@/features/themes/presets";
 import {
   DatabaseUnavailableError,
   isNextBuildPhase,
@@ -43,11 +38,15 @@ import {
   isServerlessRuntime,
   type DatabaseFailureCode,
 } from "@/lib/env";
+import { resolvePricingConfig } from "@/features/pricing/default-pricing";
+import { normalizeLegacyContactEmail } from "@/lib/placeholders";
 import {
   CURRENT_SEED_VERSION,
+  DEFAULT_HOME_SECTIONS,
   buildBootstrapSuperAdmin,
   createInitialSeedSnapshot,
   type OmniFlowDatabaseSnapshot,
+  type SiteErrorIncident,
   type StoredDatabaseBackup,
 } from "./seed-data";
 
@@ -187,32 +186,6 @@ function stripUnsupportedPostgresQueryParams(rawUrl: string): string {
   return nextQuery ? `${base}?${nextQuery}${hashSuffix}` : `${base}${hashSuffix}`;
 }
 
-function createSoaleProductionThemeSeed(): ThemeConfiguration {
-  return {
-    activePresetId: SOALE_INSPIRED_PRESET_ID,
-    defaultMode: "light",
-    designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
-    published: {
-      light: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.light),
-      dark: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.dark),
-      overrides: {},
-      designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
-      defaultMode: "light",
-    },
-    draft: {
-      light: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.light),
-      dark: structuredClone(SOALE_INSPIRED_PREMIUM_PRESET.dark),
-      overrides: {},
-      designSystem: structuredClone(SOALE_INSPIRED_DESIGN_SYSTEM),
-      defaultMode: "light",
-    },
-    previousPublished: null,
-    archivedOriginalTheme: createArchivedOriginalThemeSnapshot(),
-    customPresets: [],
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 /**
  * On Vercel Serverless, Supabase Session Pooler (:5432, ~15 client cap) saturates under concurrent
  * Lambda invocations (EMAXCONNSESSION). Upgrading to Transaction Pooler (:6543, 200+ clients)
@@ -241,6 +214,7 @@ export function normalizeDatabaseUrlForRuntime(
 interface CachedPostgresKvBundle {
   siteSettings?: SiteSettings;
   themeConfig?: ThemeConfiguration;
+  themeConfigUpgraded?: boolean;
   brandAssets?: BrandAssetConfig;
   servicePillars?: ServiceCategoryPillar[];
   expiresAt: number;
@@ -261,12 +235,59 @@ interface CachedPostgresPublicCatalog {
 let cachedPgKvBundle: CachedPostgresKvBundle | null = null;
 let cachedPgPublicCatalog: CachedPostgresPublicCatalog | null = null;
 
+function safeRevalidateNextCache(tags: string[], paths: string[]): void {
+  if (Boolean(process.env.VITEST) || process.env.NODE_ENV === "test") {
+    return;
+  }
+  for (const tag of tags) {
+    try {
+      revalidateTag(tag);
+    } catch {
+      // Safe outside Next.js request context
+    }
+  }
+  for (const p of paths) {
+    try {
+      revalidatePath(p);
+    } catch {
+      // Safe outside Next.js request context
+    }
+  }
+}
+
 function invalidatePgKvBundle(): void {
   cachedPgKvBundle = null;
+  safeRevalidateNextCache(
+    ["settings", "theme", "brand", "services"],
+    ["/", "/pricing", "/contact", "/faq", "/services"]
+  );
 }
 
 function invalidatePgPublicCatalog(): void {
   cachedPgPublicCatalog = null;
+  safeRevalidateNextCache(
+    [
+      "pages",
+      "services",
+      "caseStudies",
+      "blog",
+      "faqs",
+      "team",
+      "testimonials",
+      "redirects",
+    ],
+    [
+      "/",
+      "/services",
+      "/case-studies",
+      "/work",
+      "/blog",
+      "/faq",
+      "/team",
+      "/sitemap.xml",
+      "/feed.xml",
+    ]
+  );
 }
 
 /**
@@ -351,10 +372,48 @@ function getPostgresClient(): ReturnType<typeof postgres> | null {
       max_lifetime: 60 * 5,
       connect_timeout: strictProd ? 12 : 5,
       prepare: false, // Required for Supabase PgBouncer/Supavisor Transaction Pooler (:6543)
+      // Parse DATE (1082) and TIMESTAMP/TIMESTAMPTZ (1114, 1184) directly into ISO-8601 strings
+      // instead of JS Date objects so all Admin & RSC string helpers (.replace/.slice/.startsWith) work seamlessly.
+      types: {
+        isoTimestamp: {
+          to: 1184,
+          from: [1114, 1184],
+          serialize: (x: unknown) =>
+            x instanceof Date ? x.toISOString() : String(x),
+          parse: (x: string) => {
+            const d = new Date(x);
+            return Number.isNaN(d.getTime()) ? String(x) : d.toISOString();
+          },
+        },
+        isoDate: {
+          to: 1082,
+          from: [1082],
+          serialize: (x: unknown) =>
+            x instanceof Date ? x.toISOString().slice(0, 10) : String(x),
+          parse: (x: string) => String(x).slice(0, 10),
+        },
+      },
       ...(isSupabaseHost ? { ssl: "require" } : {}),
     });
   }
   return cachedSqlClient;
+}
+
+export function normalizePgIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : value.toISOString();
+  }
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+export function normalizePgNullableIsoTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  return String(value);
 }
 
 export function isDirectIpv6SupabaseHost(url: string): boolean {
@@ -505,9 +564,7 @@ async function ensurePostgresBaselineSeed(
     }
 
     const initial = createInitialSeedSnapshot();
-    const themeSeed = isProductionEnvironment()
-      ? createSoaleProductionThemeSeed()
-      : initial.themeConfig;
+    const themeSeed = initial.themeConfig;
 
     // Single-round-trip atomic CTE seed across all 7 baseline tables (~280ms cross-region
     // instead of 28 sequential INSERT round-trips that previously timed out at 6,000ms).
@@ -766,6 +823,68 @@ function mergeByKey<T>(
   return merged;
 }
 
+const LEGACY_PRIMARY_CTA_LABELS = new Set([
+  "Request an Automation Audit",
+  "Request Workflow Review",
+  "Book Discovery Call",
+  "Book a Free Discovery Call",
+]);
+
+const LEGACY_SECONDARY_CTA_LABELS = new Set([
+  "Try Interactive Demos",
+  "Explore Interactive Demos",
+  "Explore Live Demos",
+]);
+
+function normalizeLegacySiteSettings(raw: SiteSettings): SiteSettings {
+  const isLegacyPrimary = LEGACY_PRIMARY_CTA_LABELS.has(
+    (raw.primaryCtaLabel || "").trim()
+  );
+  const isLegacySecondary = LEGACY_SECONDARY_CTA_LABELS.has(
+    (raw.secondaryCtaLabel || "").trim()
+  );
+  const isLegacyTagline =
+    raw.tagline ===
+    "Eliminate repetitive work. Respond faster. Scale connected operations.";
+
+  return {
+    ...raw,
+    tagline: isLegacyTagline
+      ? "Automate the work. Accelerate the business."
+      : raw.tagline,
+    contactEmail: normalizeLegacyContactEmail(raw.contactEmail),
+    primaryCtaLabel: isLegacyPrimary
+      ? "Book a free workflow review"
+      : raw.primaryCtaLabel,
+    primaryCtaHref:
+      isLegacyPrimary && raw.primaryCtaHref === "/contact"
+        ? "/contact?intent=call"
+        : raw.primaryCtaHref,
+    secondaryCtaLabel: isLegacySecondary
+      ? "See live demo"
+      : raw.secondaryCtaLabel,
+    pricingConfig: resolvePricingConfig(raw),
+  };
+}
+
+function normalizeLegacyHomePage(page: PageDocument): PageDocument {
+  if (page.slug !== "home") return page;
+  if (page.updatedBy) return page;
+  const currentSections = page.sections || [];
+  const isUntouchedLegacyLayout =
+    currentSections.length === 0 ||
+    currentSections.length >= 14 ||
+    !currentSections.some((s) => s.type === "roi_framing");
+
+  if (!isUntouchedLegacyLayout) return page;
+
+  return {
+    ...page,
+    sections: structuredClone(DEFAULT_HOME_SECTIONS),
+    draftSections: structuredClone(DEFAULT_HOME_SECTIONS),
+  };
+}
+
 function upgradeSnapshotIfNeeded(
   snap: OmniFlowDatabaseSnapshot
 ): OmniFlowDatabaseSnapshot {
@@ -779,13 +898,6 @@ function upgradeSnapshotIfNeeded(
   const missingDemosNav = !snap.siteSettings?.navigation?.some(
     (n) => n.href === "/demos"
   );
-
-  const legacyDefaultPrimary =
-    snap.siteSettings?.primaryCtaLabel === "Request an Automation Audit" ||
-    snap.siteSettings?.primaryCtaLabel === "Request Workflow Review";
-  const legacyDefaultSecondary =
-    snap.siteSettings?.secondaryCtaLabel === "Try Interactive Demos" ||
-    snap.siteSettings?.secondaryCtaLabel === "Explore Interactive Demos";
 
   const baseSettings: SiteSettings = hadPhase1AnchorNav
     ? {
@@ -811,20 +923,7 @@ function upgradeSnapshotIfNeeded(
         }
       : snap.siteSettings;
 
-  const nextSettings: SiteSettings = {
-    ...baseSettings,
-    primaryCtaLabel: legacyDefaultPrimary
-      ? fresh.siteSettings.primaryCtaLabel
-      : baseSettings.primaryCtaLabel,
-    primaryCtaHref:
-      legacyDefaultPrimary && baseSettings.primaryCtaHref === "/contact"
-        ? fresh.siteSettings.primaryCtaHref
-        : baseSettings.primaryCtaHref,
-    secondaryCtaLabel: legacyDefaultSecondary
-      ? fresh.siteSettings.secondaryCtaLabel
-      : baseSettings.secondaryCtaLabel,
-  };
-
+  const nextSettings = normalizeLegacySiteSettings(baseSettings);
   const normalizedTheme = normalizeStoredThemeConfig(snap.themeConfig);
 
   const upgraded: OmniFlowDatabaseSnapshot = {
@@ -851,27 +950,9 @@ function upgradeSnapshotIfNeeded(
       (b) => b.slug
     ),
     faqs: mergeByKey(snap.faqs || [], fresh.faqs, (f) => f.id),
-    pages: mergeByKey(snap.pages || [], fresh.pages, (p) => p.slug).map((page) => {
-      if (page.slug !== "home") return page;
-      const freshHome = fresh.pages.find((p) => p.slug === "home");
-      if (!freshHome) return page;
-      const mergeHomeSections = (existing: typeof page.sections) => {
-        const byType = new Map(existing.map((s) => [s.type, s]));
-        const canonical = freshHome.sections.map((freshSec, idx) => {
-          const prev = byType.get(freshSec.type);
-          return prev ? { ...prev, order: idx + 1 } : { ...freshSec, order: idx + 1 };
-        });
-        const customExtras = existing
-          .filter((s) => !freshHome.sections.some((fs) => fs.type === s.type) || s.type === "rich_text")
-          .map((s, idx) => ({ ...s, order: canonical.length + idx + 1 }));
-        return [...canonical, ...customExtras];
-      };
-      return {
-        ...page,
-        sections: mergeHomeSections(page.sections || []),
-        draftSections: mergeHomeSections(page.draftSections || page.sections || []),
-      };
-    }),
+    pages: mergeByKey(snap.pages || [], fresh.pages, (p) => p.slug).map(
+      normalizeLegacyHomePage
+    ),
   };
 
   writeLocalSnapshot(upgraded);
@@ -1061,12 +1142,12 @@ function mapPostgresLeadRow(r: PostgresLeadRow): LeadRecord {
     lostReason: r.lost_reason ?? null,
     source: r.source,
     isDuplicateFlag: r.is_duplicate_flag,
-    followUpDate: r.follow_up_date,
+    followUpDate: normalizePgNullableIsoTimestamp(r.follow_up_date),
     emailNotificationStatus: r.email_notification_status,
     notes: r.notes || [],
     statusHistory: r.status_history || [],
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
+    createdAt: normalizePgIsoTimestamp(r.created_at),
+    updatedAt: normalizePgIsoTimestamp(r.updated_at),
   });
 }
 
@@ -1159,9 +1240,20 @@ async function loadPostgresKvBundle(
       WHERE key IN ('site_settings', 'theme_config', 'brand_assets', 'service_pillars')
     `;
     const byKey = new Map(rows.map((r) => [r.key, r.payload]));
+    const rawSettings = byKey.get("site_settings") as SiteSettings | undefined;
+    const normalizedSettings = rawSettings
+      ? normalizeLegacySiteSettings(rawSettings)
+      : undefined;
+    const rawTheme = byKey.get("theme_config") as
+      | ThemeConfiguration
+      | undefined;
+    const normalizedThemeResult = rawTheme
+      ? normalizeStoredThemeConfig(rawTheme)
+      : undefined;
     const bundle: CachedPostgresKvBundle = {
-      siteSettings: byKey.get("site_settings") as SiteSettings | undefined,
-      themeConfig: byKey.get("theme_config") as ThemeConfiguration | undefined,
+      siteSettings: normalizedSettings,
+      themeConfig: normalizedThemeResult?.config,
+      themeConfigUpgraded: normalizedThemeResult?.upgraded ?? false,
       brandAssets: byKey.get("brand_assets") as BrandAssetConfig | undefined,
       servicePillars: byKey.get("service_pillars") as
         | ServiceCategoryPillar[]
@@ -1220,7 +1312,9 @@ async function loadPostgresPublicCatalogBundle(
       faqs: Array.isArray(r?.faqs) ? r.faqs : [],
       testimonials: Array.isArray(r?.testimonials) ? r.testimonials : [],
       teamMembers: Array.isArray(r?.team_members) ? r.team_members : [],
-      pages: Array.isArray(r?.pages) ? r.pages : [],
+      pages: Array.isArray(r?.pages)
+        ? r.pages.map(normalizeLegacyHomePage)
+        : [],
       activeRedirects: Array.isArray(r?.active_redirects)
         ? r.active_redirects
         : [],
@@ -1284,9 +1378,7 @@ export const db = {
         async (sql) => {
           const kv = await loadPostgresKvBundle(sql);
           if (!kv.themeConfig) {
-            const fallback = isProductionEnvironment()
-              ? createSoaleProductionThemeSeed()
-              : createInitialSeedSnapshot().themeConfig;
+            const fallback = createInitialSeedSnapshot().themeConfig;
             await sql`
               INSERT INTO kv_configs (key, payload, updated_at)
               VALUES ('theme_config', ${sql.json(fallback as unknown as postgres.JSONValue)}, NOW())
@@ -1296,7 +1388,7 @@ export const db = {
             return fallback;
           }
           const { config, upgraded } = normalizeStoredThemeConfig(kv.themeConfig);
-          if (upgraded) {
+          if (kv.themeConfigUpgraded || upgraded) {
             await sql`
               INSERT INTO kv_configs (key, payload, updated_at)
               VALUES ('theme_config', ${sql.json(config as unknown as postgres.JSONValue)}, NOW())
@@ -2038,48 +2130,68 @@ export const db = {
     );
   },
 
-  async findUserById(id: string): Promise<UserRecord | null> {
+  async hasSuperAdmin(): Promise<boolean> {
     return runWithDbFallback(
       async (sql) => {
         await ensurePostgresBootstrapAdmin(sql);
-        const rows = await sql<
-          {
-            id: string;
-            email: string;
-            name: string;
-            role: UserRecord["role"];
-            password_hash: string;
-            is_active: boolean;
-            must_change_password?: boolean;
-            session_version?: number;
-            password_changed_at?: string | null;
-            recovery_token_hash?: string | null;
-            recovery_expires_at?: string | null;
-            created_at: string;
-            updated_at: string;
-            last_login_at: string | null;
-          }[]
-        >`SELECT * FROM users WHERE id = ${id} LIMIT 1`;
-        if (!rows[0]) return null;
-        const r = rows[0];
-        return {
-          id: r.id,
-          email: r.email,
-          name: r.name,
-          role: r.role,
-          passwordHash: r.password_hash,
-          isActive: r.is_active,
-          mustChangePassword: Boolean(r.must_change_password),
-          sessionVersion: r.session_version ?? 1,
-          passwordChangedAt: r.password_changed_at ?? null,
-          recoveryTokenHash: r.recovery_token_hash ?? null,
-          recoveryExpiresAt: r.recovery_expires_at ?? null,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          lastLoginAt: r.last_login_at,
-        };
+        const rows = await sql<{ cnt: number }[]>`
+          SELECT count(*)::int AS cnt FROM users WHERE role = 'SUPER_ADMIN'
+        `;
+        return (rows[0]?.cnt ?? 0) > 0;
       },
-      () => readLocalSnapshot().users.find((u) => u.id === id) ?? null
+      () =>
+        readLocalSnapshot().users.some((user) => user.role === "SUPER_ADMIN")
+    );
+  },
+
+  async findUserById(id: string): Promise<UserRecord | null> {
+    return dedupeInFlight(`user_id_${id}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          await ensurePostgresBootstrapAdmin(sql);
+          const rows = await sql<
+            {
+              id: string;
+              email: string;
+              name: string;
+              role: UserRecord["role"];
+              password_hash: string;
+              is_active: boolean;
+              must_change_password?: boolean;
+              session_version?: number;
+              password_changed_at?: unknown;
+              recovery_token_hash?: string | null;
+              recovery_expires_at?: unknown;
+              created_at: unknown;
+              updated_at: unknown;
+              last_login_at: unknown;
+            }[]
+          >`SELECT * FROM users WHERE id = ${id} LIMIT 1`;
+          if (!rows[0]) return null;
+          const r = rows[0];
+          return {
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            role: r.role,
+            passwordHash: r.password_hash,
+            isActive: r.is_active,
+            mustChangePassword: Boolean(r.must_change_password),
+            sessionVersion: r.session_version ?? 1,
+            passwordChangedAt: normalizePgNullableIsoTimestamp(
+              r.password_changed_at
+            ),
+            recoveryTokenHash: r.recovery_token_hash ?? null,
+            recoveryExpiresAt: normalizePgNullableIsoTimestamp(
+              r.recovery_expires_at
+            ),
+            createdAt: normalizePgIsoTimestamp(r.created_at),
+            updatedAt: normalizePgIsoTimestamp(r.updated_at),
+            lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
+          };
+        },
+        () => readLocalSnapshot().users.find((u) => u.id === id) ?? null
+      )
     );
   },
 
@@ -2098,12 +2210,12 @@ export const db = {
             is_active: boolean;
             must_change_password?: boolean;
             session_version?: number;
-            password_changed_at?: string | null;
+            password_changed_at?: unknown;
             recovery_token_hash?: string | null;
-            recovery_expires_at?: string | null;
-            created_at: string;
-            updated_at: string;
-            last_login_at: string | null;
+            recovery_expires_at?: unknown;
+            created_at: unknown;
+            updated_at: unknown;
+            last_login_at: unknown;
           }[]
         >`SELECT * FROM users WHERE email = ${normalized} LIMIT 1`;
         if (!rows[0]) return null;
@@ -2117,12 +2229,16 @@ export const db = {
           isActive: r.is_active,
           mustChangePassword: Boolean(r.must_change_password),
           sessionVersion: r.session_version ?? 1,
-          passwordChangedAt: r.password_changed_at ?? null,
+          passwordChangedAt: normalizePgNullableIsoTimestamp(
+            r.password_changed_at
+          ),
           recoveryTokenHash: r.recovery_token_hash ?? null,
-          recoveryExpiresAt: r.recovery_expires_at ?? null,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          lastLoginAt: r.last_login_at,
+          recoveryExpiresAt: normalizePgNullableIsoTimestamp(
+            r.recovery_expires_at
+          ),
+          createdAt: normalizePgIsoTimestamp(r.created_at),
+          updatedAt: normalizePgIsoTimestamp(r.updated_at),
+          lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
         };
       },
       () =>
@@ -2146,12 +2262,12 @@ export const db = {
             is_active: boolean;
             must_change_password?: boolean;
             session_version?: number;
-            password_changed_at?: string | null;
+            password_changed_at?: unknown;
             recovery_token_hash?: string | null;
-            recovery_expires_at?: string | null;
-            created_at: string;
-            updated_at: string;
-            last_login_at: string | null;
+            recovery_expires_at?: unknown;
+            created_at: unknown;
+            updated_at: unknown;
+            last_login_at: unknown;
           }[]
         >`SELECT * FROM users WHERE recovery_token_hash = ${tokenHash} LIMIT 1`;
         if (!rows[0]) return null;
@@ -2165,12 +2281,16 @@ export const db = {
           isActive: r.is_active,
           mustChangePassword: Boolean(r.must_change_password),
           sessionVersion: r.session_version ?? 1,
-          passwordChangedAt: r.password_changed_at ?? null,
+          passwordChangedAt: normalizePgNullableIsoTimestamp(
+            r.password_changed_at
+          ),
           recoveryTokenHash: r.recovery_token_hash ?? null,
-          recoveryExpiresAt: r.recovery_expires_at ?? null,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          lastLoginAt: r.last_login_at,
+          recoveryExpiresAt: normalizePgNullableIsoTimestamp(
+            r.recovery_expires_at
+          ),
+          createdAt: normalizePgIsoTimestamp(r.created_at),
+          updatedAt: normalizePgIsoTimestamp(r.updated_at),
+          lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
         };
       },
       () =>
@@ -2181,37 +2301,41 @@ export const db = {
   },
 
   async listUsers(): Promise<SafeUser[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        await ensurePostgresBootstrapAdmin(sql);
-        const rows = await sql<
-          {
-            id: string;
-            email: string;
-            name: string;
-            role: UserRecord["role"];
-            is_active: boolean;
-            must_change_password?: boolean;
-            session_version?: number;
-            password_changed_at?: string | null;
-            created_at: string;
-            last_login_at: string | null;
-          }[]
-        >`SELECT id, email, name, role, is_active, must_change_password, session_version, password_changed_at, created_at, last_login_at FROM users ORDER BY created_at ASC`;
-        return rows.map((r) => ({
-          id: r.id,
-          email: r.email,
-          name: r.name,
-          role: r.role,
-          isActive: r.is_active,
-          mustChangePassword: Boolean(r.must_change_password),
-          sessionVersion: r.session_version ?? 1,
-          passwordChangedAt: r.password_changed_at ?? null,
-          createdAt: r.created_at,
-          lastLoginAt: r.last_login_at,
-        }));
-      },
-      () => readLocalSnapshot().users.map(toSafeUser)
+    return dedupeInFlight("list_users", () =>
+      runWithDbFallback(
+        async (sql) => {
+          await ensurePostgresBootstrapAdmin(sql);
+          const rows = await sql<
+            {
+              id: string;
+              email: string;
+              name: string;
+              role: UserRecord["role"];
+              is_active: boolean;
+              must_change_password?: boolean;
+              session_version?: number;
+              password_changed_at?: unknown;
+              created_at: unknown;
+              last_login_at: unknown;
+            }[]
+          >`SELECT id, email, name, role, is_active, must_change_password, session_version, password_changed_at, created_at, last_login_at FROM users ORDER BY created_at ASC`;
+          return rows.map((r) => ({
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            role: r.role,
+            isActive: r.is_active,
+            mustChangePassword: Boolean(r.must_change_password),
+            sessionVersion: r.session_version ?? 1,
+            passwordChangedAt: normalizePgNullableIsoTimestamp(
+              r.password_changed_at
+            ),
+            createdAt: normalizePgIsoTimestamp(r.created_at),
+            lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
+          }));
+        },
+        () => readLocalSnapshot().users.map(toSafeUser)
+      )
     );
   },
 
@@ -2450,9 +2574,11 @@ export const db = {
             isActive: r.is_active,
             mustChangePassword: Boolean(r.must_change_password),
             sessionVersion: r.session_version ?? 1,
-            passwordChangedAt: r.password_changed_at ?? null,
-            createdAt: r.created_at,
-            lastLoginAt: r.last_login_at,
+            passwordChangedAt: normalizePgNullableIsoTimestamp(
+              r.password_changed_at
+            ),
+            createdAt: normalizePgIsoTimestamp(r.created_at),
+            lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
           };
         },
         () => {
@@ -2577,17 +2703,19 @@ export const db = {
   },
 
   async listLeads(): Promise<LeadRecord[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<PostgresLeadRow[]>`
-          SELECT * FROM leads ORDER BY created_at DESC
-        `;
-        return rows.map(mapPostgresLeadRow);
-      },
-      () =>
-        readLocalSnapshot()
-          .leads.map(normalizeLeadRecord)
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return dedupeInFlight("list_leads", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<PostgresLeadRow[]>`
+            SELECT * FROM leads ORDER BY created_at DESC
+          `;
+          return rows.map(mapPostgresLeadRow);
+        },
+        () =>
+          readLocalSnapshot()
+            .leads.map(normalizeLeadRecord)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      )
     );
   },
 
@@ -3055,7 +3183,7 @@ export const db = {
             destination_path: string;
             permanent: boolean;
             is_active: boolean;
-            created_at: string;
+            created_at: unknown;
           }[]
         >`SELECT * FROM redirects ORDER BY created_at DESC`;
         return rows.map((r) => ({
@@ -3064,7 +3192,7 @@ export const db = {
           destinationPath: r.destination_path,
           permanent: r.permanent,
           isActive: r.is_active,
-          createdAt: r.created_at,
+          createdAt: normalizePgIsoTimestamp(r.created_at),
         }));
       },
       () => readLocalSnapshot().redirects
@@ -3197,36 +3325,38 @@ export const db = {
   },
 
   async listAuditLogs(limit = 50): Promise<AuditLogEntry[]> {
-    return runWithDbFallback(
-      async (sql) => {
-        const rows = await sql<
-          {
-            id: string;
-            actor_id: string;
-            actor_email: string;
-            actor_role: AuditLogEntry["actorRole"];
-            action: string;
-            entity_type: string;
-            entity_id: string | null;
-            summary: string;
-            ip_address: string | null;
-            created_at: string;
-          }[]
-        >`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ${limit}`;
-        return rows.map((r) => ({
-          id: r.id,
-          actorId: r.actor_id,
-          actorEmail: r.actor_email,
-          actorRole: r.actor_role,
-          action: r.action,
-          entityType: r.entity_type,
-          entityId: r.entity_id ?? undefined,
-          summary: r.summary,
-          ipAddress: r.ip_address ?? undefined,
-          createdAt: r.created_at,
-        }));
-      },
-      () => readLocalSnapshot().auditLogs.slice(0, limit)
+    return dedupeInFlight(`audit_logs_${limit}`, () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<
+            {
+              id: string;
+              actor_id: string;
+              actor_email: string;
+              actor_role: AuditLogEntry["actorRole"];
+              action: string;
+              entity_type: string;
+              entity_id: string | null;
+              summary: string;
+              ip_address: string | null;
+              created_at: unknown;
+            }[]
+          >`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ${limit}`;
+          return rows.map((r) => ({
+            id: r.id,
+            actorId: r.actor_id,
+            actorEmail: r.actor_email,
+            actorRole: r.actor_role,
+            action: r.action,
+            entityType: r.entity_type,
+            entityId: r.entity_id ?? undefined,
+            summary: r.summary,
+            ipAddress: r.ip_address ?? undefined,
+            createdAt: normalizePgIsoTimestamp(r.created_at),
+          }));
+        },
+        () => readLocalSnapshot().auditLogs.slice(0, limit)
+      )
     );
   },
 
@@ -3473,12 +3603,14 @@ export const db = {
           isActive: r.is_active,
           mustChangePassword: Boolean(r.must_change_password),
           sessionVersion: r.session_version ?? 1,
-          passwordChangedAt: r.password_changed_at ?? null,
+          passwordChangedAt: normalizePgNullableIsoTimestamp(
+            r.password_changed_at
+          ),
           recoveryTokenHash: null,
           recoveryExpiresAt: null,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          lastLoginAt: r.last_login_at,
+          createdAt: normalizePgIsoTimestamp(r.created_at),
+          updatedAt: normalizePgIsoTimestamp(r.updated_at),
+          lastLoginAt: normalizePgNullableIsoTimestamp(r.last_login_at),
         }));
       },
       () =>
@@ -3547,7 +3679,7 @@ export const db = {
           schemaVersion: r.schema_version,
           sizeBytes: r.size_bytes,
           checksumSha256: r.checksum_sha256,
-          createdAt: r.created_at,
+          createdAt: normalizePgIsoTimestamp(r.created_at),
         }));
       },
       () =>
@@ -3895,4 +4027,175 @@ export const db = {
       return null;
     }
   },
+
+  async listSiteErrorIncidents(): Promise<SiteErrorIncident[]> {
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ payload: unknown }[]>`
+          SELECT payload FROM kv_configs WHERE key = 'site_diagnostics_log' LIMIT 1
+        `;
+        const list = rows[0]?.payload;
+        return Array.isArray(list) ? (list as SiteErrorIncident[]) : [];
+      },
+      () => readLocalSnapshot().siteErrorIncidents ?? []
+    );
+  },
+
+  async recordSiteErrorIncident(input: {
+    severity?: "critical" | "warning";
+    source: SiteErrorIncident["source"];
+    route: string;
+    message: string;
+    digest?: string;
+  }): Promise<SiteErrorIncident> {
+    const cleanRoute = (input.route || "/").trim().slice(0, 180) || "/";
+    const cleanMsg =
+      (input.message || "Unexpected runtime error")
+        .replace(/[\r\n\t]+/g, " ")
+        .trim()
+        .slice(0, 320) || "Unexpected runtime error";
+    const nowIso = new Date().toISOString();
+
+    return withAtomicKeyLock("site_diagnostics_log", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const rows = await sql<{ payload: unknown }[]>`
+            SELECT payload FROM kv_configs WHERE key = 'site_diagnostics_log' LIMIT 1
+          `;
+          const existing: SiteErrorIncident[] = Array.isArray(rows[0]?.payload)
+            ? [...(rows[0].payload as SiteErrorIncident[])]
+            : [];
+          const matchIdx = existing.findIndex(
+            (e) =>
+              !e.resolved &&
+              e.route === cleanRoute &&
+              e.message === cleanMsg &&
+              e.source === input.source
+          );
+          let recorded: SiteErrorIncident;
+          if (matchIdx >= 0) {
+            recorded = {
+              ...existing[matchIdx],
+              occurrences: (existing[matchIdx].occurrences || 1) + 1,
+              lastSeenAt: nowIso,
+            };
+            existing.splice(matchIdx, 1);
+            existing.unshift(recorded);
+          } else {
+            recorded = {
+              id: `inc_${crypto.randomUUID().slice(0, 10)}`,
+              severity: input.severity ?? "critical",
+              source: input.source,
+              route: cleanRoute,
+              message: cleanMsg,
+              digest: input.digest?.slice(0, 64),
+              occurrences: 1,
+              firstSeenAt: nowIso,
+              lastSeenAt: nowIso,
+              resolved: false,
+            };
+            existing.unshift(recorded);
+          }
+          const trimmed = existing.slice(0, 50);
+          await sql`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES ('site_diagnostics_log', ${sql.json(trimmed as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+          `;
+          return recorded;
+        },
+        () => {
+          const snap = readLocalSnapshot();
+          const existing = [...(snap.siteErrorIncidents ?? [])];
+          const matchIdx = existing.findIndex(
+            (e) =>
+              !e.resolved &&
+              e.route === cleanRoute &&
+              e.message === cleanMsg &&
+              e.source === input.source
+          );
+          let recorded: SiteErrorIncident;
+          if (matchIdx >= 0) {
+            recorded = {
+              ...existing[matchIdx],
+              occurrences: (existing[matchIdx].occurrences || 1) + 1,
+              lastSeenAt: nowIso,
+            };
+            existing.splice(matchIdx, 1);
+            existing.unshift(recorded);
+          } else {
+            recorded = {
+              id: `inc_${crypto.randomUUID().slice(0, 10)}`,
+              severity: input.severity ?? "critical",
+              source: input.source,
+              route: cleanRoute,
+              message: cleanMsg,
+              digest: input.digest?.slice(0, 64),
+              occurrences: 1,
+              firstSeenAt: nowIso,
+              lastSeenAt: nowIso,
+              resolved: false,
+            };
+            existing.unshift(recorded);
+          }
+          snap.siteErrorIncidents = existing.slice(0, 50);
+          writeLocalSnapshot(snap);
+          return recorded;
+        }
+      )
+    );
+  },
+
+  async resolveSiteErrorIncidents(options?: {
+    incidentId?: string;
+    clearAll?: boolean;
+  }): Promise<SiteErrorIncident[]> {
+    return withAtomicKeyLock("site_diagnostics_log", () =>
+      runWithDbFallback(
+        async (sql) => {
+          if (options?.clearAll) {
+            await sql`
+              INSERT INTO kv_configs (key, payload, updated_at)
+              VALUES ('site_diagnostics_log', ${sql.json([] as unknown as postgres.JSONValue)}, NOW())
+              ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+            `;
+            return [];
+          }
+          const rows = await sql<{ payload: unknown }[]>`
+            SELECT payload FROM kv_configs WHERE key = 'site_diagnostics_log' LIMIT 1
+          `;
+          const existing: SiteErrorIncident[] = Array.isArray(rows[0]?.payload)
+            ? (rows[0].payload as SiteErrorIncident[])
+            : [];
+          const next = existing.map((item) =>
+            !options?.incidentId || item.id === options.incidentId
+              ? { ...item, resolved: true }
+              : item
+          );
+          await sql`
+            INSERT INTO kv_configs (key, payload, updated_at)
+            VALUES ('site_diagnostics_log', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
+            ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+          `;
+          return next;
+        },
+        () => {
+          const snap = readLocalSnapshot();
+          const existing = snap.siteErrorIncidents ?? [];
+          const next = options?.clearAll
+            ? []
+            : existing.map((item) =>
+                !options?.incidentId || item.id === options.incidentId
+                  ? { ...item, resolved: true }
+                  : item
+              );
+          snap.siteErrorIncidents = next;
+          writeLocalSnapshot(snap);
+          return next;
+        }
+      )
+    );
+  },
 };
+
+export type { SiteErrorIncident };

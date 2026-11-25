@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Globe2, ShieldCheck, Workflow } from "lucide-react";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -10,14 +10,16 @@ import {
 } from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
+export const revalidate = 600;
+
 export const metadata: Metadata = {
-  title: "About OmniFlow",
+  title: "About Us",
   description:
     "Founded by Ahmed Ansari, OmniFlow builds dependable, transparent AI automation and business workflow systems for service businesses, consultants, and small agencies.",
 };
 
 export default async function AboutPage() {
-  const settings = await db.getSiteSettings();
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="bg-canvas text-ink-body">
@@ -74,10 +76,10 @@ export default async function AboutPage() {
 
             <div className="mt-8 flex flex-wrap gap-3.5 border-t border-line pt-6">
               <SoaleArrowButton href="/how-it-works" variant="surface">
-                Inspect 10-Stage Process
+                See 4-Phase Process
               </SoaleArrowButton>
               <SoaleArrowButton href="/work" variant="outline">
-                Reference Blueprints
+                Workflow Blueprints
               </SoaleArrowButton>
             </div>
           </SoaleCard>

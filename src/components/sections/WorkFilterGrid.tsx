@@ -114,10 +114,7 @@ export function WorkFilterGrid({ items }: { items: CaseStudyItem[] }) {
                         </span>
                       </div>
 
-                      <div
-                        data-parallax="10"
-                        className="relative z-10 my-auto space-y-2 py-3"
-                      >
+                      <div className="relative z-10 my-auto space-y-2 py-3">
                         {previewSteps.map((stepText, stepIdx) => (
                           <div
                             key={stepIdx}

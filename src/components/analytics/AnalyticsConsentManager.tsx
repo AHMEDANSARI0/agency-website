@@ -103,9 +103,9 @@ export function AnalyticsConsentManager({
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${cleanId}`}
-            strategy="afterInteractive"
+            strategy="lazyOnload"
           />
-          <Script id="omniflow-ga4-init" strategy="afterInteractive">
+          <Script id="omniflow-ga4-init" strategy="lazyOnload">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}

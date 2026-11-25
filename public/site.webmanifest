@@ -1,0 +1,26 @@
+{
+  "name": "OmniFlow — AI Automation & Workflow Systems",
+  "short_name": "OmniFlow",
+  "description": "AI workflows that answer every lead, update your CRM, and alert your team.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07030D",
+  "theme_color": "#07030D",
+  "icons": [
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

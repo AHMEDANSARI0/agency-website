@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedBlogPostBySlug,
+  getCachedPublishedBlogPosts,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -25,7 +29,12 @@ import {
 } from "@/features/blog/markdown";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
+
+export async function generateStaticParams() {
+  const posts = await getCachedPublishedBlogPosts();
+  return posts.map((p) => ({ slug: p.slug }));
+}
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -63,7 +72,7 @@ export async function generateMetadata({
   params,
 }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = await db.getBlogPostBySlug(slug);
+  const post = await getCachedBlogPostBySlug(slug);
   if (!post || post.status !== "published") {
     return {
       title: "Article Not Found",
@@ -71,8 +80,11 @@ export async function generateMetadata({
     };
   }
   const baseUrl = getCanonicalSiteUrl();
+  const cleanTitle = (post.seo.seoTitle || post.title)
+    .replace(/(?:\s*[|—–\-:]\s*OmniFlow(?:\s+Insights)?)+\s*$/i, "")
+    .trim();
   return {
-    title: post.seo.seoTitle || post.title,
+    title: cleanTitle || post.title,
     description: post.seo.seoDescription || post.excerpt,
     alternates: {
       canonical: post.seo.canonicalUrl || `${baseUrl}/blog/${post.slug}`,
@@ -86,9 +98,9 @@ export async function generateMetadata({
 export default async function BlogPostDetailPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
   const [post, allPosts, settings] = await Promise.all([
-    db.getBlogPostBySlug(slug),
-    db.listBlogPosts(true),
-    db.getSiteSettings(),
+    getCachedBlogPostBySlug(slug),
+    getCachedPublishedBlogPosts(),
+    getCachedSiteSettings(),
   ]);
 
   if (!post || post.status !== "published") {

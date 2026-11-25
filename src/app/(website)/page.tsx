@@ -8,14 +8,23 @@ import {
   Clock,
   Cpu,
   Database,
-  Globe2,
   Layers,
   Lock,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import type { Metadata } from "next";
-import { db } from "@/lib/database";
+import {
+  getCachedPageBySlug,
+  getCachedPublishedBlogPosts,
+  getCachedPublishedCaseStudies,
+  getCachedPublishedFaqs,
+  getCachedPublishedServices,
+  getCachedPublishedTeamMembers,
+  getCachedPublishedTestimonials,
+  getCachedServicePillars,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import {
   SoaleArrowButton,
@@ -25,40 +34,57 @@ import {
   SoaleSectionHeader,
 } from "@/components/ui/soale";
 import { PinnedHero } from "@/components/sections/PinnedHero";
-import { HomeAutomationLabPreview } from "@/components/sections/HomeAutomationLabPreview";
-import { BeforeAfterWorkflowCompare } from "@/components/sections/BeforeAfterWorkflowCompare";
-import { IntegrationEcosystemVisualizer } from "@/components/sections/IntegrationEcosystemVisualizer";
+import { StackLogoBar } from "@/components/sections/StackLogoBar";
 import {
-  SoaleEditorialProof,
-  SoaleFaqAccordion,
-  SoalePricingSection,
-  SoaleProcessSection,
-  SoaleServicesShowcase,
-  SoaleWorkShowcase,
-} from "@/components/sections/soale";
+  LazyBeforeAfterWorkflowCompare,
+  LazyHomeAutomationLabPreview,
+  LazyIntegrationEcosystemVisualizer,
+  LazySoaleFaqAccordion,
+  LazySoalePricingSection,
+  LazySoaleProcessSection,
+} from "@/components/sections/LazyClientIslands";
+import { SoaleEditorialProof } from "@/components/sections/soale/SoaleEditorialProof";
+import { SoaleServicesShowcase } from "@/components/sections/soale/SoaleServicesShowcase";
+import { SoaleWorkShowcase } from "@/components/sections/soale/SoaleWorkShowcase";
 import { resolvePricingConfig } from "@/features/pricing/default-pricing";
 import { parseSafeMarkdown } from "@/features/blog/markdown";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
+import { buildHomeAbsoluteTitle } from "@/lib/seo/title";
 import type { PageSectionBlock, PageSectionType } from "@/types/content";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export async function generateMetadata(): Promise<Metadata> {
   const [homePage, settings] = await Promise.all([
-    db.getPageBySlug("home"),
-    db.getSiteSettings(),
+    getCachedPageBySlug("home"),
+    getCachedSiteSettings(),
   ]);
   const baseUrl = getCanonicalSiteUrl();
+  const homeTitle = buildHomeAbsoluteTitle(
+    homePage?.seo?.seoTitle,
+    settings.companyName,
+    settings.positioning
+  );
 
   return {
-    title:
-      homePage?.seo?.seoTitle ||
-      `${settings.companyName} — ${settings.positioning}`,
+    title: {
+      absolute: homeTitle,
+    },
     description:
       homePage?.seo?.seoDescription ||
-      `${settings.tagline} Grounded AI customer support, lead management, and deterministic workflow automation for US, UK, and Canadian businesses.`,
+      `${settings.tagline} Practical lead management, AI customer support, and workflow automation for US, UK, and Canadian service businesses.`,
     alternates: {
       canonical: homePage?.seo?.canonicalUrl || baseUrl,
+    },
+    openGraph: {
+      title: homeTitle,
+      description:
+        homePage?.seo?.seoDescription ||
+        `${settings.tagline} Practical lead management, AI customer support, and workflow automation for US, UK, and Canadian service businesses.`,
+      url: baseUrl,
+    },
+    twitter: {
+      title: homeTitle,
     },
     robots: homePage?.seo?.noIndex
       ? { index: false, follow: false }
@@ -66,58 +92,32 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const ECOSYSTEM_ROW_1 = [
-  "HubSpot CRM",
-  "Pipedrive",
-  "Salesforce",
-  "Google Workspace",
-  "Microsoft 365",
-  "Slack",
-  "Notion",
-  "Airtable",
-  "Stripe",
-  "Calendly",
-];
-
-const ECOSYSTEM_ROW_2 = [
-  "PostgreSQL",
-  "Supabase",
-  "Webhooks & REST APIs",
-  "Zendesk",
-  "Intercom",
-  "QuickBooks",
-  "Xero",
-  "Linear",
-  "Cal.com",
-  "TypeScript & Deterministic Workflows",
-];
-
 const OUTCOME_BENTO_CARDS = [
   {
     code: "Outcome 01",
-    tag: "Speed-to-Lead",
-    title: "Sub-minute enquiry capture, fit scoring & CRM brief",
+    tag: "Faster Replies",
+    title: "Every new lead answered & added to your CRM in minutes",
     description:
-      "Every web form, booking request, or after-hours enquiry is validated, scored deterministically, committed to your CRM, and summarized on WhatsApp or email for the right owner.",
-    chips: ["24/7 Structured Intake", "Duplicate-Safe CRM Sync"],
+      "Web forms, booking requests, and after-hours enquiries are checked, scored, saved to your CRM without duplicates, and sent to your team on WhatsApp or email.",
+    chips: ["24/7 Lead Capture", "Clean CRM Updates"],
     href: "/services/lead-management",
   },
   {
     code: "Outcome 02",
-    tag: "Support Guardrails",
-    title: "Policy-grounded AI replies with clean human escalation",
+    tag: "Safe AI Replies",
+    title: "Helpful answers from your own policies — human sign-off on the rest",
     description:
-      "Routine client questions on turnaround, onboarding, and approved policies get instant accurate answers — while sensitive or custom requests escalate cleanly with full context.",
-    chips: ["Approved SOPs Only", "Zero Hallucinated Promises"],
+      "Common questions on pricing basics, hours, and onboarding get instant replies from your approved FAQs, while custom quotes pause for a teammate to approve.",
+    chips: ["Approved FAQs Only", "Human Approval Gates"],
     href: "/services/ai-customer-support",
   },
   {
     code: "Outcome 03",
-    tag: "Connected Ops",
-    title: "Eliminate manual copy-paste across 5+ disconnected tools",
+    tag: "Less Busywork",
+    title: "Stop copy-pasting the same client details across five tools",
     description:
-      "Synchronize forms, CRM pipelines, client kickoff folders, billing webhooks, and executive status tracking with atomic persistence and dead-letter fallback queues.",
-    chips: ["Idempotent Webhooks", "Audit-Logged Handoffs"],
+      "Keep your forms, CRM pipeline, client folders, billing updates, and weekly summary reports in sync automatically — with clear alerts if anything needs attention.",
+    chips: ["Connected Tools", "100% Client Owned"],
     href: "/services/workflow-automation",
   },
 ];
@@ -199,19 +199,11 @@ const CANONICAL_HOME_TYPES: PageSectionType[] = [
   "trust_strip",
   "problems_outcomes",
   "flagship_systems",
-  "services_overview",
   "interactive_demos_preview",
-  "workflow_demo",
   "how_it_works",
-  "industry_use_cases",
-  "architecture_governance",
-  "roi_framing",
   "case_studies_highlight",
-  "founder_intro",
-  "insights_preview",
-  "testimonials",
+  "roi_framing",
   "faq_section",
-  "cta_banner",
 ];
 
 function normalizeHomeSections(
@@ -228,43 +220,21 @@ function normalizeHomeSections(
     }));
   }
 
-  const hasNewPhase3Sections = rawSections.some(
-    (s) =>
-      s.type === "trust_strip" ||
-      s.type === "flagship_systems" ||
-      s.type === "interactive_demos_preview"
-  );
-
-  if (!hasNewPhase3Sections) {
-    const byType = new Map(rawSections.map((s) => [s.type, s]));
-    const upgradedCanonical = CANONICAL_HOME_TYPES.map((type, idx) => {
-      const existing = byType.get(type);
-      return existing
-        ? { ...existing, order: idx + 1 }
-        : {
-            id: `sec_${type}`,
-            type,
-            title: type,
-            isVisible: true,
-            order: idx + 1,
-            config: {},
-          };
-    });
-    const customBlocks = rawSections
-      .filter((s) => s.type === "rich_text")
-      .map((s, idx) => ({ ...s, order: upgradedCanonical.length + idx + 1 }));
-    return [...upgradedCanonical, ...customBlocks].filter((s) => s.isVisible);
-  }
-
   return [...rawSections]
     .filter((s) => s.isVisible)
     .sort((a, b) => a.order - b.order);
 }
 
 export default async function HomePage() {
+  const [settings, homePage] = await Promise.all([
+    getCachedSiteSettings(),
+    getCachedPageBySlug("home"),
+  ]);
+
+  const orderedSections = normalizeHomeSections(homePage?.sections);
+  const visibleTypes = new Set(orderedSections.map((s) => s.type));
+
   const [
-    settings,
-    homePage,
     pillars,
     services,
     caseStudies,
@@ -273,29 +243,43 @@ export default async function HomePage() {
     testimonials,
     team,
   ] = await Promise.all([
-    db.getSiteSettings(),
-    db.getPageBySlug("home"),
-    db.getServicePillars(),
-    db.listServices(true),
-    db.listCaseStudies(true),
-    db.listBlogPosts(true),
-    db.listFaqs(true),
-    db.listTestimonials(true),
-    db.listTeamMembers(true),
+    visibleTypes.has("services_overview")
+      ? getCachedServicePillars()
+      : Promise.resolve([]),
+    visibleTypes.has("flagship_systems") || visibleTypes.has("services_overview")
+      ? getCachedPublishedServices()
+      : Promise.resolve([]),
+    visibleTypes.has("case_studies_highlight")
+      ? getCachedPublishedCaseStudies()
+      : Promise.resolve([]),
+    visibleTypes.has("insights_preview")
+      ? getCachedPublishedBlogPosts()
+      : Promise.resolve([]),
+    visibleTypes.has("faq_section")
+      ? getCachedPublishedFaqs()
+      : Promise.resolve([]),
+    visibleTypes.has("case_studies_highlight") ||
+    visibleTypes.has("testimonials") ||
+    visibleTypes.has("founder_intro")
+      ? getCachedPublishedTestimonials()
+      : Promise.resolve([]),
+    visibleTypes.has("case_studies_highlight") ||
+    visibleTypes.has("founder_intro") ||
+    visibleTypes.has("testimonials")
+      ? getCachedPublishedTeamMembers()
+      : Promise.resolve([]),
   ]);
 
   const founder = team.find((m) => m.isFounder) ?? team[0];
   const pricingConfig = resolvePricingConfig(settings);
-  const orderedSections = normalizeHomeSections(homePage?.sections);
-  const hasFounderIntroVisible = orderedSections.some(
-    (s) => s.type === "founder_intro"
-  );
+  const hasFounderIntroVisible = visibleTypes.has("founder_intro");
+  const hasStandaloneCtaVisible = visibleTypes.has("cta_banner");
 
   return (
     <div className="bg-canvas text-ink-body">
       {orderedSections.map((section) => {
         switch (section.type) {
-          /* 1. SOALE EDITORIAL HERO + LIVE 7-STEP COMMAND SHOWCASE */
+          /* 1. CENTERED DARK PURPLE AI HERO + WORKFLOW COMMAND CENTER */
           case "hero":
             return (
               <PinnedHero
@@ -309,101 +293,47 @@ export default async function HomePage() {
               />
             );
 
-          /* 2. QUIET INTEGRATION ECOSYSTEM MARQUEE & CREDIBILITY STRIP */
+          /* 2. WORKS WITH YOUR STACK BAR (6 INLINE SVG WORDMARKS) */
           case "trust_strip":
-            return (
-              <section
-                key={section.id}
-                aria-label="Connected platforms and regional alignment"
-                className="border-y border-line bg-canvas-tertiary/60 py-10"
-              >
-                <Container>
-                  <div className="flex flex-col items-start justify-between gap-4 pb-6 sm:flex-row sm:items-center">
-                    <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                      Engineered to connect cleanly with your existing stack
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                      <Globe2 className="h-3.5 w-3.5 text-primary" />
-                      <span>
-                        Serving {settings.targetMarkets.join(" · ")} (EST &amp;
-                        GMT Overlap)
-                      </span>
-                    </div>
-                  </div>
-                </Container>
+            return <StackLogoBar key={section.id} />;
 
-                <div className="relative overflow-hidden py-1.5">
-                  <div className="animate-marquee flex w-max gap-3 px-4">
-                    {[...ECOSYSTEM_ROW_1, ...ECOSYSTEM_ROW_1].map(
-                      (tool, idx) => (
-                        <span
-                          key={`r1-${tool}-${idx}`}
-                          className="soale-chip shrink-0 !bg-surface-card"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                          {tool}
-                        </span>
-                      )
-                    )}
-                  </div>
-                  <div className="animate-marquee-reverse mt-3 flex w-max gap-3 px-4">
-                    {[...ECOSYSTEM_ROW_2, ...ECOSYSTEM_ROW_2].map(
-                      (tool, idx) => (
-                        <span
-                          key={`r2-${tool}-${idx}`}
-                          className="soale-chip shrink-0 !bg-surface-card"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                          {tool}
-                        </span>
-                      )
-                    )}
-                  </div>
-                </div>
-              </section>
-            );
-
-          /* 3. SOALE ASYMMETRIC OUTCOME BENTO CARDS + BEFORE/AFTER COMPARE */
+          /* 3. PLAIN-ENGLISH OUTCOMES + INTERACTIVE BEFORE/AFTER COMPARE */
           case "problems_outcomes":
             return (
               <section
                 key={section.id}
                 id="outcomes"
-                className="py-20 sm:py-28 lg:py-32"
+                className="py-20 sm:py-24 lg:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
                     align="split"
-                    eyebrow="Operational Outcomes"
-                    title="Replace manual inbox bottlenecks with deterministic execution."
-                    description="Where most teams lose hours to delayed follow-ups, repetitive policy questions, and fragile copy-paste routines — OmniFlow installs structured, auditable systems."
+                    eyebrow="Practical Outcomes"
+                    title="Fix missed leads and repetitive admin without hiring extra staff."
+                    description="Most small teams lose hours to slow follow-ups, repeat policy questions, and manual copy-pasting. We replace those bottlenecks with clear, reliable workflows."
                     action={
                       <SoaleArrowButton
                         href="/contact?intent=call"
                         variant="outline"
                       >
-                        Audit Your Workflow
+                        Book a free workflow review
                       </SoaleArrowButton>
                     }
                   />
 
-                  {/* 3-Card Soale Outcome Bento Grid */}
-                  <div className="mt-14 grid grid-cols-1 gap-7 lg:grid-cols-12">
+                  {/* 3-Card Outcome Grid (<= 3 cards per row) */}
+                  <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:gap-7 lg:grid-cols-3">
                     {OUTCOME_BENTO_CARDS.map((card, idx) => (
                       <div
                         key={card.code}
                         data-reveal="card"
-                        style={
-                          { "--d": idx } as React.CSSProperties
-                        }
-                        className={
-                          idx === 0 ? "lg:col-span-5" : idx === 1 ? "lg:col-span-4" : "lg:col-span-3"
-                        }
+                        data-scroll-card=""
+                        style={{ "--d": idx } as React.CSSProperties}
                       >
                         <SoaleCard
                           as="article"
                           interactive
-                          className="group flex h-full flex-col justify-between p-6 sm:p-7"
+                          className="group flex h-full flex-col justify-between p-5 sm:p-7"
                         >
                           <div>
                             <div className="soale-media-frame mb-6 border border-line p-5">
@@ -446,7 +376,7 @@ export default async function HomePage() {
                               href={card.href}
                               className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover"
                             >
-                              <span>Inspect system architecture</span>
+                              <span>See how this works</span>
                               <ArrowUpRight className="h-3.5 w-3.5" />
                             </Link>
                           </div>
@@ -456,23 +386,30 @@ export default async function HomePage() {
                   </div>
 
                   {/* Interactive Before vs. After Workflow Compare */}
-                  <div data-reveal="card" className="mt-12">
-                    <BeforeAfterWorkflowCompare />
-                  </div>
+                  <LazyBeforeAfterWorkflowCompare className="mt-12" />
                 </Container>
               </section>
             );
 
-          /* 4. SELECTED WORK & BLUEPRINTS (SOALE TOP-BORDERED TABS + FROSTED HOVER CARDS) */
+          /* 7. PROOF: BADGED WORKFLOW BLUEPRINTS + FOUNDER ACCOUNTABILITY */
           case "case_studies_highlight":
             return (
               <section
                 key={section.id}
                 id="work"
-                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
+                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-24 lg:py-28"
               >
                 <Container>
                   <SoaleWorkShowcase caseStudies={caseStudies} />
+                  {!hasFounderIntroVisible && (
+                    <div className="mt-16 border-t border-line pt-16">
+                      <SoaleEditorialProof
+                        testimonials={testimonials}
+                        founder={founder}
+                        companyName={settings.companyName}
+                      />
+                    </div>
+                  )}
                 </Container>
               </section>
             );
@@ -483,7 +420,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="capabilities"
-                className="cv-auto py-20 sm:py-28 lg:py-32"
+                className="py-20 sm:py-28 lg:py-32"
               >
                 <Container>
                   <SoaleServicesShowcase services={services} />
@@ -497,7 +434,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="pillars"
-                className="cv-auto border-t border-line bg-canvas-tertiary/35 py-20 sm:py-24"
+                className="border-t border-line bg-canvas-tertiary/35 py-20 sm:py-24"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -553,29 +490,27 @@ export default async function HomePage() {
               </section>
             );
 
-          /* 7. INTERACTIVE SANDBOX PREVIEW */
+          /* 5. INTERACTIVE LEAD SCORER PREVIEW */
           case "interactive_demos_preview":
             return (
               <section
                 key={section.id}
                 id="live-sandbox"
-                className="cv-auto py-20 sm:py-28"
+                className="border-t border-line bg-canvas-tertiary/30 py-20 sm:py-24"
               >
                 <Container>
                   <SoaleSectionHeader
                     align="split"
-                    eyebrow="Interactive Automation Lab"
-                    title="Test real deterministic scoring & grounded AI triage right now."
-                    description="Explore live simulations powered by our actual validation, scoring, and fallback rules before scheduling a discovery call."
+                    eyebrow="Try It Live"
+                    title="Test our lead scorer & FAQ triage right in your browser."
+                    description="See how OmniFlow checks enquiries, assigns priority, and flags edge cases for human review before you book a call."
                     action={
                       <SoaleArrowButton href="/demos" variant="primary">
-                        Open All 5 Live Tools
+                        See all 5 live demos
                       </SoaleArrowButton>
                     }
                   />
-                  <div data-reveal="card" className="mt-12">
-                    <HomeAutomationLabPreview />
-                  </div>
+                  <LazyHomeAutomationLabPreview className="mt-12" />
                 </Container>
               </section>
             );
@@ -586,7 +521,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="ecosystem"
-                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28"
+                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -600,9 +535,7 @@ export default async function HomePage() {
                       </SoaleArrowButton>
                     }
                   />
-                  <div data-reveal="card" className="mt-12">
-                    <IntegrationEcosystemVisualizer />
-                  </div>
+                  <LazyIntegrationEcosystemVisualizer className="mt-12" />
                 </Container>
               </section>
             );
@@ -613,10 +546,10 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="process"
-                className="cv-auto py-20 sm:py-28 lg:py-32"
+                className="py-20 sm:py-28 lg:py-32"
               >
                 <Container>
-                  <SoaleProcessSection />
+                  <LazySoaleProcessSection />
                 </Container>
               </section>
             );
@@ -627,7 +560,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="solutions-fit"
-                className="cv-auto border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28"
+                className="border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -707,7 +640,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="architecture_governance"
-                className="cv-auto py-20 sm:py-28"
+                className="py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -763,10 +696,10 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="roi_framing"
-                className="cv-auto border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
+                className="border-y border-line bg-canvas-tertiary/45 py-20 sm:py-28 lg:py-32"
               >
                 <Container>
-                  <SoalePricingSection pricing={pricingConfig} />
+                  <LazySoalePricingSection pricing={pricingConfig} />
                 </Container>
               </section>
             );
@@ -777,7 +710,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="leadership"
-                className="cv-auto py-20 sm:py-28"
+                className="py-20 sm:py-28"
               >
                 <Container>
                   <SoaleEditorialProof
@@ -797,7 +730,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="testimonials"
-                className="cv-auto py-20 sm:py-28"
+                className="py-20 sm:py-28"
               >
                 <Container>
                   <SoaleEditorialProof
@@ -815,7 +748,7 @@ export default async function HomePage() {
               <section
                 key={section.id}
                 id="insights"
-                className="cv-auto border-t border-line py-20 sm:py-28"
+                className="border-t border-line py-20 sm:py-28"
               >
                 <Container>
                   <SoaleSectionHeader
@@ -902,61 +835,99 @@ export default async function HomePage() {
               </section>
             );
 
-          /* 15. SOALE SPLIT 2-COLUMN FAQ ACCORDION */
+          /* 9. 5 PLAIN-ENGLISH FAQS + FINAL REVIEW CTA */
           case "faq_section":
             return (
               <section
                 key={section.id}
                 id="faq"
-                className="cv-auto border-t border-line bg-canvas-tertiary/40 py-20 sm:py-28 lg:py-32"
+                className="border-t border-line bg-canvas-tertiary/40 py-20 sm:py-24 lg:py-28"
               >
                 <Container>
-                  <SoaleFaqAccordion
-                    faqs={faqs.slice(0, 6)}
+                  <LazySoaleFaqAccordion
+                    faqs={faqs.slice(0, 5)}
                     contactEmail={settings.contactEmail}
                   />
+
+                  {!hasStandaloneCtaVisible && (
+                    <div
+                      data-reveal="card"
+                      data-scroll-card=""
+                      className="soale-horizon-card mt-14 rounded-[26px] px-5 py-12 text-center sm:mt-16 sm:px-12 sm:py-18"
+                    >
+                      <div className="relative z-10 mx-auto max-w-2xl">
+                        <SoaleEyebrow className="mb-4">
+                          Free 25-Minute Workflow Review
+                        </SoaleEyebrow>
+                        <h2 className="soale-h2 text-ink-heading">
+                          Start with one bottleneck. Leave with a written plan.
+                        </h2>
+                        <p className="mx-auto mt-4 max-w-[54ch] text-sm leading-relaxed text-ink-body sm:text-base">
+                          Show us where leads, inbox replies, or handoffs slow
+                          your team down. You get a plain-English scope — zero
+                          obligation.
+                        </p>
+
+                        <div className="mt-8 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:flex-wrap">
+                          <SoaleArrowButton
+                            href={settings.primaryCtaHref}
+                            variant="secondary"
+                          >
+                            {settings.primaryCtaLabel}
+                          </SoaleArrowButton>
+                          <SoaleArrowButton
+                            href={settings.secondaryCtaHref}
+                            variant="outline"
+                          >
+                            {settings.secondaryCtaLabel}
+                          </SoaleArrowButton>
+                        </div>
+
+                        <p className="mt-4 text-xs text-ink-muted">
+                          {settings.supportHours} · 100% Client-Owned Systems
+                        </p>
+                      </div>
+
+                      <div aria-hidden="true" className="soale-horizon-beam" />
+                    </div>
+                  )}
                 </Container>
               </section>
             );
 
-          /* 16. SIGNATURE SOALE CLOSING CONVERSION BANNER (.on-dark) */
+          /* 16. SIGNATURE SOALE CLOSING CONVERSION BANNER (Dual-Mode Horizon Glow) */
           case "cta_banner":
             return (
               <section
                 key={section.id}
                 aria-label="Schedule a discovery call"
-                className="py-16 sm:py-24"
+                className="py-14 sm:py-24"
               >
                 <Container>
-                  <div className="on-dark relative overflow-hidden rounded-[28px] border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-6 py-14 text-center shadow-elevated sm:px-12 sm:py-20">
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 opacity-85"
-                      style={{
-                        background:
-                          "radial-gradient(60% 55% at 22% 18%, rgba(183, 122, 216, 0.18), transparent 70%), radial-gradient(50% 50% at 80% 82%, rgba(167, 143, 202, 0.14), transparent 72%)",
-                      }}
-                    />
-
+                  <div
+                    data-reveal="card"
+                    data-scroll-card=""
+                    className="soale-horizon-card rounded-[28px] px-5 py-12 text-center sm:px-12 sm:py-20"
+                  >
                     <div className="relative z-10 mx-auto max-w-3xl">
                       <SoaleEyebrow className="mb-5">
                         Ready When Your Team Is
                       </SoaleEyebrow>
-                      <h2 className="soale-h1 text-[var(--of-color-heading)]">
+                      <h2 className="soale-h1 text-ink-heading">
                         Start with one bottleneck. Leave with a clear, written
                         automation plan.
                       </h2>
-                      <p className="soale-lead mx-auto mt-5 !text-[var(--of-color-body)]">
+                      <p className="soale-lead mx-auto mt-5 text-ink-body">
                         Walk us through where enquiries, support threads, or
                         handoffs slow your team down. You will receive honest
                         architectural guidance — whether we build together or
                         not.
                       </p>
 
-                      <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+                      <div className="mt-9 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:flex-wrap sm:gap-4">
                         <SoaleArrowButton
                           href={settings.primaryCtaHref}
-                          variant="primary"
+                          variant="secondary"
                         >
                           {settings.primaryCtaLabel}
                         </SoaleArrowButton>
@@ -968,10 +939,12 @@ export default async function HomePage() {
                         </SoaleArrowButton>
                       </div>
 
-                      <p className="mt-5 font-mono text-xs text-[var(--of-color-muted)]">
+                      <p className="mt-5 font-mono text-xs text-ink-muted">
                         {settings.supportHours} · 100% Client-Owned Systems
                       </p>
                     </div>
+
+                    <div aria-hidden="true" className="soale-horizon-beam" />
                   </div>
                 </Container>
               </section>

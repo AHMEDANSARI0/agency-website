@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -9,15 +9,19 @@ import {
   SoaleChip,
   SoaleSectionHeader,
 } from "@/components/ui/soale";
-import { SoaleProcessSection } from "@/components/sections/soale";
-import { WorkflowDiagram } from "@/components/sections/WorkflowDiagram";
-import { BeforeAfterWorkflowCompare } from "@/components/sections/BeforeAfterWorkflowCompare";
+import {
+  LazyBeforeAfterWorkflowCompare,
+  LazySoaleProcessSection,
+  LazyWorkflowDiagram,
+} from "@/components/sections/LazyClientIslands";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
+export const revalidate = 600;
+
 export const metadata: Metadata = {
-  title: "How OmniFlow Works",
+  title: "How It Works",
   description:
-    "Our transparent 4-phase, 10-stage methodology for auditing, designing, testing, and handing over reliable business automation systems.",
+    "Our transparent 4-phase process for reviewing, building, testing, and handing over reliable AI workflow automation for service businesses.",
 };
 
 const PROCESS_STAGES = [
@@ -68,22 +72,22 @@ const PROCESS_STAGES = [
 ];
 
 export default async function HowItWorksPage() {
-  const settings = await db.getSiteSettings();
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "How It Works" }]}
-        badge="Delivery Methodology"
-        title="Structured Engineering, Not Trial-and-Error Prompting"
-        description="Reliable automation comes from clear business logic, strict guardrails, and clean handover. Here is exactly how an engagement with OmniFlow runs from day one."
+        badge="4-Phase Delivery"
+        title="Four Clear Steps From Workflow Review to Handover"
+        description="Reliable automation comes from clear rules, human approval gates, and a clean handover. Here is exactly how an engagement with OmniFlow runs from day one."
         actions={
           <>
             <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
               {settings.primaryCtaLabel}
             </SoaleArrowButton>
             <SoaleArrowButton href="/demos" variant="surface">
-              Explore Live Demos
+              See live demo
             </SoaleArrowButton>
           </>
         }
@@ -92,7 +96,7 @@ export default async function HowItWorksPage() {
       {/* Interactive 10-Stage Scroll-Linked Soale Process Pills */}
       <section className="border-b border-line py-20 sm:py-28">
         <Container>
-          <SoaleProcessSection />
+          <LazySoaleProcessSection />
         </Container>
       </section>
 
@@ -142,7 +146,7 @@ export default async function HowItWorksPage() {
               description="Select any stage below to see how deterministic validation, qualification rules, CRM commits, and owner handoffs work together."
               className="mb-8"
             />
-            <WorkflowDiagram />
+            <LazyWorkflowDiagram />
           </div>
 
           <div>
@@ -152,7 +156,7 @@ export default async function HowItWorksPage() {
               description="Switch between manual and automated views across lead intake, support triage, and client onboarding."
               className="mb-8"
             />
-            <BeforeAfterWorkflowCompare />
+            <LazyBeforeAfterWorkflowCompare />
           </div>
         </Container>
       </section>

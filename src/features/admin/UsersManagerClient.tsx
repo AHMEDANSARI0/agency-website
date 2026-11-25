@@ -422,7 +422,7 @@ export function UsersManagerClient({
                 required
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="editor@omniflow.example"
+                placeholder="editor@yourdomain.com"
                 className="w-full rounded-control border border-line bg-surface-input px-3 py-2 text-sm text-ink-heading focus:border-primary focus:outline-none"
               />
             </div>

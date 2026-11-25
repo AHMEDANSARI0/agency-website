@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import createBundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = createBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const strictFrameHeaders = process.env.ENABLE_STRICT_FRAME_HEADERS === "true";
 const isProd = process.env.NODE_ENV === "production";
@@ -14,8 +19,8 @@ function buildContentSecurityPolicy(): string {
     "form-action 'self' mailto:",
     "object-src 'none'",
     scriptSrc,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
     "img-src 'self' data: blob: https:",
     "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://*.supabase.co",
   ];
@@ -93,7 +98,8 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/icon.svg",
+        source:
+          "/:asset(icon.svg|logo.svg|logo-dark.svg|favicon.svg|favicon.ico|favicon-16x16.png|favicon-32x32.png|apple-touch-icon.png|og-image.png|site.webmanifest)",
         headers: [
           ...baseHeaders,
           {
@@ -118,8 +124,19 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "no-store, max-age=0" },
         ],
       },
+      {
+        source: "/api/redirects",
+        headers: [
+          ...baseHeaders,
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=300, stale-while-revalidate=600",
+          },
+        ],
+      },
     ];
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

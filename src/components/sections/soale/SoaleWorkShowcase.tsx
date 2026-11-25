@@ -149,7 +149,7 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
                     />
 
                     <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface/90 px-3 py-1 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-ink-heading backdrop-blur-sm">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-ink-heading">
                         <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                         {meta.label}
                       </span>
@@ -158,15 +158,12 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
                       </span>
                     </div>
 
-                    {/* Multi-Layer GPU Parallax Pipeline Preview Nodes */}
-                    <div
-                      data-parallax="10"
-                      className="relative z-10 my-auto space-y-2 py-3"
-                    >
+                    {/* Pipeline Preview Nodes */}
+                    <div className="relative z-10 my-auto space-y-2 py-3">
                       {primarySteps.map((stepText, stepIdx) => (
                         <div
                           key={stepIdx}
-                          className="flex items-center gap-3 rounded-2xl border border-line/90 bg-surface/92 px-3.5 py-2.5 shadow-sm backdrop-blur-sm"
+                          className="flex items-center gap-3 rounded-2xl border border-line/90 bg-surface px-3.5 py-2.5 shadow-sm"
                         >
                           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary font-mono text-[0.66rem] font-semibold text-primary-foreground">
                             0{stepIdx + 1}

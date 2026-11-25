@@ -19,11 +19,11 @@ afterAll(() => {
 });
 
 describe("Transformation Phase 1 — Brand Positioning, Hero Command Center & Conversion Funnel", () => {
-  it("1. configures outcome-driven Discovery Call & Live Demo CTAs and upgrades v7 snapshots cleanly", async () => {
-    expect(CURRENT_SEED_VERSION).toBeGreaterThanOrEqual(8);
+  it("1. configures outcome-driven Workflow Review & Live Demo CTAs and upgrades legacy snapshots cleanly", async () => {
+    expect(CURRENT_SEED_VERSION).toBeGreaterThanOrEqual(10);
     const seed = createInitialSeedSnapshot();
-    expect(seed.siteSettings.primaryCtaLabel).toBe("Book a Free Discovery Call");
-    expect(seed.siteSettings.secondaryCtaLabel).toBe("Explore Live Demos");
+    expect(seed.siteSettings.primaryCtaLabel).toBe("Book a free workflow review");
+    expect(seed.siteSettings.secondaryCtaLabel).toBe("See live demo");
 
     // Simulate legacy v7 snapshot with old default CTA labels
     const legacyPath = path.join(tempDir, "legacy-v7.json");
@@ -41,37 +41,42 @@ describe("Transformation Phase 1 — Brand Positioning, Hero Command Center & Co
 
     process.env.OMNIFLOW_LOCAL_DB_PATH = legacyPath;
     const upgraded = await db.getSiteSettings();
-    expect(upgraded.primaryCtaLabel).toBe("Book a Free Discovery Call");
+    expect(upgraded.primaryCtaLabel).toBe("Book a free workflow review");
     expect(upgraded.primaryCtaHref).toBe("/contact?intent=call");
-    expect(upgraded.secondaryCtaLabel).toBe("Explore Live Demos");
+    expect(upgraded.secondaryCtaLabel).toBe("See live demo");
 
     process.env.OMNIFLOW_LOCAL_DB_PATH = path.join(tempDir, "trans-p1-db.json");
   });
 
-  it("2. renders all 7 real-world automation steps in the Homepage Hero Command Center", () => {
+  it("2. renders the Reference Dark Purple AI Hero & Workflow Command Center with Sample data badge", () => {
     const heroSource = fs.readFileSync(
       path.join(process.cwd(), "src/components/sections/PinnedHero.tsx"),
       "utf8"
     );
 
-    const requiredSteps = [
-      "Incoming customer enquiry",
-      "AI analysis",
-      "Lead qualification",
-      "CRM update",
-      "WhatsApp / email notification",
-      "Optional human approval",
-      "Completed workflow",
+    const requiredHeroElements = [
+      "AI automation for service businesses",
+      "Automate the work.",
+      "Accelerate the business.",
+      "Workflow command center",
+      "Sample data",
+      "Enquiries answered",
+      "Recent runs",
+      "Lead scored",
+      "CRM updated",
+      "Quote reply",
+      "Needs approval",
+      "WhatsApp alert",
     ];
 
-    for (const stepLabel of requiredSteps) {
-      expect(heroSource).toContain(stepLabel);
+    for (const label of requiredHeroElements) {
+      expect(heroSource).toContain(label);
     }
 
     expect(heroSource).toContain("prefers-reduced-motion: reduce");
     expect(heroSource).toContain("document.hidden");
-    expect(heroSource).toContain("Book a Free Discovery Call");
-    expect(heroSource).toContain("Explore Live Demos");
+    expect(heroSource).toContain("Book a free workflow review");
+    expect(heroSource).toContain("See live demo");
   });
 
   it("3. accepts minimal frictionless enquiries AND persists Discovery Call slot preferences in CRM", async () => {

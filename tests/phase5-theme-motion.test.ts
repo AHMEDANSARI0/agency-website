@@ -10,6 +10,7 @@ import { evaluateThemeContrast } from "@/features/themes/color-utils";
 import {
   BUILT_IN_THEME_PRESETS,
   DEFAULT_THEME_PRESET_ID,
+  OMNIFLOW_DARK_PURPLE_AI_LIGHT,
   OMNIFLOW_DARK_TOKENS,
   OMNIFLOW_LIGHT_TOKENS,
 } from "@/features/themes/presets";
@@ -62,7 +63,7 @@ describe("Theme Manager, Light-First Indigo Signature Palette & Brand Assets", (
 
     const initialTheme = await db.getThemeConfig();
     expect(initialTheme.activePresetId).toBe(DEFAULT_THEME_PRESET_ID);
-    expect(initialTheme.defaultMode).toBe("light");
+    expect(initialTheme.defaultMode).toBe("dark");
   });
 
   it("2. enforces RBAC on /api/admin/theme and supports draft, publish, custom presets, CSS sanitization & rollback", async () => {
@@ -155,7 +156,7 @@ describe("Theme Manager, Light-First Indigo Signature Palette & Brand Assets", (
     expect(pubData.themeConfig.updatedBy).toBe("admin@omniflow.example");
     expect(pubData.themeConfig.published.light.colors.accent).toBe("#2563EB");
     expect(pubData.themeConfig.published.light.colors.link).toBe(
-      OMNIFLOW_LIGHT_TOKENS.colors.link
+      OMNIFLOW_DARK_PURPLE_AI_LIGHT.colors.link
     );
 
     // Save custom preset
@@ -171,7 +172,7 @@ describe("Theme Manager, Light-First Indigo Signature Palette & Brand Assets", (
     );
     expect(savePresetRes.status).toBe(200);
 
-    // Rollback restores previous published (#6366F1 accent)
+    // Rollback restores previous published accent
     const rollbackRes = await postThemeHandler(
       new Request("http://localhost:3000/api/admin/theme", {
         method: "POST",
@@ -181,7 +182,9 @@ describe("Theme Manager, Light-First Indigo Signature Palette & Brand Assets", (
     );
     expect(rollbackRes.status).toBe(200);
     const rolled = await db.getThemeConfig();
-    expect(rolled.published.light.colors.accent).toBe("#6366F1");
+    expect(rolled.published.light.colors.accent).toBe(
+      OMNIFLOW_DARK_PURPLE_AI_LIGHT.colors.accent
+    );
   });
 
   it("3. updates replaceable Brand Identity slots and strips unsafe javascript: URLs", async () => {

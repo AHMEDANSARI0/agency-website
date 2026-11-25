@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@/lib/database";
+import { getCachedSiteSettings } from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleCard } from "@/components/ui/soale";
 import { CookiePreferencesButton } from "@/components/analytics/CookiePreferencesButton";
+
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Cookie Policy",
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CookiePolicyPage() {
-  const settings = await db.getSiteSettings();
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="bg-canvas text-ink-body">

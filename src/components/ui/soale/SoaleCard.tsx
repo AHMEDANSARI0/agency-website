@@ -5,6 +5,7 @@ interface SoaleCardProps {
   children: React.ReactNode;
   interactive?: boolean;
   elevated?: boolean;
+  reveal?: boolean;
   staggerIndex?: number;
   style?: React.CSSProperties;
   className?: string;
@@ -12,13 +13,13 @@ interface SoaleCardProps {
 }
 
 /**
- * Soale 24px (`1.5rem`) architectural card shell with GPU scroll-reveal & pointer rim sheen.
- * Adapts automatically between Light (#FFFFFF on #F7F6F3) and Dark (#17141C / #211C28 on #100E13).
+ * Clean architectural card shell (reveal only when opted in via `reveal` / `data-reveal`).
  */
 export function SoaleCard({
   children,
   interactive = false,
   elevated = false,
+  reveal = false,
   staggerIndex,
   style,
   className = "",
@@ -27,14 +28,16 @@ export function SoaleCard({
   const mergedStyle =
     typeof staggerIndex === "number"
       ? ({
-          "--soale-stagger": staggerIndex,
-          "--card-idx": staggerIndex,
+          "--d": Math.min(staggerIndex % 4, 3),
+          "--card-idx": Math.min(staggerIndex % 4, 3),
           ...style,
         } as React.CSSProperties)
       : style;
 
   return (
     <Tag
+      {...(reveal ? { "data-reveal": "card" } : {})}
+      data-scroll-card=""
       style={mergedStyle}
       className={`soale-card ${interactive ? "soale-card-interactive" : ""} ${
         elevated ? "!bg-surface-elevated shadow-elevated" : ""

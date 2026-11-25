@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApiAuth } from "@/lib/auth/server";
+import { CACHE_TAGS, revalidatePublicContent } from "@/lib/cache/public-cache";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
 import { sanitizePlainText, sanitizeSafeUrl } from "@/lib/validation/common";
@@ -79,6 +80,8 @@ export async function PUT(request: Request) {
     summary: `Updated Brand Identity & Asset slots for ${updated.brandName}.`,
     ipAddress: extractClientIp(request.headers),
   });
+
+  revalidatePublicContent([CACHE_TAGS.brand], ["/"]);
 
   return NextResponse.json({ ok: true, brandAssets: updated });
 }

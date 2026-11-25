@@ -1,21 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import Lenis from "lenis";
 
 interface NavigatorConnectionLike {
   saveData?: boolean;
 }
 
+interface LenisLike {
+  raf: (time: number) => void;
+  scrollTo: (
+    target: number | string | HTMLElement,
+    options?: {
+      offset?: number;
+      duration?: number;
+      immediate?: boolean;
+    }
+  ) => void;
+  destroy: () => void;
+}
+
 /**
- * Hardware-aware, Core-Web-Vitals-safe Soale & OmniFlow Motion Runtime:
- * 1. Progressive enhancement via html[data-motion="ready"] so SSR/No-JS/Lighthouse never hide [data-reveal] or .soale-card elements.
- * 2. Automatic staggered scroll-loading choreography on [data-reveal] AND .soale-card across all routes + dynamic tab/filter switches.
- * 3. Zero-reflow IntersectionObserver-gated GPU parallax on [data-parallax] media layers.
- * 4. Lenis smooth wheel scrolling enabled only on fine-pointer desktop hardware without Save-Data,
- *    automatically pausing RAF ticks when the browser tab is hidden.
- * 5. RAF-throttled radial spotlight (.spot & .soale-card-interactive) tracking on hover-capable devices.
+ * Phase 3 — Disciplined, Core-Web-Vitals-Safe Motion Runtime:
+ * 1. Single `[data-reveal]` scroll-reveal primitive (`<= 16px` offset, `480ms`,
+ *    `cubic-bezier(0.22, 1, 0.36, 1)`, `60ms` stagger capped at max 4 items: `0..3`).
+ *    Zero `.soale-card` self-reveal, zero pointer spotlight listeners, zero media parallax.
+ * 2. Desktop fine-pointer Lenis (`lerp: 0.1`, idle-loaded via `requestIdleCallback`),
+ *    with route-change scroll reset, smooth `#hash` `scrollTo`, and `data-lenis-prevent`.
+ * 3. Automatic tab-hidden (`html[data-tab-hidden="true"]`) and offscreen
+ *    (`[data-offscreen="true"]`) animation pausing.
  */
 function isMotionSuppressedByThemeOrOs(): boolean {
   if (typeof window === "undefined") return true;
@@ -34,17 +47,33 @@ function isMotionSuppressedByThemeOrOs(): boolean {
 
 export function MotionRuntime() {
   const pathname = usePathname();
+  const lenisRef = useRef<LenisLike | null>(null);
+  const prevPathnameRef = useRef<string>(pathname);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    const syncTabVisibility = () => {
+      if (document.hidden) {
+        document.documentElement.dataset.tabHidden = "true";
+      } else {
+        delete document.documentElement.dataset.tabHidden;
+      }
+    };
+    syncTabVisibility();
+
     if (isMotionSuppressedByThemeOrOs()) {
       delete document.documentElement.dataset.motion;
-      return;
+      document.addEventListener("visibilitychange", syncTabVisibility);
+      return () =>
+        document.removeEventListener("visibilitychange", syncTabVisibility);
     }
 
     document.documentElement.dataset.motion = "ready";
 
-    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    const isCoarsePointer =
+      window.matchMedia("(pointer: coarse)").matches ||
+      !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const conn = (
       navigator as Navigator & { connection?: NavigatorConnectionLike }
     ).connection;
@@ -54,28 +83,13 @@ export function MotionRuntime() {
       navigator.hardwareConcurrency <= 2;
 
     if (isCoarsePointer || saveData || lowCores) {
-      return;
+      document.addEventListener("visibilitychange", syncTabVisibility);
+      return () =>
+        document.removeEventListener("visibilitychange", syncTabVisibility);
     }
 
-    const lenis = new Lenis({
-      lerp: 0.12,
-      smoothWheel: true,
-      syncTouch: false,
-    });
-
+    let cancelled = false;
     let rafId = 0;
-    const startLoop = () => {
-      if (rafId || document.hidden) return;
-      const tick = (time: number) => {
-        lenis.raf(time);
-        if (!document.hidden) {
-          rafId = window.requestAnimationFrame(tick);
-        } else {
-          rafId = 0;
-        }
-      };
-      rafId = window.requestAnimationFrame(tick);
-    };
 
     const stopLoop = () => {
       if (rafId) {
@@ -84,23 +98,120 @@ export function MotionRuntime() {
       }
     };
 
+    const startLoop = () => {
+      if (rafId || document.hidden || !lenisRef.current) return;
+      const tick = (time: number) => {
+        if (!lenisRef.current || document.hidden) {
+          rafId = 0;
+          return;
+        }
+        lenisRef.current.raf(time);
+        rafId = window.requestAnimationFrame(tick);
+      };
+      rafId = window.requestAnimationFrame(tick);
+    };
+
     const onVisibilityChange = () => {
+      syncTabVisibility();
       if (document.hidden) {
         stopLoop();
       } else {
         startLoop();
       }
     };
-
-    startLoop();
     document.addEventListener("visibilitychange", onVisibilityChange);
 
+    // Smooth same-page #hash anchor scrolling via Lenis when active
+    const onAnchorClick = (e: MouseEvent) => {
+      if (!lenisRef.current || e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!(e.target instanceof Element)) return;
+      const link = e.target.closest<HTMLAnchorElement>('a[href*="#"]');
+      if (!link) return;
+      const rawHref = link.getAttribute("href");
+      if (!rawHref || rawHref === "#") return;
+
+      let url: URL;
+      try {
+        url = new URL(rawHref, window.location.href);
+      } catch {
+        return;
+      }
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        !url.hash
+      ) {
+        return;
+      }
+
+      const id = decodeURIComponent(url.hash.slice(1));
+      const targetEl = document.getElementById(id);
+      if (!targetEl) return;
+
+      e.preventDefault();
+      window.history.pushState(null, "", url.hash);
+      lenisRef.current.scrollTo(targetEl, { offset: -88, duration: 0.65 });
+    };
+    document.addEventListener("click", onAnchorClick);
+
+    const scheduleIdle =
+      "requestIdleCallback" in window
+        ? (cb: () => void) =>
+            (
+              window as Window & {
+                requestIdleCallback: (
+                  fn: () => void,
+                  opts?: { timeout: number }
+                ) => number;
+              }
+            ).requestIdleCallback(cb, { timeout: 1500 })
+        : (cb: () => void) => window.setTimeout(cb, 180);
+
+    scheduleIdle(() => {
+      if (cancelled) return;
+      import("lenis")
+        .then(({ default: Lenis }) => {
+          if (cancelled) return;
+          const instance = new Lenis({
+            lerp: 0.1,
+            smoothWheel: true,
+            syncTouch: false,
+            prevent: (node: HTMLElement) =>
+              Boolean(node?.closest?.("[data-lenis-prevent]")),
+          });
+          lenisRef.current = instance;
+          startLoop();
+        })
+        .catch(() => {
+          // Graceful fallback to native browser scrolling
+        });
+    });
+
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("click", onAnchorClick);
       stopLoop();
-      lenis.destroy();
+      lenisRef.current?.destroy();
+      lenisRef.current = null;
     };
   }, []);
+
+  // Reset Lenis & window scroll cleanly on route changes (when not navigating to a #hash)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (!window.location.hash) {
+        if (lenisRef.current) {
+          lenisRef.current.scrollTo(0, { immediate: true });
+        } else {
+          window.scrollTo(0, 0);
+        }
+      }
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -111,9 +222,6 @@ export function MotionRuntime() {
       document
         .querySelectorAll<HTMLElement>("[data-reveal]:not(.in)")
         .forEach((el) => el.classList.add("in"));
-      document
-        .querySelectorAll<HTMLElement>(".soale-card:not(.soale-in)")
-        .forEach((el) => el.classList.add("soale-in"));
     };
 
     if (prefersReduced || typeof IntersectionObserver === "undefined") {
@@ -126,17 +234,26 @@ export function MotionRuntime() {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             const target = entry.target as HTMLElement;
-            if (target.hasAttribute("data-reveal")) {
-              target.classList.add("in");
-            }
-            if (target.classList.contains("soale-card")) {
-              target.classList.add("soale-in");
-            }
+            target.classList.add("in");
             revealObserver.unobserve(target);
           }
         }
       },
       { rootMargin: "0px 0px -5% 0px", threshold: 0.05 }
+    );
+
+    const animViewportObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement;
+          if (entry.isIntersecting) {
+            delete el.dataset.offscreen;
+          } else {
+            el.dataset.offscreen = "true";
+          }
+        }
+      },
+      { rootMargin: "80px 0px 80px 0px", threshold: 0 }
     );
 
     const registerUnrevealedNodes = () => {
@@ -146,6 +263,20 @@ export function MotionRuntime() {
         "[data-reveal]:not(.in)"
       );
       revealNodes.forEach((el) => {
+        // Auto-stagger sibling [data-reveal] items (capped at max 4 items: 0..3)
+        if (!el.style.getPropertyValue("--d")) {
+          const parent = el.parentElement;
+          if (parent && parent.children.length > 1) {
+            const siblings = Array.from(
+              parent.querySelectorAll<HTMLElement>(":scope > [data-reveal]")
+            );
+            const idx = siblings.indexOf(el);
+            if (idx > 0) {
+              el.style.setProperty("--d", String(Math.min(idx % 4, 3)));
+            }
+          }
+        }
+
         const rect = el.getBoundingClientRect();
         if (rect.top < vh * 0.93 && rect.bottom > 0) {
           el.classList.add("in");
@@ -154,38 +285,15 @@ export function MotionRuntime() {
         }
       });
 
-      const cardNodes = document.querySelectorAll<HTMLElement>(
-        ".soale-card:not(.soale-in)"
-      );
-      cardNodes.forEach((card) => {
-        if (!card.style.getPropertyValue("--soale-stagger")) {
-          const parent = card.parentElement;
-          const grandParent = parent?.parentElement;
-          const container =
-            parent && parent.children.length > 1 ? parent : grandParent;
-          if (container) {
-            const siblings = Array.from(
-              container.querySelectorAll<HTMLElement>(":scope > .soale-card, :scope > * > .soale-card")
-            );
-            const idx = siblings.indexOf(card);
-            if (idx >= 0) {
-              card.style.setProperty("--soale-stagger", String(idx % 4));
-            }
-          }
-        }
-
-        const rect = card.getBoundingClientRect();
-        if (rect.top < vh * 0.93 && rect.bottom > 0) {
-          card.classList.add("soale-in");
-        } else {
-          revealObserver.observe(card);
-        }
-      });
+      document
+        .querySelectorAll<HTMLElement>(
+          ".animate-marquee, .animate-signal-flow, [data-anim-viewport]"
+        )
+        .forEach((el) => animViewportObserver.observe(el));
     };
 
     registerUnrevealedNodes();
 
-    // Watch main content for dynamic filter/tab/pagination card insertions
     const mainEl = document.getElementById("main-content");
     let mutationRaf = 0;
     const domObserver =
@@ -203,90 +311,11 @@ export function MotionRuntime() {
       domObserver.observe(mainEl, { childList: true, subtree: true });
     }
 
-    // Subtle GPU Parallax scoped strictly to visible [data-parallax] nodes
-    const visibleParallax = new Set<HTMLElement>();
-    const parallaxObserver = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const el = entry.target as HTMLElement;
-          if (entry.isIntersecting) {
-            visibleParallax.add(el);
-          } else {
-            visibleParallax.delete(el);
-          }
-        }
-      },
-      { rootMargin: "120px 0px 120px 0px", threshold: 0 }
-    );
-
-    document.querySelectorAll<HTMLElement>("[data-parallax]").forEach((el) => {
-      parallaxObserver.observe(el);
-    });
-
-    let scrollRaf = 0;
-    const updateParallax = () => {
-      scrollRaf = 0;
-      if (visibleParallax.size === 0 || document.hidden) return;
-      const vh = window.innerHeight || 800;
-      const halfVh = vh * 0.5;
-      visibleParallax.forEach((el) => {
-        const speed = Number(el.dataset.parallax || "12");
-        const rect = el.getBoundingClientRect();
-        const centerOffset = (rect.top + rect.height * 0.5 - halfVh) / vh;
-        const clamped = Math.max(-1, Math.min(1, centerOffset));
-        const shiftPx = (-clamped * speed).toFixed(2);
-        el.style.setProperty("--soale-py", `${shiftPx}px`);
-      });
-    };
-
-    const onScroll = () => {
-      if (!scrollRaf && visibleParallax.size > 0) {
-        scrollRaf = window.requestAnimationFrame(updateParallax);
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    updateParallax();
-
-    // Pointer-tracked soft spotlight on hover-capable hardware
-    const supportsFineHover = window.matchMedia(
-      "(hover: hover) and (pointer: fine)"
-    ).matches;
-
-    let pendingEvent: PointerEvent | null = null;
-    const onPointerMove = (e: PointerEvent) => {
-      if (pendingEvent) {
-        pendingEvent = e;
-        return;
-      }
-      pendingEvent = e;
-      window.requestAnimationFrame(() => {
-        const ev = pendingEvent;
-        pendingEvent = null;
-        if (!ev || !(ev.target instanceof Element)) return;
-        const card = ev.target.closest<HTMLElement>(
-          ".spot, .soale-card-interactive"
-        );
-        if (!card) return;
-        const rect = card.getBoundingClientRect();
-        card.style.setProperty("--mx", `${Math.round(ev.clientX - rect.left)}px`);
-        card.style.setProperty("--my", `${Math.round(ev.clientY - rect.top)}px`);
-      });
-    };
-
-    if (supportsFineHover) {
-      window.addEventListener("pointermove", onPointerMove, { passive: true });
-    }
-
     return () => {
       revealObserver.disconnect();
-      parallaxObserver.disconnect();
+      animViewportObserver.disconnect();
       domObserver?.disconnect();
       if (mutationRaf) window.cancelAnimationFrame(mutationRaf);
-      if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
-      window.removeEventListener("scroll", onScroll);
-      if (supportsFineHover) {
-        window.removeEventListener("pointermove", onPointerMove);
-      }
     };
   }, [pathname]);
 

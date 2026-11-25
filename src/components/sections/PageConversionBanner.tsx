@@ -13,40 +13,35 @@ interface PageConversionBannerProps {
 }
 
 export function PageConversionBanner({
-  eyebrow = "Free 25-Minute Discovery Call",
+  eyebrow = "Free 25-Minute Workflow Review",
   title,
   description,
   primaryLabel,
   primaryHref,
-  secondaryLabel = "Explore Live Demos",
+  secondaryLabel = "See live demo",
   secondaryHref = "/demos",
 }: PageConversionBannerProps) {
   return (
-    <section className="bg-canvas py-16 sm:py-22">
+    <section className="bg-canvas py-14 sm:py-22">
       <Container>
-        <div className="on-dark relative overflow-hidden rounded-[28px] border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-6 py-14 text-center shadow-elevated sm:px-12 sm:py-20">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-85"
-            style={{
-              background:
-                "radial-gradient(60% 55% at 20% 16%, rgba(183, 122, 216, 0.18), transparent 70%), radial-gradient(50% 50% at 82% 84%, rgba(167, 143, 202, 0.14), transparent 72%)",
-            }}
-          />
-
+        <div
+          data-reveal="card"
+          data-scroll-card=""
+          className="soale-horizon-card rounded-[26px] px-5 py-12 text-center sm:px-12 sm:py-20"
+        >
           <div className="relative z-10 mx-auto max-w-3xl">
             <SoaleEyebrow className="mb-5">{eyebrow}</SoaleEyebrow>
 
-            <h2 className="soale-h2 mx-auto text-[var(--of-color-heading)]">
+            <h2 className="soale-h2 mx-auto text-ink-heading">
               {title}
             </h2>
 
-            <p className="soale-lead mx-auto mt-4 !text-[var(--of-color-body)]">
+            <p className="soale-lead mx-auto mt-4 text-ink-body">
               {description}
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <SoaleArrowButton href={primaryHref} variant="primary">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:flex-wrap sm:gap-4">
+              <SoaleArrowButton href={primaryHref} variant="secondary">
                 {primaryLabel}
               </SoaleArrowButton>
               <SoaleArrowButton href={secondaryHref} variant="outline">
@@ -54,6 +49,8 @@ export function PageConversionBanner({
               </SoaleArrowButton>
             </div>
           </div>
+
+          <div aria-hidden="true" className="soale-horizon-beam" />
         </div>
       </Container>
     </section>

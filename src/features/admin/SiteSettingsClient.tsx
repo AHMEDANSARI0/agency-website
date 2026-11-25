@@ -153,13 +153,20 @@ export function SiteSettingsClient({
                 Contact Email
               </label>
               <input
-                type="email"
+                type="text"
+                inputMode="email"
+                placeholder="{{CONTACT_EMAIL}}"
                 value={settings.contactEmail}
                 onChange={(e) =>
                   setSettings({ ...settings, contactEmail: e.target.value })
                 }
                 className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm text-ink-heading"
               />
+              {settings.contactEmail.includes("{{") && (
+                <p className="mt-1 text-[11px] font-medium text-status-warning">
+                  Placeholder active — replace <code>{settings.contactEmail}</code> with your live business inbox before launch.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-ink-muted">

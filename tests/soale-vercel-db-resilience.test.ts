@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { GET as faviconHandler } from "@/app/favicon.ico/route";
 import {
   isDirectIpv6SupabaseHost,
   normalizeDatabaseUrlForRuntime,
+  normalizePgIsoTimestamp,
+  normalizePgNullableIsoTimestamp,
   withPgConcurrencySlot,
 } from "@/lib/database";
 
@@ -45,7 +46,6 @@ describe("Vercel Serverless + Supabase Pooler Resilience Hotfix", () => {
           inFlight += 1;
           peakInFlight = Math.max(peakInFlight, inFlight);
           await new Promise((r) => setTimeout(r, 10));
-          // Verify re-entrant nested call never deadlocks even when all 3 outer slots are full
           const nestedVal = await withPgConcurrencySlot(async () => idx * 2);
           inFlight -= 1;
           return nestedVal;
@@ -57,7 +57,20 @@ describe("Vercel Serverless + Supabase Pooler Resilience Hotfix", () => {
     expect(results).toEqual(Array.from({ length: 12 }, (_, idx) => idx * 2));
   });
 
-  it("3. uses 1-CTE baseline seed, zero-param loadPostgresPublicCatalogBundle, and fetch_types: false", () => {
+  it("3. normalizes PostgreSQL TIMESTAMPTZ/DATE Date objects into ISO strings so Admin .replace/.slice/.startsWith never crash", () => {
+    const sampleDate = new Date("2026-11-24T14:00:00.000Z");
+    const iso = normalizePgIsoTimestamp(sampleDate);
+    expect(typeof iso).toBe("string");
+    expect(iso.replace("T", " ").slice(0, 19)).toBe("2026-11-24 14:00:00");
+    expect(iso.startsWith("2026-11")).toBe(true);
+
+    expect(normalizePgNullableIsoTimestamp(null)).toBeNull();
+    expect(normalizePgNullableIsoTimestamp(sampleDate)).toBe(
+      "2026-11-24T14:00:00.000Z"
+    );
+  });
+
+  it("4. uses 1-CTE baseline seed, zero-param loadPostgresPublicCatalogBundle, custom ISO timestamp parsers, and fetch_types: false", () => {
     const dbSrc = fs.readFileSync(
       path.join(process.cwd(), "src/lib/database/index.ts"),
       "utf8"
@@ -66,6 +79,7 @@ describe("Vercel Serverless + Supabase Pooler Resilience Hotfix", () => {
     expect(dbSrc).toContain("loadPostgresKvBundle");
     expect(dbSrc).toContain("loadPostgresPublicCatalogBundle");
     expect(dbSrc).toContain("fetch_types: false");
+    expect(dbSrc).toContain("isoTimestamp");
 
     expect(
       isDirectIpv6SupabaseHost(
@@ -79,9 +93,11 @@ describe("Vercel Serverless + Supabase Pooler Resilience Hotfix", () => {
     ).toBe(false);
   });
 
-  it("4. serves /favicon.ico in-memory with zero PostgreSQL queries", async () => {
-    const res = await faviconHandler();
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toContain("max-age=86400");
+  it("5. serves static public/favicon.ico from CDN with zero PostgreSQL queries", () => {
+    const icoPath = path.join(process.cwd(), "public/favicon.ico");
+    expect(fs.existsSync(icoPath)).toBe(true);
+    const buf = fs.readFileSync(icoPath);
+    expect(buf.readUInt16LE(0)).toBe(0);
+    expect(buf.readUInt16LE(2)).toBe(1);
   });
 });

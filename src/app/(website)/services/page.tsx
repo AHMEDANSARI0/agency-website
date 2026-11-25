@@ -9,7 +9,11 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedServices,
+  getCachedServicePillars,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -20,7 +24,7 @@ import {
 } from "@/components/ui/soale";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "AI Automation & Business Services",
@@ -30,9 +34,9 @@ export const metadata: Metadata = {
 
 export default async function ServicesIndexPage() {
   const [services, pillars, settings] = await Promise.all([
-    db.listServices(true),
-    db.getServicePillars(),
-    db.getSiteSettings(),
+    getCachedPublishedServices(),
+    getCachedServicePillars(),
+    getCachedSiteSettings(),
   ]);
 
   const orderedServices = [...services].sort((a, b) => a.order - b.order);
@@ -41,16 +45,16 @@ export default async function ServicesIndexPage() {
     <div className="bg-canvas text-ink-body">
       <PageHeader
         breadcrumbs={[{ label: "Services" }]}
-        badge="8 Specialized Automation Systems"
-        title="Practical AI & Workflow Systems Built for Reliability"
-        description="Every OmniFlow engagement prioritizes deterministic validation, clear human escalation paths, and 100% client ownership across US, UK, and Canadian teams."
+        badge="AI & Workflow Services"
+        title="Practical AI Workflows With Human Approval Built In"
+        description="Start with one daily bottleneck or connect your wider stack. Every workflow includes strict validation rules, human sign-off on important steps, and 100% client ownership."
         actions={
           <>
             <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
               {settings.primaryCtaLabel}
             </SoaleArrowButton>
             <SoaleArrowButton href="/demos" variant="surface">
-              Test Live Interactive Demos
+              See live demo
             </SoaleArrowButton>
           </>
         }

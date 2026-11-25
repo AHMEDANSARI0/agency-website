@@ -39,14 +39,14 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
               );
             }
           }}
-          className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-card p-1.5 shadow-sm"
+          className="mt-8 inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-line bg-surface-card p-1.5 shadow-sm sm:rounded-full"
         >
           <button
             type="button"
             role="tab"
             aria-selected={billingScope === "project"}
             onClick={() => setBillingScope("project")}
-            className={`rounded-full px-5 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
+            className={`min-h-[40px] rounded-full px-4 py-2 text-xs font-semibold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
               billingScope === "project"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-ink-body hover:text-ink-heading"
@@ -59,7 +59,7 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
             role="tab"
             aria-selected={billingScope === "retainer"}
             onClick={() => setBillingScope("retainer")}
-            className={`rounded-full px-5 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
+            className={`min-h-[40px] rounded-full px-4 py-2 text-xs font-semibold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
               billingScope === "retainer"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-ink-body hover:text-ink-heading"
@@ -69,7 +69,7 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
           </button>
         </div>
 
-        {pricing.comingSoonMode && pricing.statusBannerText && (
+        {pricing.statusBannerText && (
           <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-accent-subtle px-4 py-1.5 text-xs font-medium text-ink-heading">
             <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
             <span>{pricing.statusBannerText}</span>
@@ -92,8 +92,10 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
               interactive
               elevated={pkg.isPopular}
               staggerIndex={idx}
-              className={`flex flex-col justify-between p-6 ${
-                pkg.isPopular ? "ring-2 ring-primary/45" : ""
+              className={`flex flex-col justify-between p-5 sm:p-6 ${
+                pkg.isPopular
+                  ? "border-[#FF7023]/65 ring-2 ring-[#FF7023]/35"
+                  : ""
               }`}
             >
               <div>
@@ -127,8 +129,8 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
                   <p className="font-display text-xl font-semibold tracking-tight text-ink-heading">
                     {scopeHeadline}
                   </p>
-                  {pricing.comingSoonMode && (
-                    <p className="mt-1 font-mono text-[0.68rem] uppercase tracking-wider text-primary">
+                  {pkg.comingSoonNote && (
+                    <p className="mt-1 text-xs text-ink-muted">
                       {pkg.comingSoonNote}
                     </p>
                   )}

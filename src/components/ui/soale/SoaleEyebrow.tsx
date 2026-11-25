@@ -17,7 +17,7 @@ export function SoaleEyebrow({
 }: SoaleEyebrowProps) {
   return (
     <div
-      className={`inline-flex items-center gap-2.5 rounded-full border border-line bg-surface/85 px-4 py-2 shadow-sm backdrop-blur-sm ${className}`}
+      className={`inline-flex items-center gap-2.5 rounded-full border border-line bg-surface/95 px-4 py-2 shadow-sm ${className}`}
     >
       {showStar && (
         <svg

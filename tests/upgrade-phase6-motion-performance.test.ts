@@ -4,14 +4,18 @@ import { describe, expect, it } from "vitest";
 import nextConfig from "../next.config";
 
 describe("Upgrade Phase 6 — Motion, Micro-Interactions & Core Web Vitals Polish", () => {
-  it("1. ensures OpeningSequence never blocks viewport LCP with a full-screen inset-0 curtain", () => {
-    const src = fs.readFileSync(
-      path.join(process.cwd(), "src/components/animations/OpeningSequence.tsx"),
+  it("1. removes legacy OpeningSequence curtain and sets pre-paint motion flag in <head>", () => {
+    expect(
+      fs.existsSync(
+        path.join(process.cwd(), "src/components/animations/OpeningSequence.tsx")
+      )
+    ).toBe(false);
+    const rootLayout = fs.readFileSync(
+      path.join(process.cwd(), "src/app/layout.tsx"),
       "utf8"
     );
-    expect(src).not.toContain("fixed inset-0");
-    expect(src).toContain("pointer-events-none fixed inset-x-0 top-0");
-    expect(src).toContain("prefers-reduced-motion: reduce");
+    expect(rootLayout).toContain('id="of-motion-init"');
+    expect(rootLayout).toContain("prefers-reduced-motion: reduce");
   });
 
   it("2. enforces hardware-aware progressive motion & visibility pause in MotionRuntime", () => {
@@ -26,15 +30,15 @@ describe("Upgrade Phase 6 — Motion, Micro-Interactions & Core Web Vitals Polis
     expect(src).toContain("document.hidden");
   });
 
-  it("3. configures progressive-enhancement [data-reveal], .cv-auto content-visibility, and marquee hover-pause in globals.css", () => {
+  it("3. configures progressive-enhancement [data-reveal], offscreen animation pause, and marquee hover-pause in globals.css", () => {
     const css = fs.readFileSync(
       path.join(process.cwd(), "src/styles/globals.css"),
       "utf8"
     );
     expect(css).toContain('html[data-motion="ready"] [data-reveal]:not(.in)');
     expect(css).toContain("translate3d");
-    expect(css).toContain("content-visibility: auto");
-    expect(css).toContain("contain-intrinsic-size: auto 560px");
+    expect(css).not.toContain("content-visibility: auto");
+    expect(css).toContain('html[data-tab-hidden="true"]');
     expect(css).toContain("animation-play-state: paused");
   });
 

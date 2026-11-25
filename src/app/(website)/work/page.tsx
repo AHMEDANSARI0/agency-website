@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedCaseStudies,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SoaleArrowButton, SoaleCard } from "@/components/ui/soale";
 import { WorkFilterGrid } from "@/components/sections/WorkFilterGrid";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Work, Prototypes & Reference Architectures",
@@ -17,8 +20,8 @@ export const metadata: Metadata = {
 
 export default async function WorkPage() {
   const [items, settings] = await Promise.all([
-    db.listCaseStudies(true),
-    db.getSiteSettings(),
+    getCachedPublishedCaseStudies(),
+    getCachedSiteSettings(),
   ]);
 
   return (

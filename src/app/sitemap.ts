@@ -1,8 +1,13 @@
 import type { MetadataRoute } from "next";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
-import { db } from "@/lib/database";
+import {
+  getCachedPages,
+  getCachedPublishedBlogPosts,
+  getCachedPublishedCaseStudies,
+  getCachedPublishedServices,
+} from "@/lib/cache/public-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 const STATIC_PUBLIC_ROUTES: {
   path: string;
@@ -31,10 +36,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getCanonicalSiteUrl();
 
   const [pages, services, caseStudies, blogPosts] = await Promise.all([
-    db.listPages(),
-    db.listServices(true),
-    db.listCaseStudies(true),
-    db.listBlogPosts(true),
+    getCachedPages(),
+    getCachedPublishedServices(),
+    getCachedPublishedCaseStudies(),
+    getCachedPublishedBlogPosts(),
   ]);
 
   const homeDoc = pages.find((p) => p.slug === "home");

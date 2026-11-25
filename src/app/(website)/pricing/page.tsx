@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { FileCheck2, Layers, ShieldCheck } from "lucide-react";
-import { db } from "@/lib/database";
+import {
+  getCachedPublishedFaqs,
+  getCachedSiteSettings,
+} from "@/lib/cache/public-cache";
 import { Container } from "@/components/ui/Container";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -8,25 +11,23 @@ import {
   SoaleCard,
   SoaleSectionHeader,
 } from "@/components/ui/soale";
-import {
-  SoaleFaqAccordion,
-  SoalePricingSection,
-} from "@/components/sections/soale";
+import { SoalePricingSection } from "@/components/sections/soale/SoalePricingSection";
+import { LazySoaleFaqAccordion } from "@/components/sections/LazyClientIslands";
 import { resolvePricingConfig } from "@/features/pricing/default-pricing";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export const metadata: Metadata = {
-  title: "Engagement Scopes & Pricing",
+  title: "Pricing & Written Scopes",
   description:
-    "Explore OmniFlow’s 4-tier scoped automation architecture (Starter, Growth, Scale, Enterprise) — custom-scoped with 100% client IP ownership across US, UK, and Canadian teams.",
+    "Clear fixed-scope automation pricing from OmniFlow — Starter, Growth, Scale, and Enterprise builds with 100% client ownership across US, UK, and Canadian teams.",
 };
 
 export default async function PricingPage() {
   const [settings, faqs] = await Promise.all([
-    db.getSiteSettings(),
-    db.listFaqs(true),
+    getCachedSiteSettings(),
+    getCachedPublishedFaqs(),
   ]);
 
   const pricing = resolvePricingConfig(settings);
@@ -34,10 +35,10 @@ export default async function PricingPage() {
   return (
     <div className="bg-canvas text-ink-body">
       <PageHeader
-        breadcrumbs={[{ label: "Engagement Scopes & Pricing" }]}
+        breadcrumbs={[{ label: "Pricing & Scopes" }]}
         badge={pricing.sectionEyebrow}
-        title="Scoped, Transparent Automation Delivery"
-        description="Every engagement begins with a written workflow audit and milestone specification — zero hidden agency retainers, zero black-box vendor lock-in, and zero fabricated cost claims."
+        title="Clear Written Scopes Before Any Work Begins"
+        description="Every engagement starts with a free 25-minute workflow review and a fixed written scope — zero surprise agency retainers and 100% client ownership."
         actions={
           <>
             <SoaleArrowButton href={settings.primaryCtaHref} variant="primary">
@@ -47,7 +48,7 @@ export default async function PricingPage() {
               href="/demos?tab=savings-calculator"
               variant="surface"
             >
-              Multi-Currency Savings Estimator
+              Estimate Time Saved
             </SoaleArrowButton>
           </>
         }
@@ -111,7 +112,7 @@ export default async function PricingPage() {
 
       <section className="py-20 sm:py-28">
         <Container>
-          <SoaleFaqAccordion
+          <LazySoaleFaqAccordion
             faqs={faqs.slice(0, 6)}
             contactEmail={settings.contactEmail}
           />

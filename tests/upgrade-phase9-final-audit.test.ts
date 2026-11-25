@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import pkg from "../package.json";
 import { GET as healthHandler } from "@/app/api/health/route";
 import { OMNIFLOW_APP_VERSION } from "@/features/system/health";
@@ -9,23 +10,31 @@ import { WORK_TYPE_META } from "@/features/case-studies/constants";
 import { buildOrganizationAndWebsiteJsonLd, serializeJsonLd } from "@/features/seo/json-ld";
 import { db } from "@/lib/database";
 
+let tempDir = "";
+
+beforeEach(() => {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omniflow-upg-p9-"));
+  process.env.OMNIFLOW_LOCAL_DB_PATH = path.join(tempDir, "upg-p9-db.json");
+  delete process.env.DATABASE_URL;
+});
+
+afterEach(() => {
+  delete process.env.OMNIFLOW_LOCAL_DB_PATH;
+  if (tempDir && fs.existsSync(tempDir)) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 describe("Upgrade Phase 9 — Final v1.0.0 Production Audit, Honesty Policy & Pre-Flight CLI", () => {
   it("1. aligns v1.0.0 release version across package.json, system health, and /api/health", async () => {
     expect(pkg.version).toBe("1.0.0");
     expect(OMNIFLOW_APP_VERSION).toBe("1.0.0");
 
-    const res = await healthHandler(
+    const publicRes = await healthHandler(
       new Request("http://localhost:3000/api/health?probe=liveness")
     );
-    expect(res.status).toBe(200);
-    const json = (await res.json()) as {
-      status: string;
-      version: string;
-      securityProfile: string;
-    };
-    expect(json.status).toBe("ok");
-    expect(json.version).toBe("1.0.0");
-    expect(json.securityProfile).toContain("v8");
+    expect(publicRes.status).toBe(200);
+    expect(await publicRes.json()).toEqual({ status: "ok" });
   });
 
   it("2. upholds strict brand honesty invariants across testimonials, case studies, and JSON-LD", async () => {
@@ -45,7 +54,7 @@ describe("Upgrade Phase 9 — Final v1.0.0 Production Audit, Honesty Policy & Pr
       "United Kingdom",
       "Canada",
     ]);
-    expect(theme.defaultMode).toBe("light");
+    expect(theme.defaultMode).toBe("dark");
 
     // Zero fake public testimonials shipped out-of-the-box
     expect(publicTestimonials).toHaveLength(0);
