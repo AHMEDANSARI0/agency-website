@@ -156,11 +156,12 @@ export function InitialSetupForm({ requiresSetupToken }: InitialSetupFormProps) 
             required
             value={setupToken}
             onChange={(e) => setSetupToken(e.target.value)}
-            placeholder="Enter ADMIN_SETUP_TOKEN (or AUTH_SECRET)"
+            placeholder="Enter the one-time setup token"
+            autoComplete="off"
             className="w-full rounded-control border border-line bg-surface-input px-3.5 py-2.5 text-sm text-ink-heading placeholder:text-ink-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-[var(--of-ring-focus)]"
           />
           <p className="mt-1 text-xs text-ink-muted">
-            Matches <code>ADMIN_SETUP_TOKEN</code> (or <code>AUTH_SECRET</code>) from your deployment environment variables.
+            Use the dedicated <code>ADMIN_SETUP_TOKEN</code> configured privately for this deployment. Never enter your session signing secret.
           </p>
         </div>
       )}

@@ -28,7 +28,7 @@ export default async function CookiePolicyPage() {
 
       <section className="py-16 sm:py-24">
         <Container className="max-w-3xl">
-          <SoaleCard className="space-y-8 p-6 text-sm leading-relaxed text-ink-body sm:p-10 sm:text-base">
+          <SoaleCard motionId="app-(website)-cookie-policy-page.tsx:1" className="space-y-8 p-6 text-sm leading-relaxed text-ink-body sm:p-10 sm:text-base">
             <div>
               <h2 className="soale-h4 text-ink-heading">
                 1. Essential Functional Storage

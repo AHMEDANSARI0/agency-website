@@ -65,7 +65,7 @@ export function SoaleEditorialProof({
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
       {/* Left Editorial Slider Card (Touch Swipe + Keyboard + Animated Slide Entrance) */}
-      <SoaleCard
+      <SoaleCard motionId="components-sections-soale-SoaleEditorialProof.tsx:1"
         staggerIndex={0}
         className="flex flex-col justify-between p-7 sm:p-10 lg:col-span-7"
       >
@@ -189,7 +189,7 @@ export function SoaleEditorialProof({
       </SoaleCard>
 
       {/* Right Principal Architect Profile Card */}
-      <SoaleCard
+      <SoaleCard motionId="components-sections-soale-SoaleEditorialProof.tsx:2"
         staggerIndex={1}
         className="flex flex-col justify-between p-7 sm:p-9 lg:col-span-5"
       >

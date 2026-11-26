@@ -15,7 +15,7 @@ const args = process.argv.slice(2);
 const forceProdCheck =
   args.includes("--mode=production") || process.env.NODE_ENV === "production";
 const strictPlaceholders =
-  args.includes("--strict-placeholders") || args.includes("--mode=production");
+  args.includes("--strict-placeholders") || forceProdCheck;
 const rootDir = process.cwd();
 
 const REQUIRED_FILES = [
@@ -55,6 +55,7 @@ const REQUIRED_FILES = [
   "supabase/migrations/0002_production_upgrade.sql",
   "supabase/migrations/0003_crm_and_operations.sql",
   "supabase/migrations/0004_security_and_performance.sql",
+  "supabase/migrations/0005_rate_limit_fixed_window.sql",
 ];
 
 const REQUIRED_PUBLIC_ASSETS = [
@@ -161,8 +162,9 @@ const missingOrEmptyAssets = REQUIRED_PUBLIC_ASSETS.filter((rel) => {
 if (missingOrEmptyAssets.length === 0) {
   // Also verify OG PNG dimensions (1200x630) via PNG IHDR header
   const ogBuf = fs.readFileSync(path.join(rootDir, "public/og-image.png"));
-  const ogWidth = ogBuf.readUInt32BE(16);
-  const ogHeight = ogBuf.readUInt32BE(20);
+  const pngHeaderOk = ogBuf.length >= 24 && ogBuf.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) && ogBuf.toString("ascii", 12, 16) === "IHDR";
+  const ogWidth = pngHeaderOk ? ogBuf.readUInt32BE(16) : 0;
+  const ogHeight = pngHeaderOk ? ogBuf.readUInt32BE(20) : 0;
   if (ogWidth === 1200 && ogHeight === 630) {
     pass(`All ${REQUIRED_PUBLIC_ASSETS.length} static public/ brand assets verified (OG 1200x630)`);
   } else {
@@ -187,10 +189,12 @@ for (const sqlRel of [
     } else if (!/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS/i.test(sql)) {
       fail(`${sqlRel} is missing idempotent CREATE TABLE IF NOT EXISTS guards`);
     } else {
-      pass(`SQL migration ${sqlRel} is non-destructive & idempotent`);
+      pass(`SQL migration ${sqlRel}: basic TABLE checks passed (not a safety or rerun proof)`);
     }
   }
 }
+
+warn("Migration checks are superficial: review SQL and migration history; some statements may not be safe to rerun. Never execute blindly. 0005 was checked for presence only.");
 
 // 6. Admin NoIndex & CSP Security Baseline
 const adminLayout = fs.readFileSync(
@@ -260,13 +264,13 @@ if (forceProdCheck) {
   if (!siteUrl.startsWith("https://")) {
     fail("NEXT_PUBLIC_SITE_URL must start with https:// in production");
   } else {
-    pass(`Canonical HTTPS URL configured (${siteUrl})`);
+    pass("Canonical URL starts with HTTPS (full deployment validity not verified)");
   }
 
   if (authSecret.length < 32 || authSecret.includes("replace-with")) {
     fail("AUTH_SECRET must be at least 32 random characters in production");
   } else {
-    pass("AUTH_SECRET cryptographic length verified (>= 32 chars)");
+    pass("Session secret length check passed (randomness not verified)");
   }
 
   if (!dbUrl.startsWith("postgres")) {
@@ -275,6 +279,57 @@ if (forceProdCheck) {
     pass("DATABASE_URL PostgreSQL connection string present");
   }
 }
+
+// Operational checks are static heuristics, not a hosting/proxy or database audit.
+function normalizeAuthority(input) {
+  const value = input.trim().toLowerCase();
+  if (!value || value.length > 253 || !/^(?:\[[a-f0-9:.]+\]|[a-z0-9.-]+)(?::[0-9]{1,5})?$/.test(value)) return null;
+  try {
+    const u = new URL(`https://${value}`);
+    if (u.username || u.password || u.pathname !== "/" || u.search || u.hash) return null;
+    if (!u.hostname.startsWith("[") && u.hostname.split(".").some(x => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(x))) return null;
+    return u.host;
+  } catch { return null; }
+}
+if (forceProdCheck) {
+  const originFile = path.join(rootDir, "src/lib/security/admin-origin.ts");
+  const originSource = fs.existsSync(originFile) ? fs.readFileSync(originFile, "utf8") : "";
+  const helperPresent = fs.existsSync(path.join(rootDir, "src/lib/security/write-host.ts"));
+  if (!helperPresent || !originSource.includes("isAllowedProductionWriteHost")) {
+    fail("Write-host protection not detected; verify security patch 20 before production");
+  } else {
+    const hosts = process.env.OMNIFLOW_ALLOWED_WRITE_HOSTS || "";
+    const entries = hosts.split(",");
+    const normalized = entries.map(normalizeAuthority);
+    if (!hosts || hosts.length > 4096 || entries.length > 32 || normalized.some(x => !x)) {
+      fail("OMNIFLOW_ALLOWED_WRITE_HOSTS missing or invalid; protected production writes will be rejected");
+    } else {
+      let canonical = null;
+      try {
+        const u = new URL((process.env.NEXT_PUBLIC_SITE_URL || "").trim());
+        if (u.protocol === "https:" && !u.username && !u.password && u.pathname === "/" && !u.search && !u.hash) canonical = normalizeAuthority(u.host);
+      } catch { /* Report a generic error without echoing values. */ }
+      if (!canonical || !normalized.includes(canonical)) fail("Canonical URL must be a clean HTTPS origin included in OMNIFLOW_ALLOWED_WRITE_HOSTS");
+      else pass("Write-host list format and canonical-host inclusion checked (other aliases/proxy require review)");
+    }
+  }
+  const setupToken = (process.env.ADMIN_SETUP_TOKEN || "").trim();
+  const signingSecrets = [(process.env.AUTH_SECRET || "").trim(), (process.env.SESSION_SECRET || "").trim()];
+  if (setupToken && (!/^[0-9a-f]{64}$/i.test(setupToken) || signingSecrets.includes(setupToken))) {
+    fail("Configured ADMIN_SETUP_TOKEN must be a separate random 64-hex token when patch 22 is installed");
+  } else if (!setupToken) {
+    warn("ADMIN_SETUP_TOKEN absent: production first-admin setup requires it when patch 22 is installed; absence after setup is expected");
+  } else {
+    pass("Configured setup token has expected format and differs from signing secrets (randomness not verified)");
+  }
+  const ipHeader = (process.env.OMNIFLOW_TRUSTED_CLIENT_IP_HEADER || "").trim().toLowerCase();
+  if (!ipHeader) warn("Client IP defaults to unknown if patch 18 is installed; shared rate limits may block legitimate users");
+  else if (!["x-real-ip", "cf-connecting-ip"].includes(ipHeader)) fail("Unsupported trusted client IP header; review proxy configuration");
+  else warn("Trusted IP header set: verify proxy overwrites it and direct origin access is blocked; this script cannot verify trust");
+  if (process.env.OMNIFLOW_ALLOW_LOCAL_DEV_DB === "true") fail("Local development database override must not be enabled in production");
+}
+warn("Preflight reads shell environment only, not deployment settings or PostgreSQL; it does not verify migrations, CMS values, edge security, HTTPS, staging or production readiness.");
+if (strictPlaceholders) warn("Strict placeholder scan checks seed files and local JSON, not the live CMS; seed templates may remain after real content is configured.");
 
 console.log("\n----------------------------------------------------------------------");
 console.log(

@@ -43,7 +43,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const item = await getCachedCaseStudyBySlug(slug);
   if (!item) {
-    return { title: "Case Study Not Found" };
+    return { title: "Case Study Not Found", robots: { index: false, follow: false } };
   }
   const baseUrl = getCanonicalSiteUrl();
   const cleanTitle = (item.seo.seoTitle || item.title)
@@ -122,7 +122,7 @@ export default async function CaseStudyDetailPage({
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           <div className="space-y-8 lg:col-span-8">
             {/* Transparency Disclosure Box */}
-            <SoaleCard className="flex items-start gap-3 border-primary/25 bg-accent-subtle/60 p-5 text-xs text-ink-body sm:text-sm">
+            <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:1" className="flex items-start gap-3 border-primary/25 bg-accent-subtle/60 p-5 text-xs text-ink-body sm:text-sm">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div>
                 <strong className="text-ink-heading">{meta.label}: </strong>
@@ -132,7 +132,7 @@ export default async function CaseStudyDetailPage({
 
             {/* Manual Before vs Automated After */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <SoaleCard className="p-6">
+              <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:2" className="p-6">
                 <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-muted">
                   Manual Process Before
                 </h2>
@@ -149,7 +149,7 @@ export default async function CaseStudyDetailPage({
                 </ul>
               </SoaleCard>
 
-              <SoaleCard className="border-primary/30 p-6">
+              <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:3" className="border-primary/30 p-6">
                 <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                   Automated Workflow After
                 </h2>
@@ -167,7 +167,7 @@ export default async function CaseStudyDetailPage({
               </SoaleCard>
             </div>
 
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:4" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">System Architecture</SoaleEyebrow>
               <h2 className="soale-h3 text-ink-heading">
                 Proposed &amp; Engineered Automation
@@ -178,7 +178,7 @@ export default async function CaseStudyDetailPage({
             </SoaleCard>
 
             {study.verifiedResults.length > 0 && (
-              <SoaleCard className="p-6 sm:p-9">
+              <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:5" className="p-6 sm:p-9">
                 <SoaleEyebrow className="mb-4">Operational Impact</SoaleEyebrow>
                 <h2 className="soale-h3 text-ink-heading">
                   Operational Outcomes &amp; Checkpoints
@@ -198,7 +198,7 @@ export default async function CaseStudyDetailPage({
             )}
 
             {authorizedTestimonial && (
-              <SoaleCard className="border-primary/30 bg-accent-subtle/50 p-6 sm:p-8">
+              <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:6" className="border-primary/30 bg-accent-subtle/50 p-6 sm:p-8">
                 <blockquote className="text-base italic leading-relaxed text-ink-heading">
                   &ldquo;{authorizedTestimonial.quote}&rdquo;
                 </blockquote>
@@ -212,7 +212,7 @@ export default async function CaseStudyDetailPage({
           </div>
 
           <aside className="space-y-6 lg:col-span-4">
-            <SoaleCard elevated className="sticky top-28 p-6 sm:p-7">
+            <SoaleCard motionId="app-(website)-case-studies-slug-page.tsx:7" elevated className="sticky top-28 p-6 sm:p-7">
               <h2 className="soale-h4 text-ink-heading">System Profile</h2>
               <dl className="mt-4 space-y-3.5 text-sm">
                 <div>
@@ -313,7 +313,7 @@ export default async function CaseStudyDetailPage({
                   href={`/case-studies/${other.slug}`}
                   className="group"
                 >
-                  <SoaleCard interactive className="h-full p-6">
+                  <SoaleCard motionId={"app-(website)-case-studies-slug-page.tsx:8" + ":" + String(other.id)} interactive className="h-full p-6">
                     <SoaleChip>{WORK_TYPE_META[other.workType].label}</SoaleChip>
                     <h3 className="mt-3 text-lg font-semibold text-ink-heading group-hover:text-primary">
                       {other.title}

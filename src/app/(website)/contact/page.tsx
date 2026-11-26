@@ -55,7 +55,7 @@ export default async function ContactPage() {
           </div>
 
           <aside className="space-y-6 lg:col-span-4">
-            <SoaleCard className="p-6 sm:p-7">
+            <SoaleCard motionId="app-(website)-contact-page.tsx:1" className="p-6 sm:p-7">
               <h2 className="soale-h4 text-ink-heading">
                 What to Expect When You Reach Out
               </h2>
@@ -124,7 +124,7 @@ export default async function ContactPage() {
               </div>
             </SoaleCard>
 
-            <SoaleCard className="border-primary/25 bg-accent-subtle/60 p-6 sm:p-7">
+            <SoaleCard motionId="app-(website)-contact-page.tsx:2" className="border-primary/25 bg-accent-subtle/60 p-6 sm:p-7">
               <div className="flex items-center gap-2 text-primary">
                 <Sparkles className="h-4 w-4" />
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider">

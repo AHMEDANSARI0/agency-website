@@ -63,8 +63,7 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const filtered = useMemo(() => {
-    const matches = caseStudies.filter((cs) => matchesWorkFilter(cs, activeTab));
-    return matches.length > 0 ? matches : caseStudies;
+    return caseStudies.filter((cs) => matchesWorkFilter(cs, activeTab));
   }, [caseStudies, activeTab]);
 
   const handleTabKeyDown = (
@@ -98,7 +97,7 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
 
       {/* Signature Soale Top-Bordered Uppercase Category Filter Tabs */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Filter work blueprints by category"
         className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6"
       >
@@ -111,9 +110,7 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
                 tabRefs.current[idx] = el;
               }}
               type="button"
-              role="tab"
-              tabIndex={isActive ? 0 : -1}
-              aria-selected={isActive}
+              aria-pressed={isActive}
               data-active={isActive ? "true" : "false"}
               onClick={() => setActiveTab(tab.id)}
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
@@ -125,6 +122,10 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
         })}
       </div>
 
+      {filtered.length === 0 && (
+        <p role="status" className="mt-8 text-sm text-ink-muted">No published blueprints in this category yet. Select another category to explore.</p>
+      )}
+
       {/* 2-Column Soale Portfolio Cards with Staggered Tab Loading & GPU Parallax */}
       <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-2">
         {filtered.slice(0, 4).map((study, idx) => {
@@ -132,7 +133,7 @@ export function SoaleWorkShowcase({ caseStudies }: SoaleWorkShowcaseProps) {
           const primarySteps = study.automatedWorkflowAfter.slice(0, 3);
 
           return (
-            <SoaleCard
+            <SoaleCard motionId={"components-sections-soale-SoaleWorkShowcase.tsx:1" + ":" + String(study.id)}
               key={`${activeTab}-${study.id}`}
               as="article"
               interactive

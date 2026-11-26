@@ -45,7 +45,7 @@ export default async function CaseStudiesPage() {
 
       <section className="py-14 sm:py-20">
         <Container>
-          <SoaleCard className="mb-10 flex items-start gap-3 border-primary/25 bg-accent-subtle/60 p-4 text-xs text-ink-body sm:items-center sm:px-6 sm:text-sm">
+          <SoaleCard motionId="app-(website)-case-studies-page.tsx:1" className="mb-10 flex items-start gap-3 border-primary/25 bg-accent-subtle/60 p-4 text-xs text-ink-body sm:items-center sm:px-6 sm:text-sm">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mt-0" />
             <span>
               <strong className="text-ink-heading">Verification Standard:</strong>{" "}

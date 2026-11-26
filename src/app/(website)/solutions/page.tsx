@@ -152,7 +152,7 @@ export default async function SolutionsPage() {
           {SEGMENTS.map((seg) => {
             const Icon = seg.icon;
             return (
-              <SoaleCard
+              <SoaleCard motionId={"app-(website)-solutions-page.tsx:1" + ":" + String(seg.id)}
                 key={seg.id}
                 as="article"
                 className="scroll-mt-28 p-6 sm:p-10"
@@ -236,7 +236,7 @@ export default async function SolutionsPage() {
       {/* Regional Alignment Block */}
       <section className="bg-canvas-tertiary/40 py-16 sm:py-20">
         <Container>
-          <SoaleCard className="grid items-center gap-8 p-7 sm:p-10 lg:grid-cols-12">
+          <SoaleCard motionId="app-(website)-solutions-page.tsx:2" className="grid items-center gap-8 p-7 sm:p-10 lg:grid-cols-12">
             <div className="lg:col-span-8">
               <div className="inline-flex items-center gap-2 text-primary">
                 <Globe2 className="h-4 w-4" />

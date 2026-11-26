@@ -537,6 +537,12 @@ html[data-motion="ready"] [data-reveal="card"]:not(.in) {
   transform: translate3d(0, var(--of-reveal-distance, 14px), 0);
 }
 
+/* Never leave keyboard focus inside an invisible reveal. */
+html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
+  opacity: 1;
+  transform: none;
+}
+
 [data-reveal] {
   transition: opacity var(--of-dur-reveal, 480ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
     transform var(--of-dur-reveal, 480ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
@@ -1222,4 +1228,18 @@ html[data-motion="ready"] [data-reveal="card"]:not(.in) {
 }
 @media (min-width: 1024px) {
   #of-home-sections-root .of-hero-shell { padding-top: calc(9rem + 62px); }
+}
+
+/* Public-card motion: applied only after JavaScript observes offscreen cards. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-card-motion="waiting"], [data-card-motion="done"] {
+    transition: opacity var(--card-motion-duration, 550ms) cubic-bezier(.22,1,.36,1), transform var(--card-motion-duration, 550ms) cubic-bezier(.22,1,.36,1);
+  }
+  [data-card-motion="waiting"] { opacity: 0; }
+  [data-card-motion="waiting"][data-card-effect="fade-up"] { transform: translate3d(0, 20px, 0); }
+  [data-card-motion="waiting"][data-card-effect="from-left"] { transform: translate3d(-24px, 0, 0); }
+  [data-card-motion="waiting"][data-card-effect="from-right"] { transform: translate3d(24px, 0, 0); }
+  [data-card-motion="waiting"][data-card-effect="pop"] { transform: scale(.96); }
+  [data-card-motion="done"] { opacity: 1; transform: none; }
+  [data-card-motion="waiting"]:focus-within { opacity: 1; transform: none; }
 }

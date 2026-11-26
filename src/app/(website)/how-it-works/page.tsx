@@ -105,7 +105,7 @@ export default async function HowItWorksPage() {
         <Container className="space-y-16">
           <div className="grid grid-cols-1 gap-7 lg:grid-cols-2">
             {PROCESS_STAGES.map((stage) => (
-              <SoaleCard
+              <SoaleCard motionId={"app-(website)-how-it-works-page.tsx:1" + ":" + String(stage.step)}
                 key={stage.step}
                 className="flex flex-col justify-between p-6 sm:p-8"
               >
@@ -164,7 +164,7 @@ export default async function HowItWorksPage() {
       {/* Human-in-the-Loop Boundaries */}
       <section className="py-20 sm:py-24">
         <Container>
-          <SoaleCard className="p-7 sm:p-10">
+          <SoaleCard motionId="app-(website)-how-it-works-page.tsx:2" className="p-7 sm:p-10">
             <div className="flex items-center gap-2 text-primary">
               <ShieldCheck className="h-5 w-5" />
               <span className="font-mono text-xs font-semibold uppercase tracking-wider">

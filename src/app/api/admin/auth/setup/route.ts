@@ -29,13 +29,11 @@ const setupSchema = z
 function verifyProductionSetupAuthorization(providedToken: string | undefined): boolean {
   if (!isProductionEnvironment()) return true;
 
-  const expected =
-    process.env.ADMIN_SETUP_TOKEN?.trim() ||
-    process.env.AUTH_SECRET?.trim() ||
-    process.env.SESSION_SECRET?.trim() ||
-    "";
-
-  if (!expected || !providedToken) return false;
+  // Separate, randomly generated setup credential. Never accept session-signing keys.
+  const expected = process.env.ADMIN_SETUP_TOKEN?.trim() || "";
+  if (!/^[0-9a-f]{64}$/i.test(expected) || !providedToken ||
+      expected === process.env.AUTH_SECRET?.trim() ||
+      expected === process.env.SESSION_SECRET?.trim()) return false;
   const a = Buffer.from(providedToken.trim(), "utf8");
   const b = Buffer.from(expected, "utf8");
   if (a.length !== b.length) return false;
@@ -129,7 +127,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Invalid setup authorization token. Provide ADMIN_SETUP_TOKEN (or AUTH_SECRET if ADMIN_SETUP_TOKEN is unset).",
+          "Invalid or unavailable setup authorization. Configure a separate ADMIN_SETUP_TOKEN and try again.",
       },
       { status: 403, headers: NO_STORE_HEADERS }
     );

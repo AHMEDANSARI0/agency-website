@@ -1,5 +1,6 @@
 import React from "react";
 import { AccessDeniedCard } from "@/components/admin/AccessDeniedCard";
+import { CardMotionManager } from "@/features/admin/CardMotionManager";
 import { ThemeManagerClient } from "@/features/admin/ThemeManagerClient";
 import { BUILT_IN_THEME_PRESETS } from "@/features/themes/presets";
 import { requireAdminPageAuth } from "@/lib/auth/server";
@@ -16,7 +17,7 @@ export default async function AdminThemePage() {
     );
   }
 
-  const themeConfig = await db.getThemeConfig();
+  const [themeConfig, cardMotion] = await Promise.all([db.getThemeConfig(), db.getCardMotion()]);
 
   return (
     <div className="space-y-6">
@@ -30,6 +31,7 @@ export default async function AdminThemePage() {
         </p>
       </div>
 
+      <CardMotionManager initial={cardMotion} />
       <ThemeManagerClient
         initialConfig={themeConfig}
         builtInPresets={BUILT_IN_THEME_PRESETS}

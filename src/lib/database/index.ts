@@ -29,6 +29,7 @@ import type {
   TestimonialItem,
 } from "@/types/content";
 import type { ThemeConfiguration } from "@/types/theme";
+import { normalizeCardMotion, type CardMotionConfig } from "@/features/card-motion/config";
 import { normalizeStoredThemeConfig } from "@/features/themes/presets";
 import {
   DatabaseUnavailableError,
@@ -1367,6 +1368,34 @@ export const db = {
         return next;
       }
     );
+  },
+
+  async getCardMotion(): Promise<CardMotionConfig> {
+    return runWithDbFallback(async sql => {
+      const rows = await sql<{payload: unknown}[]>`SELECT payload FROM kv_configs WHERE key = 'card_motion' LIMIT 1`;
+      return normalizeCardMotion(rows[0]?.payload);
+    }, () => normalizeCardMotion(readLocalSnapshot().cardMotion));
+  },
+
+  async saveCardMotion(config: CardMotionConfig, expectedRevision: string): Promise<boolean> {
+    return runWithDbFallback(async sql => {
+      // Atomic compare-and-swap on a dedicated key, never overwrites site or theme settings.
+      const rows = await sql<{payload: unknown}[]>`
+        INSERT INTO kv_configs (key,payload,updated_at)
+        SELECT 'card_motion', ${sql.json(config as unknown as postgres.JSONValue)}, NOW()
+        WHERE ${expectedRevision} = '' OR EXISTS (SELECT 1 FROM kv_configs WHERE key='card_motion')
+        ON CONFLICT (key) DO UPDATE SET payload=EXCLUDED.payload, updated_at=NOW()
+        WHERE COALESCE(kv_configs.payload->>'revision','')=${expectedRevision}
+        RETURNING payload
+      `;
+      return rows.length > 0;
+    }, () => {
+      const snap = readLocalSnapshot();
+      if ((snap.cardMotion?.revision || "") !== expectedRevision) return false;
+      snap.cardMotion = config;
+      writeLocalSnapshot(snap);
+      return true;
+    });
   },
 
   async getThemeConfig(): Promise<ThemeConfiguration> {
@@ -3576,6 +3605,7 @@ export const db = {
     const [
       siteSettings,
       themeConfig,
+      cardMotion,
       brandAssets,
       servicePillars,
       services,
@@ -3592,6 +3622,7 @@ export const db = {
     ] = await Promise.all([
       this.getSiteSettings(),
       this.getThemeConfig(),
+      this.getCardMotion(),
       this.getBrandAssets(),
       this.getServicePillars(),
       this.listServices(false),
@@ -3663,6 +3694,7 @@ export const db = {
       auditLogs,
       siteSettings,
       themeConfig,
+      cardMotion,
       brandAssets,
       servicePillars,
       services,
@@ -3828,6 +3860,13 @@ export const db = {
               ('service_pillars', ${tx.json(data.servicePillars as unknown as postgres.JSONValue)}, NOW())
             ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
           `;
+          // Legacy snapshots lack this key; keep the current motion config in that case.
+          if (data.cardMotion) {
+            const restoredMotion = { ...normalizeCardMotion(data.cardMotion), revision: randomBytes(16).toString("hex") };
+            await tx`INSERT INTO kv_configs (key, payload, updated_at)
+              VALUES ('card_motion', ${tx.json(restoredMotion as unknown as postgres.JSONValue)}, NOW())
+              ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`;
+          }
 
           for (const page of data.pages || []) {
             await tx`
@@ -3981,6 +4020,9 @@ export const db = {
 
         const nextSnap: OmniFlowDatabaseSnapshot = {
           ...target.snapshot,
+          cardMotion: target.snapshot.cardMotion
+            ? { ...normalizeCardMotion(target.snapshot.cardMotion), revision: randomBytes(16).toString("hex") }
+            : snap.cardMotion,
           users: mergedUsers,
           leads: mergedLeads,
           auditLogs: snap.auditLogs,

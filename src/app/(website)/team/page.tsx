@@ -42,7 +42,7 @@ export default async function TeamPage() {
       <section className="py-16 sm:py-24">
         <Container className="space-y-8">
           {members.map((member) => (
-            <SoaleCard
+            <SoaleCard motionId={"app-(website)-team-page.tsx:1" + ":" + String(member.id)}
               key={member.id}
               as="article"
               elevated={member.isFounder}

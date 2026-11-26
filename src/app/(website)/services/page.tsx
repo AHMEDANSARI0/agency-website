@@ -91,7 +91,7 @@ export default async function ServicesIndexPage() {
                   }
                   className="lg:sticky lg:[top:var(--service-sticky-top)]"
                 >
-                  <SoaleCard
+                  <SoaleCard motionId={"app-(website)-services-page.tsx:1" + ":" + String(service.id)}
                     as="article"
                     elevated={service.isFlagshipPriority}
                     className="grid grid-cols-1 gap-8 p-6 sm:p-8 lg:grid-cols-[0.75fr_1fr] lg:gap-10 lg:p-10"
@@ -228,10 +228,9 @@ export default async function ServicesIndexPage() {
               return (
                 <div
                   key={item.title}
-                  data-reveal="card"
                   style={{ "--d": idx } as React.CSSProperties}
                 >
-                  <SoaleCard className="h-full p-6">
+                  <SoaleCard motionId={"app-(website)-services-page.tsx:2" + ":" + String(item.title)} className="h-full p-6">
                     <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-accent-subtle text-primary">
                       <Icon className="h-5 w-5" />
                     </span>

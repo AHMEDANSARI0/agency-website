@@ -37,6 +37,7 @@ describe("admin write origin verification", () => {
     expect(verifyAdminWriteOrigin(req("POST", { origin, host: "localhost:3000" }))).toBe(false);
     vi.stubEnv("OMNIFLOW_ALLOW_LOCAL_DEV_DB", "true");
     expect(verifyAdminWriteOrigin(req("POST", { origin, host: "localhost:3000" }))).toBe(true);
+    vi.stubEnv("OMNIFLOW_ALLOWED_WRITE_HOSTS", "agency.example");
     const localUrl = new Request("http://internal:3000/api", { method: "POST", headers: { host: "agency.example", origin: "https://agency.example" } });
     expect(verifyAdminWriteOrigin(localUrl)).toBe(true);
     const httpPublic = new Request("http://internal:3000/api", { method: "POST", headers: { host: "agency.example", origin: "http://agency.example" } });

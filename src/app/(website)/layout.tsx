@@ -6,6 +6,8 @@ import {
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { MotionRuntime } from "@/components/animations/MotionRuntime";
+import { db } from "@/lib/database";
+import { CardMotionRuntime } from "@/components/animations/CardMotionRuntime";
 import { ScrollCardChoreography } from "@/components/animations/ScrollCardChoreography";
 import { ScrollProgressBar } from "@/components/animations/ScrollProgressBar";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
@@ -20,9 +22,10 @@ export default async function WebsiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [brand, settings] = await Promise.all([
+  const [brand, settings, cardMotion] = await Promise.all([
     getCachedBrandAssets(),
     getCachedSiteSettings(),
+    db.getCardMotion(),
   ]);
 
   const orgJsonLd = buildOrganizationAndWebsiteJsonLd(settings, brand);
@@ -32,6 +35,7 @@ export default async function WebsiteLayout({
       <JsonLdScript data={orgJsonLd} />
       <ScrollProgressBar />
       <MotionRuntime />
+      <CardMotionRuntime settings={cardMotion} />
       <ScrollCardChoreography />
       <VisualEditorCanvasBridge />
       <ClientErrorMonitor />

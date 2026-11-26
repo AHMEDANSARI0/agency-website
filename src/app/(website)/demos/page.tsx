@@ -73,7 +73,7 @@ export default async function DemosPage() {
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <SoaleCard
+              <SoaleCard motionId={"app-(website)-demos-page.tsx:1" + ":" + String(item.title)}
                 key={item.title}
                 className="flex items-start gap-3.5 p-4 sm:p-5"
               >

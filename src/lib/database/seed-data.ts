@@ -15,6 +15,7 @@ import type {
   TeamMember,
   TestimonialItem,
 } from "@/types/content";
+import type { CardMotionConfig } from "@/features/card-motion/config";
 import type { ThemeConfiguration } from "@/types/theme";
 import { createDefaultThemeConfiguration } from "@/features/themes/presets";
 import { DEFAULT_PRICING_CONFIG } from "@/features/pricing/default-pricing";
@@ -55,6 +56,7 @@ export interface OmniFlowDatabaseSnapshot {
   auditLogs: AuditLogEntry[];
   siteSettings: SiteSettings;
   themeConfig: ThemeConfiguration;
+  cardMotion?: CardMotionConfig;
   brandAssets: BrandAssetConfig;
   servicePillars: ServiceCategoryPillar[];
   services: ServiceItem[];

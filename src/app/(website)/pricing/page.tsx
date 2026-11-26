@@ -93,7 +93,7 @@ export default async function PricingPage() {
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <SoaleCard key={item.title} className="p-6 sm:p-7">
+                <SoaleCard motionId={"app-(website)-pricing-page.tsx:1" + ":" + String(item.title)} key={item.title} className="p-6 sm:p-7">
                   <span className="grid h-11 w-11 place-items-center rounded-[15px] bg-accent-subtle text-primary">
                     <Icon className="h-5 w-5" />
                   </span>

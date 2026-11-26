@@ -73,7 +73,7 @@ export async function PageConversionBanner({
             className="border-t border-line-subtle/60 bg-canvas py-12 sm:py-16"
           >
             <Container>
-              <SoaleCard className="mx-auto max-w-4xl p-6 sm:p-10">
+              <SoaleCard motionId={"components-sections-PageConversionBanner.tsx:1" + ":" + String(sec.id)} className="mx-auto max-w-4xl p-6 sm:p-10">
                 <h2 data-ve-title="" className="soale-h3 text-ink-heading">
                   {sec.title}
                 </h2>
@@ -139,7 +139,7 @@ export async function PageConversionBanner({
         >
           <Container>
             <div
-              data-reveal="card"
+              data-card-motion-id="shared-conversion-banner"
               data-scroll-card=""
               className="soale-horizon-card rounded-[26px] px-5 py-12 text-center sm:px-12 sm:py-18"
             >

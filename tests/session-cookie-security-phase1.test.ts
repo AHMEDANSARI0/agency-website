@@ -27,6 +27,7 @@ describe("admin cookie policy", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("OMNIFLOW_STRICT_PRODUCTION", "false");
     vi.stubEnv("AUTH_SECRET", "synthetic-strong-random-signing-key-value-123456789");
+    vi.stubEnv("OMNIFLOW_ALLOWED_WRITE_HOSTS", "agency.invalid");
     vi.resetModules();
     const { db } = await import("@/lib/database");
     const { hashPassword } = await import("@/lib/security/password");

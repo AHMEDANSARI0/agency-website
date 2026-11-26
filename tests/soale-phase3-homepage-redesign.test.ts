@@ -39,7 +39,7 @@ describe("Soale Redesign Phase 3 — Homepage Redesign, Card Architecture & Own 
     expect(homeSrc).toContain("SoaleEditorialProof");
     expect(homeSrc).toContain("SoalePricingSection");
     expect(homeSrc).toContain("SoaleFaqAccordion");
-    expect(homeSrc).toContain('data-reveal="card"');
+    expect(homeSrc).toContain('data-card-motion-id="home-standalone-cta"');
 
     const workSrc = fs.readFileSync(
       path.join(

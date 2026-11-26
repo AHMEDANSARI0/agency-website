@@ -353,11 +353,10 @@ export default async function HomePage() {
                     {OUTCOME_BENTO_CARDS.map((card, idx) => (
                       <div
                         key={card.code}
-                        data-reveal="card"
                         data-scroll-card=""
                         style={{ "--d": idx } as React.CSSProperties}
                       >
-                        <SoaleCard
+                        <SoaleCard motionId={"app-(website)-page.tsx:1" + ":" + String(card.code)}
                           as="article"
                           interactive
                           className="group flex h-full flex-col justify-between p-5 sm:p-7"
@@ -482,10 +481,9 @@ export default async function HomePage() {
                     {pillars.map((pillar, idx) => (
                       <div
                         key={pillar.id}
-                        data-reveal="card"
                         style={{ "--d": idx } as React.CSSProperties}
                       >
-                        <SoaleCard
+                        <SoaleCard motionId={"app-(website)-page.tsx:2" + ":" + String(pillar.id)}
                           interactive
                           className="flex h-full flex-col justify-between p-5"
                         >
@@ -626,10 +624,9 @@ export default async function HomePage() {
                       return (
                         <div
                           key={profile.id}
-                          data-reveal="card"
                           style={{ "--d": idx } as React.CSSProperties}
                         >
-                          <SoaleCard
+                          <SoaleCard motionId={"app-(website)-page.tsx:3" + ":" + String(profile.id)}
                             interactive
                             className="flex h-full flex-col justify-between p-6 sm:p-7"
                           >
@@ -701,10 +698,9 @@ export default async function HomePage() {
                       return (
                         <div
                           key={card.code}
-                          data-reveal="card"
                           style={{ "--d": idx } as React.CSSProperties}
                         >
-                          <SoaleCard className="flex h-full flex-col justify-between p-6 sm:p-7">
+                          <SoaleCard motionId={"app-(website)-page.tsx:4" + ":" + String(card.code)} className="flex h-full flex-col justify-between p-6 sm:p-7">
                             <div>
                               <div className="flex items-center justify-between gap-3">
                                 <span className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary">
@@ -812,10 +808,9 @@ export default async function HomePage() {
                     {blogPosts.slice(0, 3).map((post, idx) => (
                       <div
                         key={post.id}
-                        data-reveal="card"
                         style={{ "--d": idx } as React.CSSProperties}
                       >
-                        <SoaleCard
+                        <SoaleCard motionId={"app-(website)-page.tsx:5" + ":" + String(post.id)}
                           as="article"
                           interactive
                           className="group flex h-full flex-col justify-between p-5 sm:p-6"
@@ -896,7 +891,7 @@ export default async function HomePage() {
 
                   {!hasStandaloneCtaVisible && (
                     <div
-                      data-reveal="card"
+                      data-card-motion-id="home-faq-cta"
                       data-scroll-card=""
                       className="soale-horizon-card mt-14 rounded-[26px] px-5 py-12 text-center sm:mt-16 sm:px-12 sm:py-18"
                     >
@@ -967,7 +962,7 @@ export default async function HomePage() {
               >
                 <Container>
                   <div
-                    data-reveal="card"
+                    data-card-motion-id="home-standalone-cta"
                     data-scroll-card=""
                     className="soale-horizon-card rounded-[28px] px-5 py-12 text-center sm:px-12 sm:py-20"
                   >
@@ -1034,7 +1029,7 @@ export default async function HomePage() {
             return (
               <section key={section.id} className="py-14 sm:py-18">
                 <Container>
-                  <SoaleCard className="mx-auto max-w-4xl p-7 sm:p-10">
+                  <SoaleCard motionId="app-(website)-page.tsx:6" className="mx-auto max-w-4xl p-7 sm:p-10">
                     {section.title && (
                       <h2
                         data-ve-title=""

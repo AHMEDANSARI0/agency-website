@@ -183,7 +183,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
           {/* Main 10-Part Business & Implementation Breakdown */}
           <div className="space-y-8 lg:col-span-8">
             {/* 1. Business Problem & Proposed Solution */}
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:1" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">
                 01 · Business Problem &amp; Proposed Solution
               </SoaleEyebrow>
@@ -205,7 +205,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             </SoaleCard>
 
             {/* 2. What Gets Automated vs. What Stays With Your Team */}
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:2" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">
                 02 · Automation Scope &amp; Human Control
               </SoaleEyebrow>
@@ -262,7 +262,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             </SoaleCard>
 
             {/* 3. Step-by-Step System Operation */}
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:3" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">03 · How It Works</SoaleEyebrow>
               <h2 className="soale-h3 text-ink-heading">
                 Step-by-Step System Operation
@@ -290,7 +290,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             </SoaleCard>
 
             {/* 4. Relevant Integrations */}
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:4" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">
                 04 · Connected Business Systems
               </SoaleEyebrow>
@@ -325,7 +325,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             </SoaleCard>
 
             {/* 5. Implementation Process */}
-            <SoaleCard className="p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:5" className="p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">
                 05 · Implementation Process
               </SoaleEyebrow>
@@ -362,7 +362,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
 
             {/* 6. Expected Outcomes & Sector Use Cases */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <SoaleCard className="p-6">
+              <SoaleCard motionId="app-(website)-services-slug-page.tsx:6" className="p-6">
                 <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                   06 · Expected Outcomes
                 </p>
@@ -382,7 +382,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
                 </ul>
               </SoaleCard>
 
-              <SoaleCard className="p-6">
+              <SoaleCard motionId="app-(website)-services-slug-page.tsx:7" className="p-6">
                 <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                   Industry Fit
                 </p>
@@ -410,7 +410,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             </div>
 
             {/* 7. Live Interactive Demo Card */}
-            <SoaleCard elevated className="border-primary/30 p-6 sm:p-9">
+            <SoaleCard motionId="app-(website)-services-slug-page.tsx:8" elevated className="border-primary/30 p-6 sm:p-9">
               <SoaleEyebrow className="mb-4">{blueprint.demo.badge}</SoaleEyebrow>
               <h2 className="soale-h3 text-ink-heading">
                 {blueprint.demo.title}
@@ -430,7 +430,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
 
             {/* 8. Service-Specific FAQs */}
             {service.faqs.length > 0 && (
-              <SoaleCard className="p-6 sm:p-9">
+              <SoaleCard motionId="app-(website)-services-slug-page.tsx:9" className="p-6 sm:p-9">
                 <SoaleEyebrow className="mb-4">07 · Service FAQ</SoaleEyebrow>
                 <h2 className="soale-h3 text-ink-heading">
                   Common Questions About {service.title}
@@ -460,7 +460,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
           {/* Right Sticky Sidebar */}
           <aside className="space-y-6 lg:col-span-4">
             <div className="sticky top-28 space-y-6">
-              <SoaleCard elevated className="p-6 sm:p-7">
+              <SoaleCard motionId="app-(website)-services-slug-page.tsx:10" elevated className="p-6 sm:p-7">
                 <SoaleChip active>{service.categoryName}</SoaleChip>
                 <h2 className="soale-h4 mt-4 text-ink-heading">
                   Book a Free Discovery Call for {service.title}
@@ -545,7 +545,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
             <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
               {relatedServices.map((rel) => (
                 <Link key={rel.id} href={`/services/${rel.slug}`} className="group">
-                  <SoaleCard interactive className="h-full p-6">
+                  <SoaleCard motionId={"app-(website)-services-slug-page.tsx:11" + ":" + String(rel.id)} interactive className="h-full p-6">
                     <SoaleChip>{rel.badgeLabel}</SoaleChip>
                     <h3 className="mt-4 text-base font-semibold text-ink-heading group-hover:text-primary">
                       {rel.title}

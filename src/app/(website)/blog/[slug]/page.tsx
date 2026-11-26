@@ -133,7 +133,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
       <section className="border-b border-line py-14 sm:py-22">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           {/* Editorial Article Reader Card */}
-          <SoaleCard as="article" className="p-6 sm:p-10 lg:col-span-8">
+          <SoaleCard motionId="app-(website)-blog-slug-page.tsx:1" as="article" className="p-6 sm:p-10 lg:col-span-8">
             <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-line pb-5 text-xs text-ink-muted">
               <span>
                 By{" "}
@@ -237,7 +237,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
           <aside className="space-y-6 lg:col-span-4">
             <div className="sticky top-28 space-y-6">
               {post.showTableOfContents && headings.length > 0 && (
-                <SoaleCard className="p-6">
+                <SoaleCard motionId="app-(website)-blog-slug-page.tsx:2" className="p-6">
                   <nav aria-label="Table of contents">
                     <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                       On This Page
@@ -258,7 +258,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
                 </SoaleCard>
               )}
 
-              <SoaleCard elevated className="p-6">
+              <SoaleCard motionId="app-(website)-blog-slug-page.tsx:3" elevated className="p-6">
                 <SoaleEyebrow className="mb-4">Practical Next Step</SoaleEyebrow>
                 <h2 className="soale-h4 text-ink-heading">
                   Want to Apply This to Your Workflow?
@@ -300,7 +300,7 @@ export default async function BlogPostDetailPage({ params }: BlogPostPageProps) 
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
               {relatedPosts.map((rel) => (
                 <Link key={rel.id} href={`/blog/${rel.slug}`} className="group">
-                  <SoaleCard interactive className="h-full p-6">
+                  <SoaleCard motionId={"app-(website)-blog-slug-page.tsx:4" + ":" + String(rel.id)} interactive className="h-full p-6">
                     <SoaleChip>{rel.category}</SoaleChip>
                     <h3 className="mt-3 text-lg font-semibold text-ink-heading group-hover:text-primary">
                       {rel.title}

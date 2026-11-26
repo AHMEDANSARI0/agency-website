@@ -116,7 +116,7 @@ export default async function RootLayout({
         <script
           id="of-motion-init"
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches){delete d.dataset.motion;return;}var s=getComputedStyle(d).getPropertyValue("--of-motion-scale").trim();if(s!==""&&Number(s)<=0){delete d.dataset.motion;return;}d.dataset.motion="ready";}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement;if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches){delete d.dataset.motion;return;}var s=getComputedStyle(d).getPropertyValue("--of-motion-scale").trim();if(s!==""&&Number(s)<=0){delete d.dataset.motion;return;}d.dataset.motion="ready";setTimeout(function(){if(!d.dataset.motionRuntime)delete d.dataset.motion;},5000);}catch(e){}})();`,
           }}
         />
       </head>

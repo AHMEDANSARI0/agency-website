@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotionChange } from "@/components/animations/useReducedMotionChange";
+
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +12,7 @@ import { usePathname } from "next/navigation";
  * `prefers-reduced-motion: reduce` is active.
  */
 export function ScrollCardChoreography() {
+  const motionPreferenceVersion = useReducedMotionChange();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -100,7 +103,7 @@ export function ScrollCardChoreography() {
       window.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
     };
-  }, [pathname]);
+  }, [pathname, motionPreferenceVersion]);
 
   return null;
 }

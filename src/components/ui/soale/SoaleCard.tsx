@@ -3,6 +3,7 @@ import { SoaleEyebrow } from "./SoaleEyebrow";
 
 interface SoaleCardProps {
   children: React.ReactNode;
+  motionId?: string;
   interactive?: boolean;
   elevated?: boolean;
   reveal?: boolean;
@@ -17,6 +18,7 @@ interface SoaleCardProps {
  */
 export function SoaleCard({
   children,
+  motionId,
   interactive = false,
   elevated = false,
   reveal = false,
@@ -37,6 +39,7 @@ export function SoaleCard({
   return (
     <Tag
       {...(reveal ? { "data-reveal": "card" } : {})}
+      data-card-motion-id={motionId}
       data-scroll-card=""
       style={mergedStyle}
       className={`soale-card ${interactive ? "soale-card-interactive" : ""} ${

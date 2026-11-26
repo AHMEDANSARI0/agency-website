@@ -72,7 +72,7 @@ export function WorkFilterGrid({ items }: { items: CaseStudyItem[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <SoaleCard className="soale-filter-enter mt-10 p-10 text-center">
+        <SoaleCard motionId="components-sections-WorkFilterGrid.tsx:1" className="soale-filter-enter mt-10 p-10 text-center">
           <p className="text-base font-semibold text-ink-heading">
             No items currently published in this category.
           </p>
@@ -88,7 +88,7 @@ export function WorkFilterGrid({ items }: { items: CaseStudyItem[] }) {
             const previewSteps = item.automatedWorkflowAfter.slice(0, 3);
 
             return (
-              <SoaleCard
+              <SoaleCard motionId={"components-sections-WorkFilterGrid.tsx:2" + ":" + String(item.id)}
                 key={`${filter}-${item.id}`}
                 as="article"
                 interactive

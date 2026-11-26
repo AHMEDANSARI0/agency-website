@@ -593,7 +593,7 @@ export function PinnedHero({
         {/* Dual-Mode Live HTML/CSS/SVG "Workflow command center" Bento Window */}
         {canvasCfg.showCommandCenter && (
         <div
-          data-reveal="card"
+          data-card-motion-id="home-command-window"
           data-scroll-card=""
           style={{ "--d": 2 } as React.CSSProperties}
           className="of-command-window of-command-window-3d mx-auto mt-10 max-w-[1020px] overflow-hidden rounded-[22px] border border-line-strong/80 bg-surface-elevated/95 text-ink-heading shadow-elevated backdrop-blur-xl sm:mt-14"
@@ -623,7 +623,7 @@ export function PinnedHero({
           <div className="grid grid-cols-1 md:grid-cols-12">
             {/* Sidebar Navigation (Touch-Friendly Horizontal Scroll on Mobile) */}
             <div
-              role="tablist"
+              role="group"
               aria-label="Command center views"
               className="flex gap-1.5 overflow-x-auto border-b border-line bg-surface/70 p-2.5 sm:p-3 md:col-span-3 md:flex-col md:border-b-0 md:border-r md:p-4"
             >
@@ -633,8 +633,7 @@ export function PinnedHero({
                   <button
                     key={tab.id}
                     type="button"
-                    role="tab"
-                    aria-selected={active}
+                    aria-pressed={active}
                     onClick={() => setActiveTab(tab.id)}
                     className={`min-h-[40px] shrink-0 rounded-xl px-3.5 py-2 text-left text-xs font-medium transition-all sm:text-[0.82rem] ${
                       active

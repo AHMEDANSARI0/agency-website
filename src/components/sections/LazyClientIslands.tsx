@@ -1,10 +1,14 @@
 "use client";
 
+import React from "react";
 import dynamic from "next/dynamic";
 import { LazyViewportBlock } from "@/components/ui/LazyViewportBlock";
 import type { PricingConfig } from "@/types/content";
 import type { FaqItem } from "@/types/content";
 import type { DemoTabId } from "@/features/demos/engine";
+import { SoaleProcessSection } from "@/components/sections/soale/SoaleProcessSection";
+import { SoalePricingSection } from "@/components/sections/soale/SoalePricingSection";
+import { SoaleFaqAccordion } from "@/components/sections/soale/SoaleFaqAccordion";
 
 const BeforeAfterDynamic = dynamic(
   () =>
@@ -26,30 +30,6 @@ const IntegrationEcosystemDynamic = dynamic(
   () =>
     import("@/components/sections/IntegrationEcosystemVisualizer").then(
       (m) => m.IntegrationEcosystemVisualizer
-    ),
-  { ssr: false }
-);
-
-const ProcessSectionDynamic = dynamic(
-  () =>
-    import("@/components/sections/soale/SoaleProcessSection").then(
-      (m) => m.SoaleProcessSection
-    ),
-  { ssr: false }
-);
-
-const PricingSectionDynamic = dynamic(
-  () =>
-    import("@/components/sections/soale/SoalePricingSection").then(
-      (m) => m.SoalePricingSection
-    ),
-  { ssr: false }
-);
-
-const FaqAccordionDynamic = dynamic(
-  () =>
-    import("@/components/sections/soale/SoaleFaqAccordion").then(
-      (m) => m.SoaleFaqAccordion
     ),
   { ssr: false }
 );
@@ -120,9 +100,9 @@ export function LazySoaleProcessSection({
   className?: string;
 }) {
   return (
-    <LazyViewportBlock minHeight={440} className={className}>
-      <ProcessSectionDynamic />
-    </LazyViewportBlock>
+    <div className={className}>
+      <SoaleProcessSection />
+    </div>
   );
 }
 
@@ -132,9 +112,7 @@ export function LazySoalePricingSection({
   pricing: PricingConfig;
 }) {
   return (
-    <LazyViewportBlock minHeight={460}>
-      <PricingSectionDynamic pricing={pricing} />
-    </LazyViewportBlock>
+    <SoalePricingSection pricing={pricing} />
   );
 }
 
@@ -146,9 +124,7 @@ export function LazySoaleFaqAccordion({
   contactEmail: string;
 }) {
   return (
-    <LazyViewportBlock minHeight={360}>
-      <FaqAccordionDynamic faqs={faqs} contactEmail={contactEmail} />
-    </LazyViewportBlock>
+    <SoaleFaqAccordion faqs={faqs} contactEmail={contactEmail} />
   );
 }
 

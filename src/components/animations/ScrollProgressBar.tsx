@@ -79,6 +79,8 @@ export function ScrollProgressBar() {
         type="button"
         onClick={handleScrollTop}
         aria-label="Scroll back to top"
+        aria-hidden={!showTopBtn}
+        tabIndex={showTopBtn ? 0 : -1}
         className={`fixed bottom-5 right-5 z-40 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-strong surface-glass text-ink-heading shadow-card transition-all duration-300 ease-[var(--of-ease-balance)] hover:border-primary/40 hover:text-primary ${
           showTopBtn
             ? "translate-y-0 opacity-100"

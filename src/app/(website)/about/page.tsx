@@ -42,7 +42,7 @@ export default async function AboutPage() {
 
       <section className="border-b border-line py-20 sm:py-28">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
-          <SoaleCard className="p-7 sm:p-10 lg:col-span-7">
+          <SoaleCard motionId="app-(website)-about-page.tsx:1" className="p-7 sm:p-10 lg:col-span-7">
             <SoaleEyebrow className="mb-5">Our Operating Standard</SoaleEyebrow>
             <h2 className="soale-h2 text-ink-heading">
               Why {settings.companyName} Exists
@@ -113,7 +113,7 @@ export default async function AboutPage() {
             ].map((principle) => {
               const Icon = principle.icon;
               return (
-                <SoaleCard key={principle.title} interactive className="p-6">
+                <SoaleCard motionId={"app-(website)-about-page.tsx:2" + ":" + String(principle.title)} key={principle.title} interactive className="p-6">
                   <div className="flex items-center gap-3.5">
                     <div className="grid h-10 w-10 place-items-center rounded-[14px] bg-accent-subtle text-primary">
                       <Icon className="h-5 w-5" />

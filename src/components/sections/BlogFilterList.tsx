@@ -113,7 +113,7 @@ export function BlogFilterList({ posts }: { posts: BlogPost[] }) {
 
       {/* 3-Column Soale 24px Editorial Article Cards with Staggered Card Loading */}
       {paginated.length === 0 ? (
-        <SoaleCard className="soale-filter-enter mt-10 p-10 text-center">
+        <SoaleCard motionId="components-sections-BlogFilterList.tsx:1" className="soale-filter-enter mt-10 p-10 text-center">
           <p className="text-sm font-semibold text-ink-heading">
             No articles matched your filter.
           </p>
@@ -124,7 +124,7 @@ export function BlogFilterList({ posts }: { posts: BlogPost[] }) {
       ) : (
         <div className="mt-10 grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
           {paginated.map((post, idx) => (
-            <SoaleCard
+            <SoaleCard motionId={"components-sections-BlogFilterList.tsx:2" + ":" + String(post.id)}
               key={`${selectedCategory}-${safePage}-${post.id}`}
               as="article"
               interactive

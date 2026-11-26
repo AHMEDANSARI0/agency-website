@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotionChange } from "@/components/animations/useReducedMotionChange";
+
 import React, { useEffect, useRef, useState } from "react";
 import { CheckCircle2, FileCheck2, RotateCcw } from "lucide-react";
 import {
@@ -78,6 +80,7 @@ export const PROCESS_PHASES_4: ProcessPhaseItem[] = [
 ];
 
 export function SoaleProcessSection() {
+  const motionPreferenceVersion = useReducedMotionChange();
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const pillRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -112,7 +115,7 @@ export function SoaleProcessSection() {
       window.removeEventListener("scroll", onScroll);
       if (rafId) window.cancelAnimationFrame(rafId);
     };
-  }, [userPinned]);
+  }, [userPinned, motionPreferenceVersion]);
 
   const activePhase = PROCESS_PHASES_4[activeIndex] ?? PROCESS_PHASES_4[0];
   const progressRatio = (activeIndex + 1) / PROCESS_PHASES_4.length;
@@ -173,8 +176,9 @@ export function SoaleProcessSection() {
       {/* 4-Phase Selector Pills + Active Phase Detail Card */}
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div
-          role="tablist"
+          role="group"
           aria-label="4-phase delivery process"
+          onFocusCapture={() => setUserPinned(true)}
           className="flex flex-col gap-3 lg:col-span-5"
         >
           {PROCESS_PHASES_4.map((step, idx) => {
@@ -186,8 +190,7 @@ export function SoaleProcessSection() {
                   pillRefs.current[idx] = el;
                 }}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
                 data-active={active ? "true" : "false"}
                 onClick={() => {
                   setActiveIndex(idx);
@@ -220,7 +223,7 @@ export function SoaleProcessSection() {
           })}
         </div>
 
-        <SoaleCard className="flex flex-col justify-between p-6 sm:p-8 lg:col-span-7">
+        <SoaleCard motionId="components-sections-soale-SoaleProcessSection.tsx:1" className="flex flex-col justify-between p-6 sm:p-8 lg:col-span-7">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex items-center rounded-full border border-primary/30 bg-accent-subtle px-3 py-1 text-xs font-semibold text-primary">

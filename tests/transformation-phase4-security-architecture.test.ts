@@ -289,7 +289,7 @@ describe("Transformation Phase 4 — Security, Atomicity, Performance & Architec
     });
     expect(verifySameOriginRequest(crossSiteFetchReq)).toBe(false);
 
-    // 4. Multi-hop X-Forwarded-Host must match primary public host cleanly
+    // 4. Client-provided forwarded Host is untrusted, even behind a multi-hop proxy
     const proxyValidReq = new Request("http://internal:3000/api/leads", {
       method: "POST",
       headers: {
@@ -298,7 +298,12 @@ describe("Transformation Phase 4 — Security, Atomicity, Performance & Architec
         Origin: "https://omniflow.ai",
       },
     });
-    expect(verifySameOriginRequest(proxyValidReq)).toBe(true);
+    expect(verifySameOriginRequest(proxyValidReq)).toBe(false);
+    const proxyMatchingPublicHostReq = new Request("http://internal:3000/api/leads", {
+      method: "POST",
+      headers: { Host: "omniflow.ai", Origin: "https://omniflow.ai" },
+    });
+    expect(verifySameOriginRequest(proxyMatchingPublicHostReq)).toBe(true);
 
     // 5. Tampered session token signature is rejected
     expect(verifySessionToken("eyJ1c2VySWQiOiJ1c3JfMSJ9.tampered_sig")).toBeNull();

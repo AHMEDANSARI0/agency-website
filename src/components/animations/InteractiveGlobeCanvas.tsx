@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotionChange } from "@/components/animations/useReducedMotionChange";
+
 import React, { useEffect, useMemo, useRef } from "react";
 import type { GlobeParticleDensity } from "@/types/hero-canvas";
 
@@ -152,6 +154,7 @@ export function InteractiveGlobeCanvas({
   interactiveDrag = true,
   className = "",
 }: InteractiveGlobeCanvasProps) {
+  const motionPreferenceVersion = useReducedMotionChange();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const { points, spaceParticles } = useMemo(() => {
@@ -667,6 +670,7 @@ export function InteractiveGlobeCanvas({
     interactiveDrag,
     points,
     spaceParticles,
+    motionPreferenceVersion,
   ]);
 
   return (

@@ -29,22 +29,13 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
 
         {/* Signature Soale .pricing-tabs-menu Rounded Pill Toggle */}
         <div
-          role="tablist"
+          role="group"
           aria-label="Select engagement scope mode"
-          onKeyDown={(e) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-              e.preventDefault();
-              setBillingScope((prev) =>
-                prev === "project" ? "retainer" : "project"
-              );
-            }
-          }}
           className="mt-8 inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-line bg-surface-card p-1.5 shadow-sm sm:rounded-full"
         >
           <button
             type="button"
-            role="tab"
-            aria-selected={billingScope === "project"}
+            aria-pressed={billingScope === "project"}
             onClick={() => setBillingScope("project")}
             className={`min-h-[40px] rounded-full px-4 py-2 text-xs font-semibold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
               billingScope === "project"
@@ -56,8 +47,7 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={billingScope === "retainer"}
+            aria-pressed={billingScope === "retainer"}
             onClick={() => setBillingScope("retainer")}
             className={`min-h-[40px] rounded-full px-4 py-2 text-xs font-semibold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
               billingScope === "retainer"
@@ -86,7 +76,7 @@ export function SoalePricingSection({ pricing }: SoalePricingSectionProps) {
               : pkg.retainerPriceLabel;
 
           return (
-            <SoaleCard
+            <SoaleCard motionId={"components-sections-soale-SoalePricingSection.tsx:1" + ":" + String(pkg.id)}
               key={pkg.id}
               as="article"
               interactive

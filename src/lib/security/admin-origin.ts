@@ -1,3 +1,5 @@
+import { isAllowedProductionWriteHost } from "@/lib/security/write-host";
+
 /** Strict Origin gate for browser-facing admin writes. Never trusts X-Forwarded-Host. */
 export function verifyAdminWriteOrigin(request: Request): boolean {
   const method = request.method.toUpperCase();
@@ -19,6 +21,8 @@ export function verifyAdminWriteOrigin(request: Request): boolean {
       const localDev = process.env.OMNIFLOW_ALLOW_LOCAL_DEV_DB === "true" &&
         (origin.hostname === "localhost" || origin.hostname === "127.0.0.1" || origin.hostname === "[::1]");
       if (origin.protocol !== "https:" && !localDev) return false;
+      // Local HTTP override is for isolated development only, never a public deployment.
+      if (!localDev && !isAllowedProductionWriteHost(request.headers.get("host"), process.env.OMNIFLOW_ALLOWED_WRITE_HOSTS)) return false;
     } else if (requestUrl.host === hostUrl.host && requestUrl.protocol !== origin.protocol) {
       return false;
     }

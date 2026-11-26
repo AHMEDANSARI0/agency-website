@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotionChange } from "@/components/animations/useReducedMotionChange";
+
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
@@ -46,6 +48,7 @@ function isMotionSuppressedByThemeOrOs(): boolean {
 }
 
 export function MotionRuntime() {
+  const motionPreferenceVersion = useReducedMotionChange();
   const pathname = usePathname();
   const lenisRef = useRef<LenisLike | null>(null);
   const prevPathnameRef = useRef<string>(pathname);
@@ -123,7 +126,8 @@ export function MotionRuntime() {
 
     // Smooth same-page #hash anchor scrolling via Lenis when active
     const onAnchorClick = (e: MouseEvent) => {
-      if (!lenisRef.current || e.defaultPrevented || e.button !== 0) return;
+      // Keep keyboard-activated links native so the destination receives normal focus.
+      if (!lenisRef.current || e.defaultPrevented || e.button !== 0 || e.detail === 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (!(e.target instanceof Element)) return;
       const link = e.target.closest<HTMLAnchorElement>('a[href*="#"]');
@@ -140,12 +144,14 @@ export function MotionRuntime() {
       if (
         url.origin !== window.location.origin ||
         url.pathname !== window.location.pathname ||
+        url.search !== window.location.search ||
         !url.hash
       ) {
         return;
       }
 
-      const id = decodeURIComponent(url.hash.slice(1));
+      let id: string;
+      try { id = decodeURIComponent(url.hash.slice(1)); } catch { return; }
       const targetEl = document.getElementById(id);
       if (!targetEl) return;
 
@@ -196,7 +202,7 @@ export function MotionRuntime() {
       lenisRef.current?.destroy();
       lenisRef.current = null;
     };
-  }, []);
+  }, [motionPreferenceVersion]);
 
   // Reset Lenis & window scroll cleanly on route changes (when not navigating to a #hash)
   useEffect(() => {
@@ -293,6 +299,7 @@ export function MotionRuntime() {
     };
 
     registerUnrevealedNodes();
+    document.documentElement.dataset.motionRuntime = "ready";
 
     const mainEl = document.getElementById("main-content");
     let mutationRaf = 0;
@@ -312,12 +319,13 @@ export function MotionRuntime() {
     }
 
     return () => {
+      delete document.documentElement.dataset.motionRuntime;
       revealObserver.disconnect();
       animViewportObserver.disconnect();
       domObserver?.disconnect();
       if (mutationRaf) window.cancelAnimationFrame(mutationRaf);
     };
-  }, [pathname]);
+  }, [pathname, motionPreferenceVersion]);
 
   return null;
 }

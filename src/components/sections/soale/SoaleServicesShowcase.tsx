@@ -123,7 +123,7 @@ export function SoaleServicesShowcase({
           {visibleSlice.map((srv, idx) => (
             <article
               key={srv.id}
-              data-reveal="card"
+              data-card-motion-id={"services-showcase-stack:" + srv.id}
               data-scroll-card="stack"
               style={
                 {
@@ -243,7 +243,7 @@ export function SoaleServicesShowcase({
         /* 3-Column Soale Service Cards when browsing All 8 or Additional Pillars */
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-7">
           {visibleSlice.map((srv, idx) => (
-            <SoaleCard
+            <SoaleCard motionId={"components-sections-soale-SoaleServicesShowcase.tsx:1" + ":" + String(srv.id)}
               key={`${view}-${clampedPage}-${srv.id}`}
               as="article"
               interactive

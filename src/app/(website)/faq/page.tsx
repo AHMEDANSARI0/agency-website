@@ -67,7 +67,7 @@ export default async function FaqPage() {
                 <SoaleEyebrow>{category}</SoaleEyebrow>
                 <div className="space-y-3.5">
                   {group.map((faq, idx) => (
-                    <SoaleCard key={faq.id} className="px-6 py-5">
+                    <SoaleCard motionId={"app-(website)-faq-page.tsx:1" + ":" + String(faq.id)} key={faq.id} className="px-6 py-5">
                       <details open={idx === 0} className="more">
                         <summary className="flex items-center justify-between gap-4 text-left text-base font-semibold text-ink-heading sm:text-lg">
                           <span>{faq.question}</span>
