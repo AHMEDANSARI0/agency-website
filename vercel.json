@@ -3,7 +3,7 @@
   "regions": ["hnd1"],
   "crons": [
     {
-      "path": "/api/health",
+      "path": "/api/health?probe=liveness",
       "schedule": "0 6 */3 * *"
     }
   ]

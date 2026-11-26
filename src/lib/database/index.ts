@@ -68,6 +68,7 @@ export interface DatabaseHealthVerification {
   appliedMigrations: string[];
   missingTables: string[];
   missingColumns: string[];
+  missingMigrations?: string[];
   latencyMs: number;
   backupCount: number;
   lastBackupAt: string | null;
@@ -89,11 +90,18 @@ const REQUIRED_POSTGRES_TABLES = [
   "team_members",
   "media_assets",
   "leads",
+  "lead_idempotency_keys",
   "redirects",
   "schema_migrations",
   "rate_limits",
   "database_backups",
 ] as const;
+
+const REQUIRED_MIGRATIONS = [
+  "0001_omniflow_schema", "0002_production_upgrade", "0003_crm_and_operations",
+  "0004_security_and_performance", "0005_rate_limit_fixed_window",
+] as const;
+const REQUIRED_RATE_LIMIT_COLUMNS = ["bucket_key", "count", "window_start", "expires_at"] as const;
 
 const REQUIRED_USER_COLUMNS = [
   "must_change_password",
@@ -3452,6 +3460,13 @@ export const db = {
             (c) => !presentCols.has(c)
           );
 
+          const rateColumns = await sql<{ column_name: string }[]>`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'rate_limits'
+          `;
+          const presentRateColumns = new Set(rateColumns.map((r) => r.column_name));
+          const missingRateColumns = REQUIRED_RATE_LIMIT_COLUMNS.filter((c) => !presentRateColumns.has(c));
+
           let appliedMigrations: string[] = [];
           if (presentTables.has("schema_migrations")) {
             const migRows = await sql<{ version: string }[]>`
@@ -3472,8 +3487,9 @@ export const db = {
             lastBackupAt = bRows[0]?.latest ?? null;
           }
 
-          const schemaReady =
-            missingTables.length === 0 && missingColumns.length === 0;
+          const missingMigrations = REQUIRED_MIGRATIONS.filter((version) => !appliedMigrations.includes(version));
+          const schemaReady = missingTables.length === 0 && missingColumns.length === 0 &&
+            missingRateColumns.length === 0 && missingMigrations.length === 0;
 
           return {
             driver: "supabase_postgres" as const,
@@ -3481,7 +3497,8 @@ export const db = {
             schemaReady,
             appliedMigrations,
             missingTables,
-            missingColumns,
+            missingColumns: [...missingColumns.map((c) => `users.${c}`), ...missingRateColumns.map((c) => `rate_limits.${c}`)],
+            missingMigrations: [...missingMigrations],
             latencyMs: Date.now() - startMs,
             backupCount,
             lastBackupAt,
@@ -3494,6 +3511,8 @@ export const db = {
               : `PostgreSQL connected, but schema migration is incomplete (${[
                   ...missingTables,
                   ...missingColumns.map((c) => `users.${c}`),
+                  ...missingRateColumns.map((c) => `rate_limits.${c}`),
+                  ...missingMigrations.map((v) => `migration:${v}`),
                 ].join(", ")}).`,
           };
           })(),

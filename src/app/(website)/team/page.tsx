@@ -59,8 +59,7 @@ export default async function TeamPage() {
                     />
                   ) : (
                     <div
-                      aria-label={`${member.name} avatar placeholder ({{FOUNDER_PHOTO_URL}})`}
-                      title="Upload photo in Admin → Team ({{FOUNDER_PHOTO_URL}})"
+                      aria-label={`${member.name} avatar`}
                       className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] border border-primary/30 bg-accent-subtle text-xl font-bold text-primary shadow-sm"
                     >
                       {member.name

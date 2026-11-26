@@ -121,7 +121,7 @@ describe("Phase 4 — Homepage Restructuring (17 -> 9 Sections) & Reference Dark
       ),
       "utf8"
     );
-    expect(proofSrc).toContain(PLACEHOLDER_TOKENS.FOUNDER_PHOTO_URL);
+    expect(proofSrc).not.toContain(PLACEHOLDER_TOKENS.FOUNDER_PHOTO_URL);
   });
 
   it("4. non-destructively auto-upgrades untouched 17-section Home & legacy Coming Soon pricing while preserving custom admin edits", async () => {

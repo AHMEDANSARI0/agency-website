@@ -1,5 +1,8 @@
 import React from "react";
 import { AccessDeniedCard } from "@/components/admin/AccessDeniedCard";
+import { OwnerValuesForm } from "@/features/admin/OwnerValuesForm";
+import { resolveOwnerValues } from "@/lib/owner-config";
+import { db } from "@/lib/database";
 import { SiteSettingsClient } from "@/features/admin/SiteSettingsClient";
 import { requireAdminPageAuth } from "@/lib/auth/server";
 
@@ -15,6 +18,8 @@ export default async function AdminSettingsPage() {
     );
   }
 
+  const team = await db.listTeamMembers(true);
+  const initialOwner = resolveOwnerValues(settings, team).values;
   return (
     <div className="space-y-6">
       <div>
@@ -27,6 +32,7 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
+      <OwnerValuesForm initial={initialOwner} />
       <SiteSettingsClient initialSettings={settings} />
     </div>
   );

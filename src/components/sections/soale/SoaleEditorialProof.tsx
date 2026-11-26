@@ -204,8 +204,8 @@ export function SoaleEditorialProof({
               />
             ) : (
               <div
-                aria-label="Founder avatar placeholder ({{FOUNDER_PHOTO_URL}})"
-                title="Upload founder photo in Admin → Team ({{FOUNDER_PHOTO_URL}})"
+                aria-label="Founder avatar"
+
                 className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-accent-subtle font-display text-lg font-bold text-primary"
               >
                 AA
@@ -243,11 +243,7 @@ export function SoaleEditorialProof({
           <SoaleArrowButton href="/about" variant="outline" size="sm">
             About &amp; Standards
           </SoaleArrowButton>
-          {(!founder?.avatarUrl || founder.avatarUrl.includes("{{")) && (
-            <span className="font-mono text-[0.68rem] text-ink-muted">
-              Slot: {"{{FOUNDER_PHOTO_URL}}"}
-            </span>
-          )}
+
         </div>
       </SoaleCard>
     </div>

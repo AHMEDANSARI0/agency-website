@@ -83,6 +83,8 @@ export interface SiteSettings {
     legal: NavItem[];
   };
   pricingConfig?: PricingConfig;
+  /** Public launch information entered in the owner settings form. */
+  ownerValues?: { contactEmail: string; priceFrom: string; founderPhotoUrl: string };
   analytics: {
     ga4MeasurementId: string;
     requireCookieConsent: boolean;

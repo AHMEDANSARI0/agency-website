@@ -11,6 +11,7 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   retryAfterSeconds: number;
+  unavailable?: boolean;
 }
 
 export function checkRateLimit(
@@ -59,7 +60,7 @@ export function checkRateLimit(
 /**
  * Distributed Free-Tier rate limiter:
  * - Uses Supabase PostgreSQL `rate_limits` table atomically across Vercel Serverless cold starts when available.
- * - Seamlessly falls back to in-memory sliding window (`checkRateLimit`) in local dev/tests or prior to migration 0002.
+ * - Falls back to in-memory sliding windows only in local development and tests; fails closed in production.
  */
 export async function checkDistributedRateLimit(
   key: string,
@@ -67,13 +68,20 @@ export async function checkDistributedRateLimit(
   windowMs: number
 ): Promise<RateLimitResult> {
   const safeKey = key.slice(0, 180);
-  const distributed = await db.checkDistributedRateLimitBucket(
-    safeKey,
-    maxRequests,
-    windowMs
-  );
-  if (distributed) {
-    return distributed;
+  try {
+    const distributed = await db.checkDistributedRateLimitBucket(
+      safeKey,
+      maxRequests,
+      windowMs
+    );
+    if (distributed) return distributed;
+  } catch {
+    // Treat unexpected storage errors exactly like an unavailable bucket.
+  }
+  // Fail closed in production. A per-instance fallback is not distributed and
+  // can silently turn protection off after database or migration failures.
+  if (process.env.NODE_ENV === "production" || process.env.OMNIFLOW_STRICT_PRODUCTION === "true") {
+    return { allowed: false, remaining: 0, retryAfterSeconds: 60, unavailable: true };
   }
   return checkRateLimit(safeKey, maxRequests, windowMs);
 }

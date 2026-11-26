@@ -16,6 +16,8 @@ import type {
 import type { ThemeConfiguration } from "@/types/theme";
 import { db } from "@/lib/database";
 import { createInitialSeedSnapshot } from "@/lib/database/seed-data";
+import { applyOwnerValues } from "@/lib/owner-config";
+import { resolvePricingConfig } from "@/features/pricing/default-pricing";
 
 export const PUBLIC_ISR_REVALIDATE_SECONDS = 600;
 
@@ -90,7 +92,7 @@ function createTaggedCachedReader<T>(
   });
 }
 
-export const getCachedSiteSettings = createTaggedCachedReader<SiteSettings>(
+const getCachedRawSiteSettings = createTaggedCachedReader<SiteSettings>(
   "site-settings",
   [CACHE_TAGS.settings],
   () => db.getSiteSettings(),
@@ -159,7 +161,7 @@ export const getCachedPublishedFaqs = createTaggedCachedReader<FaqItem[]>(
   () => createInitialSeedSnapshot().faqs.filter((f) => f.isPublished)
 );
 
-export const getCachedPublishedTeamMembers = createTaggedCachedReader<
+const getCachedRawPublishedTeamMembers = createTaggedCachedReader<
   TeamMember[]
 >(
   "published-team",
@@ -167,6 +169,20 @@ export const getCachedPublishedTeamMembers = createTaggedCachedReader<
   () => db.listTeamMembers(true),
   () => createInitialSeedSnapshot().teamMembers.filter((m) => m.isPublished)
 );
+
+// Keep owner fallbacks confined to the public render snapshot; the CMS itself is not modified.
+export const getCachedSiteSettings = cache(async () => {
+  const settings = await getCachedRawSiteSettings();
+  return applyOwnerValues({ ...settings, pricingConfig: resolvePricingConfig(settings) }, []).settings;
+});
+export const getCachedPublishedTeamMembers = cache(async () => {
+  const [members, settings] = await Promise.all([getCachedRawPublishedTeamMembers(), getCachedRawSiteSettings()]);
+  return applyOwnerValues(settings, members).team;
+});
+export async function getLaunchOwnerInputs(): Promise<{ settings: SiteSettings; team: TeamMember[] }> {
+  const [settings, team] = await Promise.all([getCachedRawSiteSettings(), getCachedRawPublishedTeamMembers()]);
+  return { settings, team };
+}
 
 export const getCachedPublishedTestimonials = createTaggedCachedReader<
   TestimonialItem[]
@@ -252,4 +268,10 @@ export function revalidatePublicContent(
       // No-op outside Next.js server request context
     }
   }
+}
+
+/** Invalidate all public data after a broad CMS/theme/restore change. */
+export function revalidateAllPublicContent(): void {
+  revalidatePublicContent(Object.values(CACHE_TAGS), ["/", "/services", "/solutions", "/case-studies", "/blog", "/about", "/team", "/faq", "/pricing", "/demos", "/how-it-works", "/contact", "/sitemap.xml", "/robots.txt", "/feed.xml"]);
+  try { revalidatePath("/", "layout"); } catch { /* standalone tests have no cache context */ }
 }

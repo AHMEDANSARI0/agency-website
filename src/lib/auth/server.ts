@@ -144,6 +144,15 @@ export async function requireAdminApiAuth(
         90,
         60 * 1000
       );
+      if (writeRate.unavailable) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+            { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+          ),
+        };
+      }
       if (!writeRate.allowed) {
         return {
           ok: false,

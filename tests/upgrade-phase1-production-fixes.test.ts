@@ -115,18 +115,18 @@ describe("Upgrade Phase 1 — Critical Production Reliability, Auth Security, St
       );
       expect(leadRes.status).toBe(503);
       const leadJson = await leadRes.json();
-      expect(leadJson.code).toBe("DB_MISSING_URL");
+      expect(leadJson.code).toBe("RATE_LIMIT_UNAVAILABLE");
 
-      // Public readiness probe returns 503 degraded without leaking any internals, secrets, or paths
+      // Detailed readiness requires authentication and leaks no internals.
       const readinessRes = await healthHandler(
-        new Request("http://localhost:3000/api/health")
+        new Request("http://localhost:3000/api/health?probe=readiness")
       );
-      expect(readinessRes.status).toBe(503);
+      expect(readinessRes.status).toBe(401);
       const readinessRaw = await readinessRes.text();
       expect(readinessRaw).not.toContain(process.env.AUTH_SECRET!);
       expect(readinessRaw).not.toContain("/home/user");
       const readinessJson = JSON.parse(readinessRaw);
-      expect(readinessJson).toEqual({ status: "degraded" });
+      expect(readinessJson).toEqual({ status: "unauthorized" });
 
       // Liveness probe still returns 200 with minimal public payload
       const livenessRes = await healthHandler(

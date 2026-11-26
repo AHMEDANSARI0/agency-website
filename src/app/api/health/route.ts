@@ -10,43 +10,39 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET(request: Request) {
-  let probe: "liveness" | "readiness" = "readiness";
-  try {
-    const url = new URL(request.url);
-    if (url.searchParams.get("probe") === "liveness") {
-      probe = "liveness";
-    }
-  } catch {
-    probe = "readiness";
+  const requestedProbe = new URL(request.url).searchParams.get("probe");
+  // Liveness never calls the database, storage, or authentication.
+  if (requestedProbe === "liveness") {
+    return NextResponse.json({ status: "ok" }, { headers: NO_STORE_HEADERS });
   }
 
+  let token: string | null = null;
+  try { token = extractSessionTokenFromCookieHeader(request.headers.get("cookie")); }
+  catch { return NextResponse.json({ status: "unauthorized" }, { status: 401, headers: NO_STORE_HEADERS }); }
   let isAuthenticatedAdmin = false;
-  try {
-    const token = extractSessionTokenFromCookieHeader(
-      request.headers.get("cookie")
-    );
-    if (token) {
-      const adminUser = await resolveAdminUserFromToken(token);
-      isAuthenticatedAdmin = Boolean(adminUser);
+  if (token) {
+    try {
+      const user = await resolveAdminUserFromToken(token);
+      if (user && (user.role !== "SUPER_ADMIN" || user.mustChangePassword)) {
+        return NextResponse.json({ status: "forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
+      }
+      isAuthenticatedAdmin = Boolean(user);
+    } catch {
+      return NextResponse.json({ status: "unavailable" }, { status: 503, headers: NO_STORE_HEADERS });
     }
-  } catch {
-    isAuthenticatedAdmin = false;
   }
+  if (!isAuthenticatedAdmin) {
+    if (requestedProbe === "readiness") {
+      return NextResponse.json({ status: "unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+    }
+    // Legacy default URL doubles as cheap liveness when unauthenticated.
+    return NextResponse.json({ status: "ok" }, { headers: NO_STORE_HEADERS });
+  }
+  const probe = "readiness" as const;
 
   const report = await getSystemHealthReport({ probe });
   const normalizedStatus: "ok" | "degraded" =
     report.status === "healthy" ? "ok" : "degraded";
-
-  // Public unauthenticated probe exposes strictly ok/degraded with zero internal details.
-  if (!isAuthenticatedAdmin) {
-    return NextResponse.json(
-      { status: normalizedStatus },
-      {
-        status: report.httpStatus,
-        headers: NO_STORE_HEADERS,
-      }
-    );
-  }
 
   // Authenticated staff diagnostics
   return NextResponse.json(
@@ -65,6 +61,9 @@ export async function GET(request: Request) {
         schemaReady: report.database.schemaReady,
         driver: report.database.driver,
         latencyMs: report.database.latencyMs,
+        missingTables: report.database.missingTables,
+        missingColumns: report.database.missingColumns,
+        missingMigrations: report.database.missingMigrations ?? [],
       },
       storageMode: report.storage.provider,
       storage: {

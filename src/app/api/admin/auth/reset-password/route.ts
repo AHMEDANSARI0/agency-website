@@ -30,6 +30,12 @@ export async function POST(request: Request) {
 
   const ip = extractClientIp(request.headers);
   const rate = await checkDistributedRateLimit(`admin_reset:${ip}`, 5, 15 * 60 * 1000);
+  if (rate.unavailable) {
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+    );
+  }
   if (!rate.allowed) {
     return NextResponse.json(
       {

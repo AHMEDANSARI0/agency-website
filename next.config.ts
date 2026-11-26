@@ -5,10 +5,13 @@ const withBundleAnalyzer = createBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
-const strictFrameHeaders = process.env.ENABLE_STRICT_FRAME_HEADERS === "true";
 const isProd = process.env.NODE_ENV === "production";
+const strictFrameHeaders = isProd || process.env.ENABLE_STRICT_FRAME_HEADERS === "true";
 
-function buildContentSecurityPolicy(): string {
+// TODO: replace unsafe-inline with a per-request nonce only after moving all
+// affected pages to dynamic rendering or adopting hashes compatible with ISR.
+// A static nonce would be insecure; removing inline support now breaks Next.
+function buildContentSecurityPolicy(admin = false): string {
   const scriptSrc = isProd
     ? "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com";
@@ -26,7 +29,7 @@ function buildContentSecurityPolicy(): string {
   ];
 
   if (strictFrameHeaders) {
-    directives.push("frame-ancestors 'self'");
+    directives.push(admin ? "frame-ancestors 'none'" : "frame-ancestors 'self'");
     directives.push("upgrade-insecure-requests");
   }
 
@@ -68,7 +71,8 @@ const nextConfig: NextConfig = {
       baseHeaders.push({ key: "X-Frame-Options", value: "SAMEORIGIN" });
       baseHeaders.push({
         key: "Strict-Transport-Security",
-        value: "max-age=63072000; includeSubDomains; preload",
+        // Do not preload or cover subdomains until the owner confirms HTTPS on all of them.
+        value: "max-age=31536000",
       });
     }
 
@@ -116,6 +120,7 @@ const nextConfig: NextConfig = {
           ...baseHeaders,
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
           { key: "Cache-Control", value: "no-store, max-age=0" },
+          ...(strictFrameHeaders ? [{ key: "Content-Security-Policy", value: buildContentSecurityPolicy(true) }, { key: "X-Frame-Options", value: "DENY" }] : []),
         ],
       },
       {

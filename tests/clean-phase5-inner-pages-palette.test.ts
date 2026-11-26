@@ -92,7 +92,7 @@ describe("Phase 5 — Inner Pages Cleanup, Dark Purple AI Palette Consistency & 
       path.join(process.cwd(), "src/app/(website)/team/page.tsx"),
       "utf8"
     );
-    expect(teamSrc).toContain("{{FOUNDER_PHOTO_URL}}");
+    expect(teamSrc).not.toContain("{{FOUNDER_PHOTO_URL}}");
 
     const contactSrc = fs.readFileSync(
       path.join(process.cwd(), "src/app/(website)/contact/page.tsx"),

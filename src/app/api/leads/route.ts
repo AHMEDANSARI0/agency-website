@@ -32,6 +32,12 @@ export async function POST(request: Request) {
     5,
     10 * 60 * 1000
   );
+  if (limit.unavailable) {
+    return NextResponse.json(
+      { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+    );
+  }
   if (!limit.allowed) {
     return NextResponse.json(
       {

@@ -149,7 +149,7 @@ describe("Phase 2 — Performance Without Compromising Motion (ISR, Caching, Bun
     expect(vercelConfig.regions).toContain("hnd1");
     expect(vercelConfig.crons).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ path: "/api/health" }),
+        expect.objectContaining({ path: "/api/health?probe=liveness" }),
       ])
     );
 
