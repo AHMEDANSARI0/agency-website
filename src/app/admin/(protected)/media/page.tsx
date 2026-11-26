@@ -26,7 +26,7 @@ export default async function AdminMediaPage() {
           Media Library &amp; Safe Upload Studio
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Upload images, sanitized SVGs, brand marks, and PDF documents with binary header verification, live usage tracking, and automatic Supabase Storage / Local fallback.
+          Upload raster images, brand marks, and PDF documents with basic binary header checks, live usage tracking, and Supabase Storage / local fallback. New SVG uploads are disabled.
         </p>
       </div>
 

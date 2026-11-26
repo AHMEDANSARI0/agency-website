@@ -5,7 +5,7 @@ import type { PermissionAction, SafeUser } from "@/types/auth";
 import type { SiteSettings } from "@/types/content";
 import { db, toSafeUser } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
-import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import { checkDistributedRateLimit } from "@/lib/security/rate-limit";
 import { hasPermission } from "./rbac";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "./session";
@@ -91,7 +91,7 @@ export async function requireAdminApiAuth(
   requiredAction?: PermissionAction,
   options?: { allowWhenPasswordChangeRequired?: boolean }
 ): Promise<ApiAuthResult> {
-  if (!verifySameOriginRequest(request)) {
+  if (!verifyAdminWriteOrigin(request)) {
     return {
       ok: false,
       response: NextResponse.json(

@@ -59,11 +59,6 @@ export const ALLOWED_MEDIA_MIME_MAP: Record<
     acceptedExtensions: ["gif"],
     defaultCategory: "image",
   },
-  "image/svg+xml": {
-    canonicalExt: "svg",
-    acceptedExtensions: ["svg"],
-    defaultCategory: "svg",
-  },
   "application/pdf": {
     canonicalExt: "pdf",
     acceptedExtensions: ["pdf"],
@@ -78,7 +73,6 @@ export const ALLOWED_MEDIA_EXTENSIONS = [
   "jpeg",
   "webp",
   "gif",
-  "svg",
   "pdf",
 ] as const;
 
@@ -107,42 +101,9 @@ function matchesMagicHeader(mime: string, buf: Buffer): boolean {
       );
     case "application/pdf":
       return buf.subarray(0, 4).toString("ascii") === "%PDF";
-    case "image/svg+xml":
-      return validateSafeSvgBuffer(buf).valid;
     default:
       return false;
   }
-}
-
-export function validateSafeSvgBuffer(buf: Buffer): {
-  valid: boolean;
-  reason?: string;
-} {
-  const text = buf.toString("utf8");
-  if (!/<svg[\s>]/i.test(text)) {
-    return { valid: false, reason: "Invalid SVG document structure." };
-  }
-  const dangerousPatterns = [
-    /<script[\s>]/i,
-    /<foreignobject[\s>]/i,
-    /<iframe[\s>]/i,
-    /<object[\s>]/i,
-    /<embed[\s>]/i,
-    /javascript\s*:/i,
-    /vbscript\s*:/i,
-    /data\s*:\s*text\/html/i,
-    /\bon[a-z]+\s*=/i,
-  ];
-  for (const regex of dangerousPatterns) {
-    if (regex.test(text)) {
-      return {
-        valid: false,
-        reason:
-          "SVG contains disallowed executable scripts, event handlers, or embedded objects.",
-      };
-    }
-  }
-  return { valid: true };
 }
 
 export function validateMediaUpload(
@@ -186,10 +147,7 @@ export function validateMediaUpload(
     }
   }
 
-  if (normalizedMime === "image/svg+xml") {
-    const svgCheck = validateSafeSvgBuffer(buffer);
-    if (!svgCheck.valid) return svgCheck;
-  } else if (!matchesMagicHeader(normalizedMime, buffer)) {
+  if (!matchesMagicHeader(normalizedMime, buffer)) {
     return {
       valid: false,
       reason: "File binary signature does not match declared MIME type.",
@@ -350,6 +308,11 @@ export async function storeMediaFile(input: {
   url: string;
   storageProvider: "local" | "supabase";
 }> {
+  // Defense in depth: never let a direct caller bypass the upload policy.
+  const validation = validateMediaUpload(input.mimeType, input.buffer, input.originalName);
+  if (!validation.valid || validation.ext !== input.ext) {
+    throw new Error("Media storage rejected an unsupported or invalid file.");
+  }
   const baseSlug =
     input.originalName
       .replace(/\.[^.]+$/, "")

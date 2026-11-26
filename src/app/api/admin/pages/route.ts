@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { PageDocument, PageSectionBlock, PageSectionType } from "@/types/content";
 import { hasPermission } from "@/lib/auth/rbac";
 import { requireAdminApiAuth } from "@/lib/auth/server";
-import { CACHE_TAGS, revalidatePublicContent } from "@/lib/cache/public-cache";
+import { revalidateAllPublicContent } from "@/lib/cache/public-cache";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
 import { sanitizePlainText, sanitizeSlug } from "@/lib/validation/common";
@@ -202,6 +202,7 @@ export async function PUT(request: Request) {
 
   const saved = await db.savePage(pageDoc);
 
+  revalidateAllPublicContent();
   await db.recordAuditLog({
     actorId: auth.user.id,
     actorEmail: auth.user.email,
@@ -213,10 +214,6 @@ export async function PUT(request: Request) {
     ipAddress: extractClientIp(request.headers),
   });
 
-  revalidatePublicContent(
-    [CACHE_TAGS.pages],
-    [cleanSlug === "home" ? "/" : `/${cleanSlug}`]
-  );
 
   return NextResponse.json({ ok: true, page: saved });
 }

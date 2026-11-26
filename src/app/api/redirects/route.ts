@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
-import { getCachedActiveRedirects } from "@/lib/cache/public-cache";
+import { db } from "@/lib/database";
+import { isSafeRedirectRule, safeRedirectDestination } from "@/lib/security/redirect-safety";
 
-export const revalidate = 300;
+// Redirect edits must not be trapped in a route or CDN response cache.
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const active = await getCachedActiveRedirects();
-  const rules = active.map((r) => ({
-    sourcePath: r.sourcePath,
-    destinationPath: r.destinationPath,
-    permanent: r.permanent,
-  }));
-
-  return NextResponse.json(
-    { rules },
-    {
-      headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
-      },
-    }
-  );
+  const headers = { "Cache-Control": "no-store, max-age=0" };
+  try {
+    const active = (await db.listRedirects()).filter((rule) => rule.isActive && isSafeRedirectRule(rule.sourcePath, rule.destinationPath));
+    const rules = active.flatMap((rule) => {
+      const destinationPath = safeRedirectDestination(rule.destinationPath);
+      return destinationPath ? [{ sourcePath: rule.sourcePath, destinationPath, permanent: rule.permanent }] : [];
+    });
+    return NextResponse.json({ rules }, { headers });
+  } catch {
+    return NextResponse.json({ error: "Redirect rules unavailable." }, { status: 503, headers });
+  }
 }

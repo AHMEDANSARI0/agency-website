@@ -1,3 +1,4 @@
+import { revalidateAllPublicContent } from "@/lib/cache/public-cache";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -6,6 +7,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { requireAdminApiAuth } from "@/lib/auth/server";
 import { db } from "@/lib/database";
 import { extractClientIp } from "@/lib/security/rate-limit";
+import { isSafeRedirectSource, safeRedirectDestination, safeRedirectPathname } from "@/lib/security/redirect-safety";
 import { sanitizePlainText, sanitizeSafeUrl } from "@/lib/validation/common";
 
 const redirectPayloadSchema = z.object({
@@ -174,58 +176,24 @@ export async function POST(request: Request) {
   }
 
   const sourcePath = parsed.data.sourcePath.replace(/\/+$/, "") || "/";
-  if (
-    sourcePath === "/" ||
-    sourcePath.startsWith("/admin") ||
-    sourcePath.startsWith("/api") ||
-    sourcePath.startsWith("/_next")
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "Protected paths ('/', '/admin/*', '/api/*') cannot be overridden by redirect rules.",
-      },
-      { status: 400 }
-    );
+  if (!isSafeRedirectSource(sourcePath)) {
+    return NextResponse.json({ error: "Source must be a safe local path, outside protected admin and API routes." }, { status: 400 });
   }
-
-  const destClean = sanitizeSafeUrl(parsed.data.destinationPath);
-  if (!destClean) {
-    return NextResponse.json(
-      {
-        error:
-          "Destination must be a safe relative path (e.g. '/services') or https URL.",
-      },
-      { status: 400 }
-    );
+  const normalizedDest = safeRedirectDestination(parsed.data.destinationPath);
+  if (!normalizedDest) {
+    return NextResponse.json({ error: "Destination must be a safe local path, for example /services or /contact?from=old." }, { status: 400 });
   }
-
-  const normalizedDest = destClean.startsWith("/")
-    ? destClean.replace(/\/+$/, "") || "/"
-    : destClean;
-
-  if (normalizedDest === sourcePath) {
-    return NextResponse.json(
-      { error: "Source and destination paths cannot be identical (redirect loop)." },
-      { status: 400 }
-    );
+  const sourceKey = sourcePath.toLowerCase();
+  const destKey = safeRedirectPathname(normalizedDest);
+  if (destKey === sourceKey) {
+    return NextResponse.json({ error: "Source and destination paths cannot be identical (redirect loop)." }, { status: 400 });
   }
-
-  // Detect 2-hop chain loop (A -> B when B -> A exists)
+  // Catch direct two-rule loops (case and query insensitive). Longer chains remain an operational concern.
   const existingRedirects = await db.listRedirects();
-  const reverseLoop = existingRedirects.find(
-    (r) =>
-      r.isActive &&
-      r.sourcePath === normalizedDest &&
-      r.destinationPath === sourcePath
-  );
+  const reverseLoop = existingRedirects.find((r) => r.isActive && isSafeRedirectSource(r.sourcePath) &&
+    r.sourcePath.replace(/\/+$/, "").toLowerCase() === destKey && safeRedirectPathname(r.destinationPath) === sourceKey);
   if (reverseLoop) {
-    return NextResponse.json(
-      {
-        error: `Redirect loop detected with existing rule ${reverseLoop.sourcePath} -> ${reverseLoop.destinationPath}.`,
-      },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: `Redirect loop detected with existing rule ${reverseLoop.sourcePath} -> ${reverseLoop.destinationPath}.` }, { status: 400 });
   }
 
   const rule: RedirectRule = {
@@ -238,6 +206,8 @@ export async function POST(request: Request) {
   };
 
   const saved = await db.upsertRedirect(rule);
+
+  revalidateAllPublicContent();
 
   await db.recordAuditLog({
     actorId: auth.user.id,
@@ -297,6 +267,8 @@ export async function PUT(request: Request) {
       },
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -335,6 +307,8 @@ export async function PUT(request: Request) {
     updatedBy: auth.user.name,
   });
 
+  revalidateAllPublicContent();
+
   await db.recordAuditLog({
     actorId: auth.user.id,
     actorEmail: auth.user.email,
@@ -365,6 +339,8 @@ export async function DELETE(request: Request) {
   if (!deleted) {
     return NextResponse.json({ error: "Redirect rule not found." }, { status: 404 });
   }
+
+  revalidateAllPublicContent();
 
   await db.recordAuditLog({
     actorId: auth.user.id,

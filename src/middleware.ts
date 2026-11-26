@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { lookupEdgeRedirect, normalizeRedirectPath } from "@/lib/security/edge-redirect-cache";
+import { canonicalHostDestination } from "@/lib/security/canonical-host";
+import { safeRedirectDestination } from "@/lib/security/redirect-safety";
 
 const SESSION_COOKIE_NAME = "omniflow_session";
 const PUBLIC_ADMIN_PREFIXES = ["/admin/login", "/admin/setup", "/admin/recover"];
@@ -13,74 +16,6 @@ const BUILTIN_ROUTE_ALIASES: Record<string, string> = {
   "/insights": "/blog",
   "/pricing-plans": "/pricing",
 };
-
-interface CachedEdgeRedirect {
-  destinationPath: string;
-  permanent: boolean;
-}
-
-let edgeRedirectCache: {
-  expiresAt: number;
-  map: Map<string, CachedEdgeRedirect>;
-} | null = null;
-
-function normalizeRedirectPath(pathname: string): string {
-  const trimmed = pathname.trim().replace(/\/+$/, "");
-  return (trimmed || "/").toLowerCase();
-}
-
-async function lookupCachedRedirect(
-  origin: string,
-  pathname: string
-): Promise<CachedEdgeRedirect | null> {
-  if (
-    pathname === "/" ||
-    Boolean(process.env.VITEST) ||
-    process.env.NODE_ENV === "test"
-  ) {
-    return null;
-  }
-
-  const now = Date.now();
-  if (!edgeRedirectCache || now >= edgeRedirectCache.expiresAt) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 600);
-      const res = await fetch(`${origin}/api/redirects`, {
-        signal: controller.signal,
-        headers: { "x-omniflow-edge-internal": "1" },
-      });
-      clearTimeout(timer);
-      if (res.ok) {
-        const data = (await res.json()) as {
-          rules?: Array<{
-            sourcePath: string;
-            destinationPath: string;
-            permanent: boolean;
-          }>;
-        };
-        const nextMap = new Map<string, CachedEdgeRedirect>();
-        for (const rule of data.rules || []) {
-          nextMap.set(normalizeRedirectPath(rule.sourcePath), {
-            destinationPath: rule.destinationPath,
-            permanent: Boolean(rule.permanent),
-          });
-        }
-        edgeRedirectCache = {
-          expiresAt: now + 60_000,
-          map: nextMap,
-        };
-      }
-    } catch {
-      edgeRedirectCache = {
-        expiresAt: now + 15_000,
-        map: edgeRedirectCache?.map ?? new Map(),
-      };
-    }
-  }
-
-  return edgeRedirectCache?.map.get(normalizeRedirectPath(pathname)) ?? null;
-}
 
 function isPlaceholderSecret(value: string): boolean {
   if (!value) return true;
@@ -204,6 +139,18 @@ function isProtectedAdminPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const canonical = canonicalHostDestination(
+    request.nextUrl,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NODE_ENV === "production" && process.env.OMNIFLOW_CANONICAL_REDIRECT === "true",
+    process.env.VERCEL_ENV,
+    request.headers.get("host")
+  );
+  if (canonical) {
+    const response = NextResponse.redirect(canonical, 308);
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
+  }
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 
   if (isProtectedAdminPath(pathname)) {
@@ -229,18 +176,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(aliasDest, request.url), 308);
     }
 
-    const customRule = await lookupCachedRedirect(
-      request.nextUrl.origin,
-      pathname
-    );
-    if (customRule) {
-      const targetUrl = /^https?:\/\//i.test(customRule.destinationPath)
-        ? customRule.destinationPath
-        : new URL(customRule.destinationPath, request.url);
-      return NextResponse.redirect(
-        targetUrl,
+    const customRule = Boolean(process.env.VITEST) || process.env.NODE_ENV === "test"
+      ? null
+      : await lookupEdgeRedirect(request.nextUrl.origin, pathname);
+    const safeDestination = customRule ? safeRedirectDestination(customRule.destinationPath) : null;
+    if (customRule && safeDestination) {
+      const redirect = NextResponse.redirect(
+        new URL(safeDestination, request.url),
         customRule.permanent ? 308 : 307
       );
+      // Do not create new browser/CDN caches of editable redirect responses.
+      redirect.headers.set("Cache-Control", "no-store, max-age=0");
+      return redirect;
     }
   }
 

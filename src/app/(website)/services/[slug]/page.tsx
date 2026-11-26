@@ -34,6 +34,7 @@ import {
 } from "@/features/seo/json-ld";
 import { getServiceConversionBlueprint } from "@/features/services/blueprint";
 import { PageConversionBanner } from "@/components/sections/PageConversionBanner";
+import { isSafeRedirectRule, safeRedirectDestination } from "@/lib/security/redirect-safety";
 
 export const revalidate = 600;
 
@@ -122,9 +123,12 @@ export default async function ServiceDetailPage({ params }: ServiceDetailProps) 
     const dbRule = redirects.find(
       (r) => r.sourcePath.replace(/\/+$/, "").toLowerCase() === targetPath
     );
-    if (dbRule) {
-      if (dbRule.permanent) permanentRedirect(dbRule.destinationPath);
-      redirect(dbRule.destinationPath);
+    const safeDestination = dbRule && isSafeRedirectRule(dbRule.sourcePath, dbRule.destinationPath)
+      ? safeRedirectDestination(dbRule.destinationPath)
+      : null;
+    if (dbRule && safeDestination) {
+      if (dbRule.permanent) permanentRedirect(safeDestination);
+      redirect(safeDestination);
     }
     notFound();
   }

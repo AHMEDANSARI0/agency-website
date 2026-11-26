@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { PageDocument, RedirectRule } from "@/types/content";
 import type { SeoAuditRow } from "@/app/api/admin/seo/route";
+import { isSafeRedirectRule } from "@/lib/security/redirect-safety";
 
 interface SeoAnalyticsClientProps {
   initialRedirects: RedirectRule[];
@@ -510,7 +511,7 @@ export function SeoAnalyticsClient({
         <p className="text-xs text-ink-muted">
           Preserve SEO link equity when renaming slugs or migrating legacy URLs.
           Loop detection and <code>/admin</code> route protection are enforced
-          automatically.
+          automatically. External and unsafe legacy redirects are not served; replace them with local paths.
         </p>
 
         <form
@@ -532,7 +533,7 @@ export function SeoAnalyticsClient({
           </div>
           <div>
             <label className="block text-xs font-medium text-ink-muted">
-              Destination Path or URL
+              Destination Path (same site only)
             </label>
             <input
               type="text"
@@ -579,6 +580,9 @@ export function SeoAnalyticsClient({
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 text-primary" />
                   <span className="text-ink-body">{rule.destinationPath}</span>
+                  {!isSafeRedirectRule(rule.sourcePath, rule.destinationPath) && (
+                    <span className="text-red-500">Ignored: unsafe path or loop</span>
+                  )}
                   <span className="rounded bg-accent-subtle px-2 py-0.5 text-[10px] font-semibold text-primary">
                     {rule.permanent ? "PERMANENT" : "TEMPORARY"}
                   </span>

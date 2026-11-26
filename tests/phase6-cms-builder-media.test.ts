@@ -473,18 +473,28 @@ describe("Phase 6 — Full CMS Studio, Controlled Page Builder, Safe Media Libra
     );
     expect(spoofRes.status).toBe(400);
 
-    // 3. Clean sanitized SVG succeeds (201)
+    // 3. Even a clean SVG is rejected; a raster image remains supported.
     const cleanSvg = new File(
-      [
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#D23A1F"/></svg>',
-      ],
-      "omniflow-diagram.svg",
-      { type: "image/svg+xml" }
+      ['<svg xmlns="http://www.w3.org/2000/svg"><circle r="5"/></svg>'],
+      "clean.svg", { type: "image/svg+xml" }
+    );
+    const cleanSvgForm = new FormData();
+    cleanSvgForm.append("file", cleanSvg);
+    const cleanSvgRes = await postMediaHandler(
+      new Request("http://localhost:3000/api/admin/media", {
+        method: "POST", headers: { Origin: "http://localhost:3000", Host: "localhost:3000", Cookie: `${SESSION_COOKIE_NAME}=${adminToken}` }, body: cleanSvgForm,
+      })
+    );
+    expect(cleanSvgRes.status).toBe(400);
+
+    const raster = new File(
+      [Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a0sAAAAASUVORK5CYII=", "base64")],
+      "omniflow-diagram.png", { type: "image/png" }
     );
     const goodForm = new FormData();
-    goodForm.append("file", cleanSvg);
+    goodForm.append("file", raster);
     goodForm.append("altText", "OmniFlow workflow node icon");
-    goodForm.append("category", "svg");
+    goodForm.append("category", "image");
 
     const uploadRes = await postMediaHandler(
       new Request("http://localhost:3000/api/admin/media", {

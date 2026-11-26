@@ -311,7 +311,8 @@ describe("Phase 4 — Admin Auth, Server-Side RBAC, Users, Audit Logs & Lead CRM
         headers: makeAuthHeaders(editorToken),
       })
     );
-    expect(logoutRes.status).toBe(200);
+    // Local JSON cannot guarantee secure revocation; PostgreSQL is required.
+    expect(logoutRes.status).toBe(503);
 
     const logs = await db.listAuditLogs(25);
     const actions = logs.map((l) => l.action);
@@ -321,6 +322,6 @@ describe("Phase 4 — Admin Auth, Server-Side RBAC, Users, Audit Logs & Lead CRM
     expect(actions).toContain("lead.updated");
     expect(actions).toContain("leads.export_csv");
     expect(actions).toContain("role_policy.updated");
-    expect(actions).toContain("auth.logout");
+    expect(actions).not.toContain("auth.logout");
   });
 });

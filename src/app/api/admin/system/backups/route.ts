@@ -1,3 +1,4 @@
+import { revalidateAllPublicContent } from "@/lib/cache/public-cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApiAuth } from "@/lib/auth/server";
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
       auth.user.email
     );
 
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,

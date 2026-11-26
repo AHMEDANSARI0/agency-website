@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth/session";
 import { db } from "@/lib/database";
 import { DatabaseUnavailableError, isProductionEnvironment } from "@/lib/env";
-import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
 import { readBoundedJsonBody } from "@/lib/security/request-guards";
@@ -79,7 +79,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!verifySameOriginRequest(request)) {
+  if (!verifyAdminWriteOrigin(request)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403, headers: NO_STORE_HEADERS }

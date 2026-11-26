@@ -218,6 +218,7 @@ export function AdminShell({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [alertSummary, setAlertSummary] = useState<LiveSiteAlertSummary | null>(
     initialAlertSummary ?? null
@@ -352,10 +353,14 @@ export function AdminShell({
 
   async function handleLogout() {
     setSigningOut(true);
+    setLogoutError("");
     try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
+      const response = await fetch("/api/admin/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout failed");
       router.push("/admin/login");
       router.refresh();
+    } catch {
+      setLogoutError("Unable to sign out securely. Please retry.");
     } finally {
       setSigningOut(false);
     }
@@ -627,6 +632,9 @@ export function AdminShell({
           </div>
         )}
 
+        {logoutError && (
+          <p role="alert" className="px-2 text-xs text-status-error">{logoutError}</p>
+        )}
         <div
           className={`flex items-center rounded-xl border border-line bg-surface-card ${
             isCompactRail

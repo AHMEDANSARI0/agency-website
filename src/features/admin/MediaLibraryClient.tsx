@@ -141,8 +141,8 @@ export function MediaLibraryClient({
           />
         </div>
         <p className="mt-2 text-xs text-ink-muted">
-          Binary magic-header verification &amp; strict SVG XSS sanitization
-          active. Allowed: PNG, JPEG, WebP, GIF, sanitized SVG, and PDF.
+          Basic file signature checks are active. Allowed: PNG, JPEG, WebP,
+          GIF, and PDF. New SVG uploads are disabled; existing SVG files are not inspected.
         </p>
       </div>
 
@@ -171,7 +171,7 @@ export function MediaLibraryClient({
           </label>
           <input
             type="file"
-            accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.pdf"
+            accept=".png,.jpg,.jpeg,.webp,.gif,.pdf"
             onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
             className="mt-1 block w-full text-xs text-ink-body file:mr-3 file:rounded-full file:border-0 file:bg-accent-subtle file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary"
           />
@@ -201,7 +201,6 @@ export function MediaLibraryClient({
           >
             <option value="image">Content Image</option>
             <option value="brand">Brand / Logo Asset</option>
-            <option value="svg">Sanitized Vector SVG</option>
             <option value="document">PDF Document</option>
           </select>
         </div>

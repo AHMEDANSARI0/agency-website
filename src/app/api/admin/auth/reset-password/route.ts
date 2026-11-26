@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
-import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import {
   hashPassword,
   hashRecoveryToken,
@@ -21,7 +21,7 @@ const resetSchema = z
   .strict();
 
 export async function POST(request: Request) {
-  if (!verifySameOriginRequest(request)) {
+  if (!verifyAdminWriteOrigin(request)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403 }

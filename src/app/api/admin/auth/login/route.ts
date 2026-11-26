@@ -7,7 +7,7 @@ import {
   getSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
-import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
 import { readBoundedJsonBody } from "@/lib/security/request-guards";
@@ -22,7 +22,7 @@ const loginSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  if (!verifySameOriginRequest(request)) {
+  if (!verifyAdminWriteOrigin(request)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403 }

@@ -2142,8 +2142,8 @@ export const db = {
   },
 
   async findUserById(id: string): Promise<UserRecord | null> {
-    return dedupeInFlight(`user_id_${id}`, () =>
-      runWithDbFallback(
+    // Do not share a pre-revocation user read with a later authorization request.
+    return runWithDbFallback(
         async (sql) => {
           await ensurePostgresBootstrapAdmin(sql);
           const rows = await sql<
@@ -2188,8 +2188,7 @@ export const db = {
           };
         },
         () => readLocalSnapshot().users.find((u) => u.id === id) ?? null
-      )
-    );
+      );
   },
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {
@@ -2666,7 +2665,7 @@ export const db = {
 
     return runWithDbFallback(
       async (sql) => {
-        await sql`
+        const rows = await sql<{ session_version: number }[]>`
           UPDATE users
           SET
             name = ${updated.name},
@@ -2674,22 +2673,48 @@ export const db = {
             is_active = ${updated.isActive},
             password_hash = ${updated.passwordHash},
             must_change_password = ${Boolean(updated.mustChangePassword)},
-            session_version = ${updated.sessionVersion ?? 1},
+            session_version = COALESCE(session_version, 1) + ${shouldBumpSession ? 1 : 0},
             password_changed_at = ${updated.passwordChangedAt ?? null},
             recovery_token_hash = ${updated.recoveryTokenHash ?? null},
             recovery_expires_at = ${updated.recoveryExpiresAt ?? null},
             updated_at = ${updated.updatedAt}
           WHERE id = ${id}
+          RETURNING session_version
         `;
-        return toSafeUser(updated);
+        if (!rows[0]) return null;
+        return toSafeUser({ ...updated, sessionVersion: rows[0].session_version });
       },
       () => {
         const snap = readLocalSnapshot();
         const index = snap.users.findIndex((u) => u.id === id);
         if (index === -1) return null;
-        snap.users[index] = updated;
+        const latestVersion = snap.users[index]?.sessionVersion ?? 1;
+        const next = { ...updated, sessionVersion: latestVersion + (shouldBumpSession ? 1 : 0) };
+        snap.users[index] = next;
         writeLocalSnapshot(snap);
-        return toSafeUser(updated);
+        return toSafeUser(next);
+      }
+    );
+  },
+
+  /** Compare-and-swap revocation: replayed stale tokens cannot revoke newer sessions. */
+  async revokeSessionsForVersion(userId: string, expectedVersion: number): Promise<{
+    id: string; email: string; name: string; role: UserRecord["role"];
+  } | null> {
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) return null;
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ id: string; email: string; name: string; role: UserRecord["role"] }[]>`
+          UPDATE users
+          SET session_version = COALESCE(session_version, 1) + 1, updated_at = NOW()
+          WHERE id = ${userId} AND is_active = TRUE AND COALESCE(session_version, 1) = ${expectedVersion}
+          RETURNING id, email, name, role
+        `;
+        return rows[0] ?? null;
+      },
+      () => {
+        // The fallback writer suppresses errors and is not cross-process atomic.
+        throw new Error("Secure logout requires a writable PostgreSQL database.");
       }
     );
   },

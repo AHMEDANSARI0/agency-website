@@ -4,7 +4,7 @@ import { sendPasswordRecoveryEmail } from "@/features/leads/notify";
 import { getCanonicalSiteUrl } from "@/features/seo/json-ld";
 import { db } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
-import { verifySameOriginRequest } from "@/lib/security/csrf";
+import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import { generateSecureRecoveryToken } from "@/lib/security/password";
 import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
 import { readBoundedJsonBody } from "@/lib/security/request-guards";
@@ -18,7 +18,7 @@ const recoverSchema = z
   .strict();
 
 export async function POST(request: Request) {
-  if (!verifySameOriginRequest(request)) {
+  if (!verifyAdminWriteOrigin(request)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403 }

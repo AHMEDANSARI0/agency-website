@@ -1,3 +1,4 @@
+import { revalidateAllPublicContent } from "@/lib/cache/public-cache";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -284,6 +285,8 @@ export async function PUT(request: Request) {
     updatedBy: auth.user.email,
   });
 
+  revalidateAllPublicContent();
+
   await db.recordAuditLog({
     actorId: auth.user.id,
     actorEmail: auth.user.email,
@@ -339,6 +342,8 @@ export async function POST(request: Request) {
       updatedBy: auth.user.email,
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -392,6 +397,8 @@ export async function POST(request: Request) {
       published: publishNow ? structuredClone(restoredBundle) : current.published,
       updatedBy: auth.user.email,
     });
+
+    revalidateAllPublicContent();
 
     await db.recordAuditLog({
       actorId: auth.user.id,
@@ -486,6 +493,8 @@ export async function POST(request: Request) {
       updatedBy: auth.user.email,
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -541,6 +550,8 @@ export async function POST(request: Request) {
       published: publishNow ? structuredClone(factoryBundle) : current.published,
       updatedBy: auth.user.email,
     });
+
+    revalidateAllPublicContent();
 
     await db.recordAuditLog({
       actorId: auth.user.id,
@@ -656,6 +667,8 @@ export async function POST(request: Request) {
       updatedBy: auth.user.email,
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -717,6 +730,8 @@ export async function POST(request: Request) {
       customPresets: nextCustomPresets,
       updatedBy: auth.user.email,
     });
+
+    revalidateAllPublicContent();
 
     await db.recordAuditLog({
       actorId: auth.user.id,
@@ -788,6 +803,8 @@ export async function POST(request: Request) {
       updatedBy: auth.user.email,
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -841,6 +858,8 @@ export async function POST(request: Request) {
       updatedBy: auth.user.email,
     });
 
+    revalidateAllPublicContent();
+
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -879,6 +898,8 @@ export async function POST(request: Request) {
     customPresets: [...current.customPresets, newPreset],
     updatedBy: auth.user.email,
   });
+
+  revalidateAllPublicContent();
 
   await db.recordAuditLog({
     actorId: auth.user.id,

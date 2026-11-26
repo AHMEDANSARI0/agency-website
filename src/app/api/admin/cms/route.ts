@@ -1,3 +1,4 @@
+import { revalidateAllPublicContent } from "@/lib/cache/public-cache";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -315,6 +316,7 @@ export async function POST(request: Request) {
     };
 
     const saved = await db.upsertBlogPost(post);
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -398,6 +400,7 @@ export async function POST(request: Request) {
     };
 
     const saved = await db.upsertCaseStudy(item);
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -458,6 +461,7 @@ export async function POST(request: Request) {
     };
 
     const saved = await db.upsertService(item);
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -487,6 +491,7 @@ export async function POST(request: Request) {
       isPublished: data.isPublished,
     };
     const saved = await db.upsertFaq(item);
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -520,6 +525,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
     const saved = await db.upsertTestimonial(item);
+    revalidateAllPublicContent();
     await db.recordAuditLog({
       actorId: auth.user.id,
       actorEmail: auth.user.email,
@@ -558,6 +564,7 @@ export async function POST(request: Request) {
     isPublished: data.isPublished,
   };
   const saved = await db.upsertTeamMember(member);
+  revalidateAllPublicContent();
   await db.recordAuditLog({
     actorId: auth.user.id,
     actorEmail: auth.user.email,
@@ -613,6 +620,8 @@ export async function DELETE(request: Request) {
   if (!deleted) {
     return NextResponse.json({ error: "Item not found." }, { status: 404 });
   }
+
+  revalidateAllPublicContent();
 
   await db.recordAuditLog({
     actorId: auth.user.id,
