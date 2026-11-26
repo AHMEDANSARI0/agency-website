@@ -4,7 +4,7 @@ import { lookupEdgeRedirect, normalizeRedirectPath } from "@/lib/security/edge-r
 import { canonicalHostDestination } from "@/lib/security/canonical-host";
 import { safeRedirectDestination } from "@/lib/security/redirect-safety";
 
-const SESSION_COOKIE_NAME = "omniflow_session";
+import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie";
 const PUBLIC_ADMIN_PREFIXES = ["/admin/login", "/admin/setup", "/admin/recover"];
 
 const BUILTIN_ROUTE_ALIASES: Record<string, string> = {

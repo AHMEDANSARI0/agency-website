@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { db } from "@/lib/database";
 
 interface RateWindow {
@@ -5,7 +6,6 @@ interface RateWindow {
 }
 
 const buckets = new Map<string, RateWindow>();
-const SAFE_IP_REGEX = /^[0-9a-fA-F:.]{2,64}$/;
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -87,20 +87,32 @@ export async function checkDistributedRateLimit(
 }
 
 export function sanitizeIpCandidate(raw: string | null | undefined): string {
-  if (!raw) return "unknown";
-  const cleaned = raw.trim().slice(0, 64);
-  if (!SAFE_IP_REGEX.test(cleaned)) {
+  if (!raw || raw.length > 64) return "unknown";
+  const cleaned = raw.trim();
+  const version = isIP(cleaned);
+  if (version === 4) return cleaned;
+  if (version !== 6) return "unknown";
+  try {
+    // Canonicalize IPv6 so alternate spellings do not get different buckets.
+    const normalized = new URL(`http://[${cleaned}]/`).hostname.slice(1, -1).toLowerCase();
+    const mapped = /^::ffff:([a-f0-9]{1,4}):([a-f0-9]{1,4})$/.exec(normalized);
+    if (mapped) {
+      const hi = parseInt(mapped[1]!, 16), lo = parseInt(mapped[2]!, 16);
+      return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+    }
+    return normalized;
+  } catch {
     return "unknown";
   }
-  return cleaned;
 }
 
+/**
+ * Request.headers does not expose a verified socket peer. Trust a single header
+ * ONLY after an operator has secured the entire proxy chain and origin access.
+ * No automatic Vercel/Cloudflare detection, and never parse an XFF list here.
+ */
 export function extractClientIp(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    const valid = sanitizeIpCandidate(first);
-    if (valid !== "unknown") return valid;
-  }
-  return sanitizeIpCandidate(headers.get("x-real-ip"));
+  const configured = process.env.OMNIFLOW_TRUSTED_CLIENT_IP_HEADER?.trim().toLowerCase();
+  if (configured !== "x-real-ip" && configured !== "cf-connecting-ip") return "unknown";
+  return sanitizeIpCandidate(headers.get(configured));
 }

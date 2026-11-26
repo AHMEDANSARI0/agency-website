@@ -12,20 +12,26 @@ const strictFrameHeaders = isProd || process.env.ENABLE_STRICT_FRAME_HEADERS ===
 // affected pages to dynamic rendering or adopting hashes compatible with ISR.
 // A static nonce would be insecure; removing inline support now breaks Next.
 function buildContentSecurityPolicy(admin = false): string {
-  const scriptSrc = isProd
-    ? "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com"
-    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com";
+  // Website analytics lives in the public layout, not the admin workspace.
+  // Keep inline support until an ISR-compatible nonce/hash design is implemented.
+  const scriptSrc = [
+    "script-src 'self' 'unsafe-inline'",
+    ...(isProd ? [] : ["'unsafe-eval'"]),
+    ...(admin ? [] : ["https://www.googletagmanager.com"]),
+  ].join(" ");
 
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
-    "form-action 'self' mailto:",
+    "form-action 'self'",
     "object-src 'none'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://*.supabase.co",
+    admin
+      ? "connect-src 'self'"
+      : "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://*.supabase.co",
   ];
 
   if (strictFrameHeaders) {

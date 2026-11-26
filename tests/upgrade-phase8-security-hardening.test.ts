@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import nextConfig from "../next.config";
 import { POST as submitLeadHandler } from "@/app/api/leads/route";
 import { sanitizeEmailHeader } from "@/features/leads/notify";
@@ -129,7 +129,10 @@ describe("Upgrade Phase 8 — Security, Rate-Limiting, CSP, Idempotency & Fault 
       "x-forwarded-for": "'; DROP TABLE rate_limits; --, 203.0.113.8",
       "x-real-ip": "203.0.113.8",
     });
-    expect(extractClientIp(spoofedHeaders)).toBe("203.0.113.8");
+    // Unconfigured proxy headers are untrusted; all clients use the shared bucket.
+    vi.stubEnv("OMNIFLOW_TRUSTED_CLIENT_IP_HEADER", "");
+    try { expect(extractClientIp(spoofedHeaders)).toBe("unknown"); }
+    finally { vi.unstubAllEnvs(); }
   });
 
   it("4. configures preview-compatible Content-Security-Policy and cross-domain hardening headers", async () => {

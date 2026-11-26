@@ -2,7 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SessionPayload, SafeUser } from "@/types/auth";
 import { isPlaceholderEnvValue, isProductionEnvironment } from "@/lib/env";
 
-export const SESSION_COOKIE_NAME = "omniflow_session";
+export { SESSION_COOKIE_NAME, getSessionCookieOptions } from "./session-cookie";
 
 function getSigningSecret(): string {
   const envSecret =
@@ -99,14 +99,4 @@ export function verifySessionToken(
   } catch {
     return null;
   }
-}
-
-export function getSessionCookieOptions(maxAgeSeconds = 24 * 60 * 60) {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: maxAgeSeconds,
-  };
 }

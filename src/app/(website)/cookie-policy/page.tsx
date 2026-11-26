@@ -47,10 +47,12 @@ export default async function CookiePolicyPage() {
                 </li>
                 <li>
                   <strong className="text-ink-heading">
-                    Admin Session Cookie (`omniflow_session`):
+                    Admin Session Cookie:
                   </strong>{" "}
-                  Set strictly for authenticated administrators (`HttpOnly`,
-                  `SameSite=Lax`). Regular public visitors do not receive
+                  Used for authenticated administrators (`HttpOnly`,
+                  `SameSite=Lax`). Production uses a Secure, host-only
+                  `__Host-omniflow_session` cookie; local development uses
+                  `omniflow_session`. Regular public visitors do not receive
                   authentication cookies.
                 </li>
               </ul>
