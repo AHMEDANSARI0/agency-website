@@ -122,7 +122,6 @@ export function PricingSettingsEditor({
         </label>
       </div>
 
-      {/* Section Copy & Scope Toggle Labels */}
       {hasUnfilledPriceToken && (
         <div className="flex flex-col justify-between gap-3 rounded-control border border-primary/35 bg-accent-subtle/60 p-4 sm:flex-row sm:items-center">
           <div>
@@ -160,91 +159,91 @@ export function PricingSettingsEditor({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="block text-xs font-medium text-ink-muted">
-            Section Eyebrow
-          </label>
-          <input
-            type="text"
-            value={pricing.sectionEyebrow}
-            onChange={(e) => updateField("sectionEyebrow", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
+      <details className="rounded-lg border border-line">
+        <summary className="cursor-pointer px-3 py-3 text-sm font-medium text-ink-heading">
+          Pricing section text and labels
+        </summary>
+        <div className="grid gap-4 border-t border-line p-3">
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Section eyebrow
+            </label>
+            <input
+              type="text"
+              value={pricing.sectionEyebrow}
+              onChange={(e) => updateField("sectionEyebrow", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Section headline
+            </label>
+            <input
+              type="text"
+              value={pricing.sectionTitle}
+              onChange={(e) => updateField("sectionTitle", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Section subtitle
+            </label>
+            <textarea
+              rows={2}
+              value={pricing.sectionSubtitle}
+              onChange={(e) => updateField("sectionSubtitle", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Primary scope tab label
+            </label>
+            <input
+              type="text"
+              value={pricing.projectToggleLabel}
+              onChange={(e) => updateField("projectToggleLabel", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Secondary scope tab label
+            </label>
+            <input
+              type="text"
+              value={pricing.retainerToggleLabel}
+              onChange={(e) => updateField("retainerToggleLabel", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-muted">
+              Coming soon status notice
+            </label>
+            <input
+              type="text"
+              value={pricing.statusBannerText}
+              onChange={(e) => updateField("statusBannerText", e.target.value)}
+              className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
+            />
+          </div>
         </div>
-
-        <div>
-          <label className="block text-xs font-medium text-ink-muted">
-            Section Headline
-          </label>
-          <input
-            type="text"
-            value={pricing.sectionTitle}
-            onChange={(e) => updateField("sectionTitle", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-ink-muted">
-            Section Subtitle
-          </label>
-          <textarea
-            rows={2}
-            value={pricing.sectionSubtitle}
-            onChange={(e) => updateField("sectionSubtitle", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-ink-muted">
-            Primary Scope Tab Label
-          </label>
-          <input
-            type="text"
-            value={pricing.projectToggleLabel}
-            onChange={(e) => updateField("projectToggleLabel", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-ink-muted">
-            Secondary Scope Tab Label
-          </label>
-          <input
-            type="text"
-            value={pricing.retainerToggleLabel}
-            onChange={(e) => updateField("retainerToggleLabel", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-ink-muted">
-            Coming Soon Status Banner Notice
-          </label>
-          <input
-            type="text"
-            value={pricing.statusBannerText}
-            onChange={(e) => updateField("statusBannerText", e.target.value)}
-            className="mt-1 w-full rounded-control border border-line bg-surface px-3 py-2 text-xs text-ink-heading"
-          />
-        </div>
-      </div>
+      </details>
 
       {/* Package Tier Cards Editor */}
       <div className="space-y-3 border-t border-line pt-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-heading">
-            Tier Cards ({pricing.packages.length} / 6)
+          <h3 className="text-sm font-semibold text-ink-heading">
+            Pricing tiers <span className="font-normal text-ink-muted">({pricing.packages.length} / 6)</span>
           </h3>
           {pricing.packages.length < 6 && (
             <button
               type="button"
               onClick={addPackage}
-              className="inline-flex items-center gap-1 rounded-full bg-accent-subtle px-3 py-1.5 text-xs font-medium text-primary"
+              className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink-heading hover:bg-surface-muted"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Tier</span>
@@ -252,60 +251,68 @@ export function PricingSettingsEditor({
           )}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-2">
           {pricing.packages.map((pkg, idx) => (
-            <div
+            <details
               key={pkg.id}
-              className="space-y-3 rounded-control border border-line bg-surface p-4"
+              className="rounded-lg border border-line bg-surface"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={pkg.name}
-                    onChange={(e) =>
-                      updatePackage(idx, { name: e.target.value })
-                    }
-                    aria-label={`Tier ${idx + 1} name`}
-                    className="w-40 rounded border border-line bg-surface-card px-2.5 py-1 text-xs font-semibold text-ink-heading"
-                  />
-                  <input
-                    type="text"
-                    value={pkg.badge ?? ""}
-                    onChange={(e) =>
-                      updatePackage(idx, { badge: e.target.value })
-                    }
-                    placeholder="Badge label"
-                    aria-label={`Tier ${idx + 1} badge`}
-                    className="w-36 rounded border border-line bg-surface-card px-2.5 py-1 font-mono text-[11px] text-ink-heading"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1 text-[11px] text-ink-body">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-3 text-sm">
+                <span className="min-w-0 truncate font-medium text-ink-heading">
+                  {pkg.name || `Tier ${idx + 1}`}
+                  {pkg.badge ? <span className="ml-2 text-xs font-normal text-ink-muted">{pkg.badge}</span> : null}
+                </span>
+                <span className="shrink-0 text-xs text-ink-muted">
+                  {pkg.isPopular ? "Featured · " : ""}Edit
+                </span>
+              </summary>
+              <div className="space-y-3 border-t border-line p-3">
+                <div className="grid gap-3">
+                  <label className="block text-[11px] text-ink-muted">
+                    Tier name
                     <input
-                      type="checkbox"
-                      checked={Boolean(pkg.isPopular)}
-                      onChange={(e) =>
-                        updatePackage(idx, { isPopular: e.target.checked })
-                      }
+                      type="text"
+                      value={pkg.name}
+                      onChange={(e) => updatePackage(idx, { name: e.target.value })}
+                      aria-label={`Tier ${idx + 1} name`}
+                      className="mt-1 w-full rounded border border-line bg-surface-card px-2.5 py-2 text-xs font-semibold text-ink-heading"
                     />
-                    <span>Featured</span>
                   </label>
-                  {pricing.packages.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removePackage(idx)}
-                      title="Remove tier"
-                      className="rounded border border-line p-1 text-ink-muted hover:text-status-error"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  <label className="block text-[11px] text-ink-muted">
+                    Badge label
+                    <input
+                      type="text"
+                      value={pkg.badge ?? ""}
+                      onChange={(e) => updatePackage(idx, { badge: e.target.value })}
+                      aria-label={`Tier ${idx + 1} badge`}
+                      className="mt-1 w-full rounded border border-line bg-surface-card px-2.5 py-2 text-xs text-ink-heading"
+                    />
+                  </label>
+                  <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+                    <label className="flex items-center gap-2 text-xs text-ink-body">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(pkg.isPopular)}
+                        onChange={(e) =>
+                          updatePackage(idx, { isPopular: e.target.checked })
+                        }
+                      />
+                      Featured tier
+                    </label>
+                    {pricing.packages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePackage(idx)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-xs text-ink-muted hover:bg-surface-muted hover:text-ink-heading"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remove tier
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div className="grid gap-3">
                 <div>
                   <label className="block text-[11px] text-ink-muted">
                     Project Price / Scope Label
@@ -334,7 +341,7 @@ export function PricingSettingsEditor({
                 </div>
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div className="grid gap-3">
                 <div>
                   <label className="block text-[11px] text-ink-muted">
                     Target Audience
@@ -396,7 +403,7 @@ export function PricingSettingsEditor({
                 />
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              <div className="grid gap-3">
                 <div>
                   <label className="block text-[11px] text-ink-muted">
                     CTA Button Label
@@ -424,7 +431,8 @@ export function PricingSettingsEditor({
                   />
                 </div>
               </div>
-            </div>
+              </div>
+            </details>
           ))}
         </div>
       </div>

@@ -517,7 +517,7 @@ export function SeoInspectorClient({
 
                 <div className="flex items-center gap-2">
                   <Link
-                    href="/admin/pages"
+                    href="/admin/storefront?tab=pages"
                     className="inline-flex items-center gap-1.5 rounded-xl border border-line-subtle bg-surface-elevated px-3 py-1.5 text-xs font-medium text-ink-body hover:text-ink-heading"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-primary" />

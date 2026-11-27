@@ -8,6 +8,7 @@ import {
 } from "@/app/api/admin/theme/route";
 import { PUT as putSettingsHandler } from "@/app/api/admin/settings/route";
 import { resolvePricingConfig } from "@/features/pricing/default-pricing";
+import { resolveNavbarStyleSettings } from "@/features/admin/navbar-style-defaults";
 import { buildThemeCssVariables } from "@/features/themes/color-utils";
 import {
   ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
@@ -200,6 +201,11 @@ describe("Soale Redesign Phase 6 — Extended Theme Library, Inter Typography Co
   it("3. saves Pricing Studio 'Coming Soon' toggle and 4-tier package updates via PUT /api/admin/settings", async () => {
     const currentSettings = await db.getSiteSettings();
     const basePricing = resolvePricingConfig(currentSettings);
+    const updatedNavbarStyle = {
+      ...resolveNavbarStyleSettings(currentSettings.navbarStyle),
+      topOffset: 24,
+      darkButtonHoverBackground: "#4C1D95",
+    };
 
     const updatedPricing = {
       ...basePricing,
@@ -233,6 +239,7 @@ describe("Soale Redesign Phase 6 — Extended Theme Library, Inter Typography Co
           secondaryCtaLabel: currentSettings.secondaryCtaLabel,
           secondaryCtaHref: currentSettings.secondaryCtaHref,
           navigation: currentSettings.navigation,
+          navbarStyle: updatedNavbarStyle,
           footerLinks: currentSettings.footerLinks,
           pricingConfig: updatedPricing,
         }),
@@ -240,11 +247,28 @@ describe("Soale Redesign Phase 6 — Extended Theme Library, Inter Typography Co
     );
     expect(putRes.status).toBe(200);
 
-    const reloaded = resolvePricingConfig(await db.getSiteSettings());
+    const savedSettings = await db.getSiteSettings();
+    const reloaded = resolvePricingConfig(savedSettings);
     expect(reloaded.comingSoonMode).toBe(false);
     expect(reloaded.packages[0].projectPriceLabel).toBe(
       "Scoped Milestone Sprint"
     );
     expect(reloaded.packages[0].ctaHref).toBe("/contact");
+    expect(savedSettings.navbarStyle).toMatchObject({
+      topOffset: 24,
+      darkButtonHoverBackground: "#4C1D95",
+    });
+
+    const invalidStyleResponse = await putSettingsHandler(
+      new Request("http://localhost:3000/api/admin/settings", {
+        method: "PUT",
+        headers: makeAdminHeaders(adminToken),
+        body: JSON.stringify({
+          ...currentSettings,
+          navbarStyle: { ...updatedNavbarStyle, darkText: "not-a-color" },
+        }),
+      })
+    );
+    expect(invalidStyleResponse.status).toBe(400);
   });
 });

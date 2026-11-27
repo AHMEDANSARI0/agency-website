@@ -185,7 +185,7 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link
-              href="/admin/settings"
+              href="/admin/storefront?tab=site"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-control bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
             >
               <span>Open Site Settings</span>
@@ -228,7 +228,7 @@ export default async function AdminDashboardPage() {
           )}
           {canEditPages && (
             <Link
-              href="/admin/pages"
+              href="/admin/storefront?tab=pages"
               className="inline-flex items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3.5 py-2 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
             >
               <Layers className="h-3.5 w-3.5 text-primary" />
@@ -246,7 +246,7 @@ export default async function AdminDashboardPage() {
           )}
           {canManageTheme && (
             <Link
-              href="/admin/theme"
+              href="/admin/storefront?tab=theme"
               className="inline-flex items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3.5 py-2 text-xs font-semibold text-ink-heading hover:bg-surface-muted"
             >
               <Palette className="h-3.5 w-3.5 text-primary" />

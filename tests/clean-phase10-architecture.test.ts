@@ -81,8 +81,8 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
     expect(globeSrc).not.toContain("framer-motion");
   });
 
-  it("2. enforces streamlined 6-section Homepage flow and non-destructively migrates untouched 9-section snapshots to v14", async () => {
-    expect(CURRENT_SEED_VERSION).toBe(14);
+  it("2. enforces streamlined 6-section Homepage flow and migrates legacy snapshots to v17", async () => {
+    expect(CURRENT_SEED_VERSION).toBe(17);
     expect(DEFAULT_HOME_SECTIONS).toHaveLength(6);
     expect(DEFAULT_HOME_SECTIONS.map((s) => s.type)).toEqual([
       "hero",
@@ -94,7 +94,7 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
     ]);
 
     const seed = createInitialSeedSnapshot();
-    const legacy9Path = path.join(tempDir, "legacy-v13-9sec.json");
+    const legacy9Path = path.join(tempDir, "legacy-v15-9sec.json");
     const legacy9Sections = [
       "hero",
       "trust_strip",
@@ -114,29 +114,30 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
       config: {},
     }));
 
-    fs.writeFileSync(
-      legacy9Path,
-      JSON.stringify(
+    const legacySnapshot = {
+      ...seed,
+      schemaVersion: 16,
+      siteSettings: { ...seed.siteSettings, navbarStyle: undefined },
+      pages: [
         {
-          ...seed,
-          schemaVersion: 13,
-          pages: [
-            {
-              ...seed.pages[0],
-              sections: legacy9Sections,
-              draftSections: legacy9Sections,
-            },
-          ],
+          ...seed.pages[0],
+          sections: legacy9Sections,
+          draftSections: legacy9Sections,
         },
-        null,
-        2
-      ),
-      "utf8"
-    );
+      ],
+    };
+    delete legacySnapshot.siteSettingsDraft;
+    delete legacySnapshot.cardMotionDraft;
+    delete legacySnapshot.brandAssetsDraft;
+    fs.writeFileSync(legacy9Path, JSON.stringify(legacySnapshot, null, 2), "utf8");
 
     process.env.OMNIFLOW_LOCAL_DB_PATH = legacy9Path;
     const upgradedHome = await db.getPageBySlug("home");
     expect(upgradedHome?.sections).toHaveLength(6);
+    expect((await db.getSiteSettings()).navbarStyle?.topOffset).toBe(12);
+    expect((await db.getSiteSettingsDraft()).navbarStyle?.topOffset).toBe(12);
+    expect(await db.getCardMotionDraft()).toEqual(await db.getCardMotion());
+    expect(await db.getBrandAssetsDraft()).toEqual(await db.getBrandAssets());
     expect(
       normalizeHeroCanvasConfig(upgradedHome?.sections[0]?.config?.heroCanvas)
     ).toMatchObject({

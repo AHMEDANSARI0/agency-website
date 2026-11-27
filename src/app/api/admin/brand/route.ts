@@ -26,6 +26,7 @@ const brandSchema = z
     faviconUrl: z.string().max(500).nullable().optional(),
     ogImageUrl: z.string().max(500).nullable().optional(),
     showTextFallback: z.boolean(),
+    publish: z.boolean().optional(),
     updatedAt: z.string().optional(),
   })
   .strict();
@@ -58,7 +59,7 @@ export async function PUT(request: Request) {
   }
 
   const data = parsed.data;
-  const updated = await db.saveBrandAssets({
+  const assets = {
     brandName: sanitizePlainText(data.brandName, 60),
     tagline: sanitizePlainText(data.tagline, 140),
     altText: sanitizePlainText(data.altText, 140),
@@ -69,19 +70,30 @@ export async function PUT(request: Request) {
     ogImageUrl: cleanOptionalAssetUrl(data.ogImageUrl),
     showTextFallback: data.showTextFallback,
     updatedAt: new Date().toISOString(),
-  });
+  };
+  const publish = data.publish ?? true;
+  const updated = publish
+    ? await db.saveBrandAssets(assets)
+    : await db.saveBrandAssetsDraft(assets);
 
-  revalidateAllPublicContent();
+  if (publish) {
+    await db.saveBrandAssetsDraft(updated);
+    revalidateAllPublicContent();
+  }
   await db.recordAuditLog({
     actorId: auth.user.id,
     actorEmail: auth.user.email,
     actorRole: auth.user.role,
-    action: "brand.updated",
+    action: publish ? "brand.updated" : "brand.draft_saved",
     entityType: "brand",
-    summary: `Updated Brand Identity & Asset slots for ${updated.brandName}.`,
+    summary: `${publish ? "Published" : "Saved draft of"} Brand Identity & Asset slots for ${updated.brandName}.`,
     ipAddress: extractClientIp(request.headers),
   });
 
 
-  return NextResponse.json({ ok: true, brandAssets: updated });
+  return NextResponse.json({
+    ok: true,
+    brandAssets: publish ? await db.getBrandAssetsDraft() : updated,
+    published: publish,
+  });
 }

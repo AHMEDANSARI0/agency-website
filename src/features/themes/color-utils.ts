@@ -365,7 +365,12 @@ function tokenSetToCssDeclarations(
   const navbarBg =
     overrides?.navbarBg && isValidCssColor(overrides.navbarBg) ? overrides.navbarBg : comp.navbarBg;
   const footerBg =
-    overrides?.footerBg && isValidCssColor(overrides.footerBg) ? overrides.footerBg : comp.footerBg;
+    overrides?.footerBg && isValidCssColor(overrides.footerBg)
+      ? overrides.footerBg
+      : mode === "light"
+        ? c.surfaceMuted
+        : comp.footerBg || c.background;
+  const footerText = mode === "light" ? c.body : comp.footerText || c.body;
   const cardBg =
     overrides?.cardBg && isValidCssColor(overrides.cardBg) ? overrides.cardBg : comp.cardBg;
   const badgeBg =
@@ -458,7 +463,7 @@ function tokenSetToCssDeclarations(
     ["--of-border-navbar", comp.navbarBorder],
     ["--of-text-navbar", navbarText],
     ["--of-surface-footer", footerBg],
-    ["--of-text-footer", comp.footerText],
+    ["--of-text-footer", footerText],
     ["--of-surface-card", cardBg],
     ["--of-border-card", comp.cardBorder],
     ["--of-surface-input", comp.inputBg],

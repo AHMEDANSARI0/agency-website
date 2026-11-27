@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Database,
   ExternalLink,
-  FileEdit,
   Globe,
   Image as ImageIcon,
   Inbox,
@@ -22,13 +21,10 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Palette,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Settings,
   ShieldCheck,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -105,27 +101,8 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: "content",
-    title: "Content & SEO",
+    title: "Media & SEO",
     items: [
-      {
-        href: "/admin/pages",
-        label: "Pages & Live Studio",
-        shortDesc: "Shopify-grade drag-and-drop sections, 3D Globe & live preview",
-        icon: Layers,
-        requiredPermission: "content:edit_any",
-      },
-      {
-        href: "/admin/cms",
-        label: "Content Studio",
-        shortDesc: "Services, Case Studies, Insights Blog, FAQs & Team",
-        icon: FileEdit,
-        anyOfPermissions: [
-          "content:create_draft",
-          "content:edit_own",
-          "content:edit_any",
-          "content:publish",
-        ],
-      },
       {
         href: "/admin/media",
         label: "Media Library",
@@ -144,28 +121,22 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: "appearance",
-    title: "Appearance & Settings",
+    title: "Storefront",
     items: [
       {
-        href: "/admin/theme",
-        label: "Theme Library",
-        shortDesc: "Soale Creative AI & OmniFlow Dark/Light theme presets",
-        icon: Palette,
-        requiredPermission: "theme:manage",
-      },
-      {
-        href: "/admin/brand",
-        label: "Brand Identity",
-        shortDesc: "Wordmarks, SVG emblems, favicons, and social cards",
-        icon: Sparkles,
-        requiredPermission: "brand:manage",
-      },
-      {
-        href: "/admin/settings",
-        label: "Settings & Pricing",
-        shortDesc: "Contact info, navbar/footer menus, CTAs & pricing tiers",
-        icon: Settings,
-        requiredPermission: "settings:manage",
+        href: "/admin/storefront",
+        label: "Storefront Studio",
+        shortDesc: "Visual pages, theme library, brand, navbar, footer and drafts",
+        icon: Layers,
+        anyOfPermissions: [
+          "content:edit_any",
+          "content:create_draft",
+          "content:edit_own",
+          "content:publish",
+          "theme:manage",
+          "brand:manage",
+          "settings:manage",
+        ],
       },
     ],
   },
@@ -681,7 +652,7 @@ export function AdminShell({
   );
 
   return (
-    <div className="flex min-h-screen bg-canvas text-ink-body">
+    <div className="admin-console flex min-h-screen bg-canvas text-ink-body">
       {/* Desktop Collapsible Sidebar (`260px` <-> `72px`) */}
       <aside
         className={`hidden shrink-0 border-r border-line bg-surface transition-[width] duration-200 ease-out lg:sticky lg:top-0 lg:block lg:h-screen ${

@@ -69,6 +69,27 @@ describe("Phase 1 — Theme Token & Accessibility Engine", () => {
     expect(css).toContain(`--of-color-primary: ${OMNIFLOW_LIGHT_TOKENS.colors.primary};`);
     expect(css).toContain('[data-theme="dark"]');
   });
+
+  it("uses a light footer surface in light mode and retains a dark footer in dark mode", () => {
+    const css = buildThemeCssVariables(null);
+    const lightTokens =
+      css.match(/:root, \[data-theme="light"\] \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const darkTokens =
+      css.match(/\[data-theme="dark"\], \.dark \{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+    expect(lightTokens).toContain(
+      `--of-surface-footer: ${OMNIFLOW_LIGHT_TOKENS.colors.surfaceMuted};`
+    );
+    expect(lightTokens).toContain(
+      `--of-text-footer: ${OMNIFLOW_LIGHT_TOKENS.colors.body};`
+    );
+    expect(darkTokens).toContain(
+      `--of-surface-footer: ${OMNIFLOW_DARK_TOKENS.components.footerBg};`
+    );
+    expect(darkTokens).toContain(
+      `--of-text-footer: ${OMNIFLOW_DARK_TOKENS.components.footerText};`
+    );
+  });
 });
 
 describe("Phase 1 — Security, Auth & RBAC Boundaries", () => {

@@ -15,14 +15,18 @@ import type {
   TeamMember,
   TestimonialItem,
 } from "@/types/content";
-import type { CardMotionConfig } from "@/features/card-motion/config";
+import {
+  normalizeCardMotion,
+  type CardMotionConfig,
+} from "@/features/card-motion/config";
 import type { ThemeConfiguration } from "@/types/theme";
 import { createDefaultThemeConfiguration } from "@/features/themes/presets";
 import { DEFAULT_PRICING_CONFIG } from "@/features/pricing/default-pricing";
+import { DEFAULT_NAVBAR_STYLE_SETTINGS } from "@/features/admin/navbar-style-defaults";
 import { isProductionEnvironment } from "@/lib/env";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
-export const CURRENT_SEED_VERSION = 14;
+export const CURRENT_SEED_VERSION = 17;
 
 export const DEFAULT_HOME_SECTIONS: PageSectionBlock[] = [
   { id: "sec-hero", type: "hero", title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
@@ -55,9 +59,12 @@ export interface OmniFlowDatabaseSnapshot {
   users: UserRecord[];
   auditLogs: AuditLogEntry[];
   siteSettings: SiteSettings;
+  siteSettingsDraft?: SiteSettings;
   themeConfig: ThemeConfiguration;
   cardMotion?: CardMotionConfig;
+  cardMotionDraft?: CardMotionConfig;
   brandAssets: BrandAssetConfig;
+  brandAssetsDraft?: BrandAssetConfig;
   servicePillars: ServiceCategoryPillar[];
   services: ServiceItem[];
   caseStudies: CaseStudyItem[];
@@ -169,6 +176,7 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
     primaryCtaHref: "/contact?intent=call",
     secondaryCtaLabel: "See live demo",
     secondaryCtaHref: "/demos",
+    navbarStyle: { ...DEFAULT_NAVBAR_STYLE_SETTINGS },
     navigation: [
       { id: "nav-services", label: "Services", href: "/services", isVisible: true, order: 1 },
       { id: "nav-solutions", label: "Solutions", href: "/solutions", isVisible: true, order: 2 },
@@ -960,8 +968,12 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       },
     ],
     siteSettings,
+    siteSettingsDraft: structuredClone(siteSettings),
     themeConfig: createDefaultThemeConfiguration(),
+    cardMotion: normalizeCardMotion(undefined),
+    cardMotionDraft: normalizeCardMotion(undefined),
     brandAssets,
+    brandAssetsDraft: structuredClone(brandAssets),
     servicePillars,
     services,
     caseStudies,

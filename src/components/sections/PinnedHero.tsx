@@ -331,7 +331,7 @@ export function PinnedHero({
       aria-label="OmniFlow AI workflow automation hero"
       data-hero-repeat={repeatVisit ? "true" : "false"}
       data-hero-visual={canvasCfg.visualMode}
-      className="of-hero-shell relative overflow-hidden pb-14 pt-24 sm:pb-20 sm:pt-32 lg:pb-24 lg:pt-36"
+      className="of-hero-shell relative overflow-hidden pb-14 pt-20 sm:pb-20 sm:pt-24 lg:pb-24 lg:pt-28"
     >
       {/* Soale Orbital Halo Light Ring + Corner Ambient Orbs + Starfield (Dark & Light Mode) */}
       {showSoaleHalo && (

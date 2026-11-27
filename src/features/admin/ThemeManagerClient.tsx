@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -43,7 +43,6 @@ import {
   ORIGINAL_AGENCY_ARCHIVED_PRESET_ID,
   SOALE_CREATIVE_AI_PRESET_ID,
 } from "@/features/themes/presets";
-import { ThemeLivePreviewStage } from "./theme/ThemeLivePreviewStage";
 
 interface ThemeManagerClientProps {
   initialConfig: ThemeConfiguration;
@@ -108,6 +107,7 @@ export function ThemeManagerClient({
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const livePreviewRef = useRef<HTMLIFrameElement | null>(null);
 
   const activeTokens =
     editingMode === "dark" ? config.draft.dark : config.draft.light;
@@ -117,6 +117,38 @@ export function ThemeManagerClient({
       : config.draft.overrides?.light) ?? {};
 
   const designSystem = sanitizeDesignSystemTokens(config.designSystem);
+
+  const syncLivePreview = useCallback(() => {
+    livePreviewRef.current?.contentWindow?.postMessage(
+      {
+        type: "OMNIFLOW_THEME_PREVIEW",
+        themeMode: editingMode,
+        themePreview: {
+          activePresetId: config.activePresetId,
+          draft: config.draft,
+          designSystem,
+        },
+      },
+      window.location.origin
+    );
+  }, [config.activePresetId, config.draft, designSystem, editingMode]);
+
+  useEffect(() => {
+    syncLivePreview();
+  }, [syncLivePreview]);
+
+  useEffect(() => {
+    const onPreviewReady = (event: MessageEvent) => {
+      if (
+        event.origin === window.location.origin &&
+        event.data?.type === "OMNIFLOW_VE_READY"
+      ) {
+        syncLivePreview();
+      }
+    };
+    window.addEventListener("message", onPreviewReady);
+    return () => window.removeEventListener("message", onPreviewReady);
+  }, [syncLivePreview]);
 
   function updateDesignSystem(patch: Partial<ThemeDesignTokens>) {
     setConfig((prev) => ({
@@ -1096,15 +1128,40 @@ export function ThemeManagerClient({
           </div>
         </div>
 
-        {/* Live Interactive Preview Stage */}
-        <div className="xl:col-span-5">
-          <ThemeLivePreviewStage
-            editingMode={editingMode}
-            onSelectMode={setEditingMode}
-            activeTokens={activeTokens}
-            activeOverrides={activeOverrides}
-            designSystem={designSystem}
-          />
+        {/* Actual storefront responds to unsaved theme draft edits. */}
+        <div className="xl:col-span-5 xl:sticky xl:top-20">
+          <div className="overflow-hidden rounded-xl border border-line bg-surface-card">
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-ink-heading">Live storefront</h2>
+                <p className="mt-0.5 text-xs text-ink-muted">Draft colors update instantly before publishing.</p>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-1">
+                {(["light", "dark"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setEditingMode(mode)}
+                    aria-pressed={editingMode === mode}
+                    className={`rounded-md px-2.5 py-1 text-xs capitalize ${
+                      editingMode === mode
+                        ? "bg-surface-muted font-semibold text-ink-heading"
+                        : "text-ink-muted hover:text-ink-heading"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <iframe
+              ref={livePreviewRef}
+              src="/?ve=1"
+              title="Live theme preview"
+              onLoad={syncLivePreview}
+              className="h-[68vh] min-h-[540px] w-full border-0 bg-white"
+            />
+          </div>
         </div>
       </div>
 

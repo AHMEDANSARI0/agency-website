@@ -2,15 +2,25 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { PageSectionBlock } from "@/types/content";
+import type { PageSectionBlock, SiteSettings } from "@/types/content";
+import type { ThemeDesignTokens, ThemeBundleState } from "@/types/theme";
 
 interface VeSyncPayload {
-  type: "OMNIFLOW_VE_SYNC";
+  type:
+    | "OMNIFLOW_VE_SYNC"
+    | "OMNIFLOW_NAVBAR_PREVIEW"
+    | "OMNIFLOW_THEME_PREVIEW";
   sections?: PageSectionBlock[];
   selectedSectionId?: string | null;
   scrollToSectionId?: string | null;
   canvasPositionDragMode?: boolean;
   themeMode?: "dark" | "light";
+  navbarSettings?: Partial<SiteSettings>;
+  themePreview?: {
+    activePresetId: string;
+    draft: ThemeBundleState;
+    designSystem?: ThemeDesignTokens;
+  };
 }
 
 /**
@@ -36,10 +46,45 @@ export function VisualEditorCanvasBridge() {
       );
     }
 
-    const onMessage = (event: MessageEvent) => {
+    const onMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       const data = event.data as VeSyncPayload | undefined;
-      if (!data || data.type !== "OMNIFLOW_VE_SYNC") return;
+      if (!data) return;
+
+      if (data.type === "OMNIFLOW_NAVBAR_PREVIEW" && data.navbarSettings) {
+        window.dispatchEvent(
+          new CustomEvent("omniflow:ve-navbar-update", {
+            detail: data.navbarSettings,
+          })
+        );
+        return;
+      }
+
+      if (data.type === "OMNIFLOW_THEME_PREVIEW" && data.themePreview) {
+        const { buildThemeCssVariables } = await import(
+          "@/features/themes/color-utils"
+        );
+        const previewStyleId = "omniflow-theme-live-preview";
+        let previewStyle = document.getElementById(previewStyleId);
+        if (!previewStyle) {
+          previewStyle = document.createElement("style");
+          previewStyle.id = previewStyleId;
+          document.head.appendChild(previewStyle);
+        }
+        previewStyle.textContent = buildThemeCssVariables({
+          activePresetId: data.themePreview.activePresetId,
+          published: data.themePreview.draft,
+          designSystem: data.themePreview.designSystem,
+        });
+        if (data.themeMode === "dark" || data.themeMode === "light") {
+          const root = document.documentElement;
+          root.setAttribute("data-theme", data.themeMode);
+          root.classList.toggle("dark", data.themeMode === "dark");
+        }
+        return;
+      }
+
+      if (data.type !== "OMNIFLOW_VE_SYNC") return;
 
       if (data.themeMode === "dark" || data.themeMode === "light") {
         const root = document.documentElement;
@@ -113,6 +158,20 @@ export function VisualEditorCanvasBridge() {
     const onSectionClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+      const globalElement = target
+        .closest<HTMLElement>("[data-ve-global-element]")
+        ?.getAttribute("data-ve-global-element");
+      if (globalElement === "header" || globalElement === "footer") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.parent !== window) {
+          window.parent.postMessage(
+            { type: "OMNIFLOW_VE_GLOBAL_CLICKED", element: globalElement },
+            window.location.origin
+          );
+        }
+        return;
+      }
       const wrapper = target.closest<HTMLElement>("[data-ve-section-id]");
       if (!wrapper) return;
       const sectionId = wrapper.getAttribute("data-ve-section-id");

@@ -54,6 +54,21 @@ describe("Upgrade Phase 3 — Public Website Redesign (Mega-Menu, 16-Section Hom
     expect(navbarSource).toContain("Escape");
     expect(navbarSource).toContain("mobile-navigation-drawer");
     expect(navbarSource).toContain("data-lenis-prevent");
+
+    const settingsSource = fs.readFileSync(
+      path.join(process.cwd(), "src/features/admin/SiteSettingsClient.tsx"),
+      "utf8"
+    );
+    const editorBridgeSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/visual-editor/VisualEditorCanvasBridge.tsx"),
+      "utf8"
+    );
+    expect(settingsSource).toContain('const previewSrc = `${previewPath}');
+    expect(settingsSource).toContain("src={previewSrc}");
+    expect(settingsSource).toContain('value="/pricing">Pricing</option>');
+    expect(settingsSource).toContain("OMNIFLOW_NAVBAR_PREVIEW");
+    expect(editorBridgeSource).toContain("omniflow:ve-navbar-update");
+    expect(editorBridgeSource).toContain("OMNIFLOW_THEME_PREVIEW");
   });
 
   it("eliminates legacy Phase 1 vermilion/amber hardcoded colors across public website pages", () => {

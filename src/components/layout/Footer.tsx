@@ -18,22 +18,24 @@ export function Footer({ brand, settings }: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="on-dark border-t border-[var(--of-color-border)] bg-[var(--of-surface-footer)] text-[var(--of-text-footer)]">
-      {/* Executive Operational Pre-Footer Strip */}
-      <div className="border-b border-[var(--of-color-border)] bg-black/15">
-        <Container className="flex flex-col items-start justify-between gap-5 py-7 lg:flex-row lg:items-center">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--of-color-body)]">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-accent-subtle px-3.5 py-1.5 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--of-color-heading)]">
-              <Globe2 className="h-3.5 w-3.5 text-primary" />
+    <footer
+      data-ve-global-element="footer"
+      className="border-t border-[var(--of-color-border)] bg-[var(--of-surface-footer)] text-[var(--of-text-footer)]"
+    >
+      <div className="border-b border-[var(--of-color-border)] bg-[var(--of-color-surface)]">
+        <Container className="flex flex-col items-start justify-between gap-4 py-5 sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[var(--of-color-body)]">
+            <span className="inline-flex items-center gap-2">
+              <Globe2 className="h-3.5 w-3.5 text-[var(--of-color-muted)]" />
               {settings.targetMarkets.join(" · ")}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--of-color-border)] bg-[var(--of-color-surface)] px-3.5 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-[var(--of-color-body)]">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <span className="inline-flex items-center gap-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--of-color-muted)]" />
               Human Approval Gates · 100% Client-Owned Systems
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <SoaleArrowButton
               href={settings.secondaryCtaHref}
               variant="outline"
@@ -52,11 +54,10 @@ export function Footer({ brand, settings }: FooterProps) {
         </Container>
       </div>
 
-      {/* Main 5-Column Soale Architectural Directory */}
-      <Container className="py-16 sm:py-20">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12">
-          <div className="lg:col-span-4">
-            <BrandMark brand={brand} tone="inverse" />
+      <Container className="py-12 sm:py-14">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-12">
+          <div data-reveal="" className="lg:col-span-4">
+            <BrandMark brand={brand} tone="auto" />
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--of-color-body)]">
               {settings.positioning} — {settings.tagline}
             </p>
@@ -85,7 +86,7 @@ export function Footer({ brand, settings }: FooterProps) {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div data-reveal="" className="lg:col-span-2">
             <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Core Systems
             </h2>
@@ -105,7 +106,7 @@ export function Footer({ brand, settings }: FooterProps) {
             </ul>
           </div>
 
-          <div className="lg:col-span-2">
+          <div data-reveal="" className="lg:col-span-3">
             <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Solutions &amp; Lab
             </h2>
@@ -161,63 +162,65 @@ export function Footer({ brand, settings }: FooterProps) {
             </ul>
           </div>
 
-          <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-              Company &amp; Proof
-            </h2>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              {settings.footerLinks.company
-                .filter((i) => i.isVisible)
-                .map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-          </div>
+          <div data-reveal="" className="grid gap-8 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
+            <div>
+              <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
+                Company &amp; proof
+              </h2>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                {settings.footerLinks.company
+                  .filter((i) => i.isVisible)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </div>
 
-          <div className="lg:col-span-2">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-              Governance
-            </h2>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              {settings.footerLinks.legal
-                .filter((i) => i.isVisible)
-                .map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              <li>
-                <CookiePreferencesButton variant="footer-link" />
-              </li>
-              <li>
-                <a
-                  href="/feed.xml"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Insights RSS Feed
-                </a>
-              </li>
-            </ul>
+            <div>
+              <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
+                Governance
+              </h2>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                {settings.footerLinks.legal
+                  .filter((i) => i.isVisible)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                <li>
+                  <CookiePreferencesButton variant="footer-link" />
+                </li>
+                <li>
+                  <a
+                    href="/feed.xml"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Insights RSS Feed
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-[var(--of-color-border)] pt-6 font-mono text-xs text-[var(--of-color-muted)] sm:flex-row sm:items-center">
+        <div data-reveal="" className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-[var(--of-color-border)] pt-5 text-xs text-[var(--of-color-muted)] sm:flex-row sm:items-center">
           <p>
             © {year} {settings.companyName}. All rights reserved.
           </p>
-          <p>
+          <p className="max-w-2xl sm:text-right">
             Engineered for service businesses, consultants &amp; boutique
             agencies · Zero fabricated claims.
           </p>

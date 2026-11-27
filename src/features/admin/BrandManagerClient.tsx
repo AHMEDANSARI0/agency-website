@@ -17,8 +17,7 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
     text: string;
   } | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function save(publish: boolean) {
     setSaving(true);
     setFeedback(null);
     try {
@@ -35,6 +34,7 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
           faviconUrl: brand.faviconUrl || null,
           ogImageUrl: brand.ogImageUrl || null,
           showTextFallback: brand.showTextFallback,
+          publish,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -52,7 +52,9 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
       setBrand(data.brandAssets);
       setFeedback({
         type: "success",
-        text: "Brand identity & replaceable logo slots saved.",
+        text: publish
+          ? "Brand identity and logo assets published."
+          : "Brand identity draft saved.",
       });
     } catch {
       setFeedback({
@@ -65,7 +67,13 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-12">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save(false);
+      }}
+      className="grid gap-6 lg:grid-cols-12"
+    >
       <div className="space-y-6 rounded-card border border-line bg-surface-card p-6 shadow-card lg:col-span-7">
         {feedback && (
           <div
@@ -201,14 +209,25 @@ export function BrandManagerClient({ initialBrand }: BrandManagerClientProps) {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-        >
-          <Save className="h-4 w-4" />
-          <span>{saving ? "Saving..." : "Save Brand Assets"}</span>
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink-heading disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            <span>{saving ? "Saving..." : "Save Draft"}</span>
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void save(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            <span>{saving ? "Publishing..." : "Publish Brand"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Live Brand Slot Preview */}

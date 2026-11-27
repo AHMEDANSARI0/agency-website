@@ -449,7 +449,7 @@ export function CmsWorkspaceClient({
         <div className="flex flex-wrap items-center gap-2">
           {canEditAny && (
             <Link
-              href="/admin/pages"
+              href="/admin/storefront?tab=pages"
               className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 font-medium text-ink-heading hover:border-primary/40 hover:text-primary"
             >
               <Layers className="h-3.5 w-3.5 text-primary" />
@@ -465,7 +465,7 @@ export function CmsWorkspaceClient({
           </Link>
           {canEditAny && (
             <Link
-              href="/admin/settings"
+              href="/admin/storefront?tab=site"
               className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 font-medium text-ink-heading hover:border-primary/40 hover:text-primary"
             >
               <Settings className="h-3.5 w-3.5 text-primary" />

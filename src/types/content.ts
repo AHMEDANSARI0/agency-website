@@ -36,6 +36,75 @@ export interface NavItem {
   order: number;
 }
 
+export interface NavbarStyleSettings {
+  topOffset: number;
+  sideInset: number;
+  maxWidth: number;
+  barHeight: number;
+  barPaddingX: number;
+  barRadius: number;
+  borderWidth: number;
+  backdropBlur: number;
+  barShadowBlur: number;
+  barShadowOpacity: number;
+  groupGap: number;
+  navGap: number;
+  brandMarkSize: "sm" | "md" | "lg";
+  linkFontSize: number;
+  linkFontWeight: "400" | "500" | "600" | "700";
+  linkPaddingX: number;
+  linkPaddingY: number;
+  linkRadius: number;
+  buttonFontSize: number;
+  buttonFontWeight: "400" | "500" | "600" | "700";
+  buttonPaddingX: number;
+  buttonPaddingY: number;
+  buttonRadius: number;
+  buttonIconGap: number;
+  controlSize: number;
+  dropdownWidth: number;
+  dropdownRadius: number;
+  dropdownPadding: number;
+  mobileDrawerPadding: number;
+  hoverLift: number;
+  transitionDuration: number;
+  shadowOpacity: number;
+  accentStart: string;
+  accentEnd: string;
+  darkBackground: string;
+  darkBackgroundOpacity: number;
+  darkPanel: string;
+  darkText: string;
+  darkMutedText: string;
+  darkBorder: string;
+  darkBorderOpacity: number;
+  darkHoverBackground: string;
+  darkHoverText: string;
+  darkButtonBackground: string;
+  darkButtonBackgroundOpacity: number;
+  darkButtonText: string;
+  darkButtonBorder: string;
+  darkButtonBorderOpacity: number;
+  darkButtonHoverBackground: string;
+  darkButtonHoverText: string;
+  lightBackground: string;
+  lightBackgroundOpacity: number;
+  lightPanel: string;
+  lightText: string;
+  lightMutedText: string;
+  lightBorder: string;
+  lightBorderOpacity: number;
+  lightHoverBackground: string;
+  lightHoverText: string;
+  lightButtonBackground: string;
+  lightButtonBackgroundOpacity: number;
+  lightButtonText: string;
+  lightButtonBorder: string;
+  lightButtonBorderOpacity: number;
+  lightButtonHoverBackground: string;
+  lightButtonHoverText: string;
+}
+
 export interface PricingPackageItem {
   id: string;
   name: string;
@@ -77,6 +146,7 @@ export interface SiteSettings {
   secondaryCtaLabel: string;
   secondaryCtaHref: string;
   navigation: NavItem[];
+  navbarStyle?: NavbarStyleSettings;
   footerLinks: {
     services: NavItem[];
     company: NavItem[];

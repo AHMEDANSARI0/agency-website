@@ -312,11 +312,13 @@ type SidebarTab = "sections" | "globe_studio" | "seo";
 interface PageBuilderClientProps {
   initialPages: PageDocument[];
   canPublish: boolean;
+  onEditGlobalElement?: (element: "header" | "footer") => void;
 }
 
 export function PageBuilderClient({
   initialPages,
   canPublish,
+  onEditGlobalElement,
 }: PageBuilderClientProps) {
   const [pages, setPages] = useState<PageDocument[]>(initialPages);
   const [selectedSlug, setSelectedSlug] = useState<string>(
@@ -473,6 +475,7 @@ export function PageBuilderClient({
             sectionId?: string;
             offsetX?: number;
             offsetY?: number;
+            element?: "header" | "footer";
           }
         | undefined;
       if (!payload?.type) return;
@@ -491,6 +494,11 @@ export function PageBuilderClient({
         } else {
           setSidebarTab("sections");
         }
+      } else if (
+        payload.type === "OMNIFLOW_VE_GLOBAL_CLICKED" &&
+        (payload.element === "header" || payload.element === "footer")
+      ) {
+        onEditGlobalElement?.(payload.element);
       } else if (
         payload.type === "OMNIFLOW_VE_GLOBE_DRAGGED" &&
         typeof payload.offsetX === "number" &&
@@ -521,7 +529,7 @@ export function PageBuilderClient({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [postSyncToCanvas, sections, selectedSlug]);
+  }, [postSyncToCanvas, sections, selectedSlug, onEditGlobalElement]);
 
   const heroSection = useMemo(
     () => sections.find((s) => s.type === "hero") ?? null,

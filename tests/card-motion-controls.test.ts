@@ -19,7 +19,12 @@ function fakeCards(ids:string[],section="section-1") {
 }
 describe("public card motion settings",()=>{
  it("normalizes invalid effects and values",()=>{
-  expect(normalizeCardMotion({defaultEffect:"evil",durationMs:40000,overrides:{"bad":"pop","c-0123456789abcdef":"pop"}})).toMatchObject({defaultEffect:"random",durationMs:550,overrides:{"c-0123456789abcdef":"pop"}});
+  expect(normalizeCardMotion({defaultEffect:"evil",durationMs:40000,overrides:{"bad":"pop","c-0123456789abcdef":"pop"}})).toMatchObject({defaultEffect:"fade-up",durationMs:420,overrides:{"c-0123456789abcdef":"pop"}});
+ });
+ it("uses a restrained fade-up by default while preserving an explicitly saved random effect",()=>{
+  expect(normalizeCardMotion(undefined)).toMatchObject({defaultEffect:"fade-up",durationMs:420});
+  expect(normalizeCardMotion({defaultEffect:"random",durationMs:550,overrides:{},revision:""}).defaultEffect).toBe("fade-up");
+  expect(normalizeCardMotion({defaultEffect:"random",durationMs:550,overrides:{},revision:"abcdef12-3456-7890-abcd-ef1234567890"}).defaultEffect).toBe("random");
  });
  it("uses explicit card and section identity, independent of position and title; flags duplicates",()=>{
   const first=fakeCards(["record:a","record:b"]),second=fakeCards(["record:b","record:a","record:c"]);

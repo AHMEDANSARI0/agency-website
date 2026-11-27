@@ -40,6 +40,7 @@ import {
   type DatabaseFailureCode,
 } from "@/lib/env";
 import { resolvePricingConfig } from "@/features/pricing/default-pricing";
+import { resolveNavbarStyleSettings } from "@/features/admin/navbar-style-defaults";
 import { normalizeLegacyContactEmail } from "@/lib/placeholders";
 import {
   CURRENT_SEED_VERSION,
@@ -222,9 +223,13 @@ export function normalizeDatabaseUrlForRuntime(
 
 interface CachedPostgresKvBundle {
   siteSettings?: SiteSettings;
+  siteSettingsDraft?: SiteSettings;
   themeConfig?: ThemeConfiguration;
   themeConfigUpgraded?: boolean;
+  cardMotion?: CardMotionConfig;
+  cardMotionDraft?: CardMotionConfig;
   brandAssets?: BrandAssetConfig;
+  brandAssetsDraft?: BrandAssetConfig;
   servicePillars?: ServiceCategoryPillar[];
   expiresAt: number;
 }
@@ -565,9 +570,9 @@ async function ensurePostgresBaselineSeed(
     const existingKv = await sql<{ cnt: number }[]>`
       SELECT count(*)::int AS cnt
       FROM kv_configs
-      WHERE key IN ('site_settings', 'theme_config', 'brand_assets', 'service_pillars')
+      WHERE key IN ('site_settings', 'site_settings_draft', 'theme_config', 'card_motion', 'card_motion_draft', 'brand_assets', 'brand_assets_draft', 'service_pillars')
     `;
-    if ((existingKv[0]?.cnt ?? 0) >= 4) {
+    if ((existingKv[0]?.cnt ?? 0) >= 8) {
       postgresBaselineSeeded = true;
       return;
     }
@@ -582,8 +587,12 @@ async function ensurePostgresBaselineSeed(
         INSERT INTO kv_configs (key, payload, updated_at)
         VALUES
           ('site_settings', ${sql.json(initial.siteSettings as unknown as postgres.JSONValue)}, NOW()),
+          ('site_settings_draft', ${sql.json(initial.siteSettingsDraft as unknown as postgres.JSONValue)}, NOW()),
           ('theme_config', ${sql.json(themeSeed as unknown as postgres.JSONValue)}, NOW()),
+          ('card_motion', ${sql.json(initial.cardMotion as unknown as postgres.JSONValue)}, NOW()),
+          ('card_motion_draft', ${sql.json(initial.cardMotionDraft as unknown as postgres.JSONValue)}, NOW()),
           ('brand_assets', ${sql.json(initial.brandAssets as unknown as postgres.JSONValue)}, NOW()),
+          ('brand_assets_draft', ${sql.json(initial.brandAssetsDraft as unknown as postgres.JSONValue)}, NOW()),
           ('service_pillars', ${sql.json(initial.servicePillars as unknown as postgres.JSONValue)}, NOW())
         ON CONFLICT (key) DO NOTHING
       ),
@@ -872,6 +881,7 @@ function normalizeLegacySiteSettings(raw: SiteSettings): SiteSettings {
     secondaryCtaLabel: isLegacySecondary
       ? "See live demo"
       : raw.secondaryCtaLabel,
+    navbarStyle: resolveNavbarStyleSettings(raw.navbarStyle),
     pricingConfig: resolvePricingConfig(raw),
   };
 }
@@ -928,9 +938,17 @@ function upgradeSnapshotIfNeeded(
     ...snap,
     schemaVersion: CURRENT_SEED_VERSION,
     siteSettings: nextSettings,
+    siteSettingsDraft: normalizeLegacySiteSettings(
+      snap.siteSettingsDraft ?? nextSettings
+    ),
     themeConfig: normalizedTheme.upgraded
       ? fresh.themeConfig
       : normalizedTheme.config,
+    cardMotion: normalizeCardMotion(snap.cardMotion ?? fresh.cardMotion),
+    cardMotionDraft: normalizeCardMotion(
+      snap.cardMotionDraft ?? snap.cardMotion ?? fresh.cardMotion
+    ),
+    brandAssetsDraft: snap.brandAssetsDraft ?? snap.brandAssets,
     servicePillars: mergeByKey(
       snap.servicePillars || [],
       fresh.servicePillars,
@@ -1235,13 +1253,19 @@ async function loadPostgresKvBundle(
     const rows = await sql<{ key: string; payload: unknown }[]>`
       SELECT key, payload
       FROM kv_configs
-      WHERE key IN ('site_settings', 'theme_config', 'brand_assets', 'service_pillars')
+      WHERE key IN ('site_settings', 'site_settings_draft', 'theme_config', 'card_motion', 'card_motion_draft', 'brand_assets', 'brand_assets_draft', 'service_pillars')
     `;
     const byKey = new Map(rows.map((r) => [r.key, r.payload]));
     const rawSettings = byKey.get("site_settings") as SiteSettings | undefined;
     const normalizedSettings = rawSettings
       ? normalizeLegacySiteSettings(rawSettings)
       : undefined;
+    const rawSettingsDraft = byKey.get("site_settings_draft") as
+      | SiteSettings
+      | undefined;
+    const normalizedSettingsDraft = rawSettingsDraft
+      ? normalizeLegacySiteSettings(rawSettingsDraft)
+      : normalizedSettings;
     const rawTheme = byKey.get("theme_config") as
       | ThemeConfiguration
       | undefined;
@@ -1250,9 +1274,19 @@ async function loadPostgresKvBundle(
       : undefined;
     const bundle: CachedPostgresKvBundle = {
       siteSettings: normalizedSettings,
+      siteSettingsDraft: normalizedSettingsDraft,
       themeConfig: normalizedThemeResult?.config,
       themeConfigUpgraded: normalizedThemeResult?.upgraded ?? false,
+      cardMotion: byKey.has("card_motion")
+        ? normalizeCardMotion(byKey.get("card_motion"))
+        : undefined,
+      cardMotionDraft: byKey.has("card_motion_draft")
+        ? normalizeCardMotion(byKey.get("card_motion_draft"))
+        : undefined,
       brandAssets: byKey.get("brand_assets") as BrandAssetConfig | undefined,
+      brandAssetsDraft: byKey.get("brand_assets_draft") as
+        | BrandAssetConfig
+        | undefined,
       servicePillars: byKey.get("service_pillars") as
         | ServiceCategoryPillar[]
         | undefined,
@@ -1370,11 +1404,65 @@ export const db = {
     );
   },
 
+  async getSiteSettingsDraft(): Promise<SiteSettings> {
+    return dedupeInFlight("site_settings_draft", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const kv = await loadPostgresKvBundle(sql);
+          if (kv.siteSettingsDraft) return kv.siteSettingsDraft;
+          if (kv.siteSettings) return kv.siteSettings;
+          return createInitialSeedSnapshot().siteSettings;
+        },
+        () => {
+          const snapshot = readLocalSnapshot();
+          return snapshot.siteSettingsDraft ?? snapshot.siteSettings;
+        }
+      )
+    );
+  },
+
+  async saveSiteSettingsDraft(settings: SiteSettings): Promise<SiteSettings> {
+    const next = { ...settings, updatedAt: new Date().toISOString() };
+    invalidatePgKvBundle();
+    return runWithDbFallback(
+      async (sql) => {
+        await sql`
+          INSERT INTO kv_configs (key, payload, updated_at)
+          VALUES ('site_settings_draft', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
+          ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+        `;
+        invalidatePgKvBundle();
+        return next;
+      },
+      () => {
+        const snapshot = readLocalSnapshot();
+        snapshot.siteSettingsDraft = next;
+        writeLocalSnapshot(snapshot);
+        return next;
+      }
+    );
+  },
+
   async getCardMotion(): Promise<CardMotionConfig> {
     return runWithDbFallback(async sql => {
       const rows = await sql<{payload: unknown}[]>`SELECT payload FROM kv_configs WHERE key = 'card_motion' LIMIT 1`;
       return normalizeCardMotion(rows[0]?.payload);
     }, () => normalizeCardMotion(readLocalSnapshot().cardMotion));
+  },
+
+  async getCardMotionDraft(): Promise<CardMotionConfig> {
+    return runWithDbFallback(
+      async (sql) => {
+        const bundle = await loadPostgresKvBundle(sql);
+        return bundle.cardMotionDraft ?? bundle.cardMotion ?? normalizeCardMotion(undefined);
+      },
+      () => {
+        const snapshot = readLocalSnapshot();
+        return normalizeCardMotion(
+          snapshot.cardMotionDraft ?? snapshot.cardMotion
+        );
+      }
+    );
   },
 
   async saveCardMotion(config: CardMotionConfig, expectedRevision: string): Promise<boolean> {
@@ -1396,6 +1484,43 @@ export const db = {
       writeLocalSnapshot(snap);
       return true;
     });
+  },
+
+  async saveCardMotionDraft(
+    config: CardMotionConfig,
+    expectedRevision: string
+  ): Promise<boolean> {
+    invalidatePgKvBundle();
+    return runWithDbFallback(
+      async (sql) => {
+        const rows = await sql<{ payload: unknown }[]>`
+          INSERT INTO kv_configs (key, payload, updated_at)
+          SELECT 'card_motion_draft', ${sql.json(config as unknown as postgres.JSONValue)}, NOW()
+          WHERE COALESCE(
+            (SELECT payload->>'revision' FROM kv_configs WHERE key = 'card_motion_draft'),
+            (SELECT payload->>'revision' FROM kv_configs WHERE key = 'card_motion'),
+            ''
+          ) = ${expectedRevision}
+          ON CONFLICT (key) DO UPDATE
+          SET payload = EXCLUDED.payload, updated_at = NOW()
+          WHERE COALESCE(kv_configs.payload->>'revision', '') = ${expectedRevision}
+          RETURNING payload
+        `;
+        invalidatePgKvBundle();
+        return rows.length > 0;
+      },
+      () => {
+        const snapshot = readLocalSnapshot();
+        const currentRevision =
+          snapshot.cardMotionDraft?.revision ??
+          snapshot.cardMotion?.revision ??
+          "";
+        if (currentRevision !== expectedRevision) return false;
+        snapshot.cardMotionDraft = config;
+        writeLocalSnapshot(snapshot);
+        return true;
+      }
+    );
   },
 
   async getThemeConfig(): Promise<ThemeConfiguration> {
@@ -1490,6 +1615,47 @@ export const db = {
         const snap = readLocalSnapshot();
         snap.brandAssets = next;
         writeLocalSnapshot(snap);
+        return next;
+      }
+    );
+  },
+
+  async getBrandAssetsDraft(): Promise<BrandAssetConfig> {
+    return dedupeInFlight("brand_assets_draft", () =>
+      runWithDbFallback(
+        async (sql) => {
+          const bundle = await loadPostgresKvBundle(sql);
+          if (bundle.brandAssetsDraft) return bundle.brandAssetsDraft;
+          if (bundle.brandAssets) return bundle.brandAssets;
+          return createInitialSeedSnapshot().brandAssets;
+        },
+        () => {
+          const snapshot = readLocalSnapshot();
+          return snapshot.brandAssetsDraft ?? snapshot.brandAssets;
+        }
+      )
+    );
+  },
+
+  async saveBrandAssetsDraft(
+    assets: BrandAssetConfig
+  ): Promise<BrandAssetConfig> {
+    const next = { ...assets, updatedAt: new Date().toISOString() };
+    invalidatePgKvBundle();
+    return runWithDbFallback(
+      async (sql) => {
+        await sql`
+          INSERT INTO kv_configs (key, payload, updated_at)
+          VALUES ('brand_assets_draft', ${sql.json(next as unknown as postgres.JSONValue)}, NOW())
+          ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+        `;
+        invalidatePgKvBundle();
+        return next;
+      },
+      () => {
+        const snapshot = readLocalSnapshot();
+        snapshot.brandAssetsDraft = next;
+        writeLocalSnapshot(snapshot);
         return next;
       }
     );
@@ -3604,9 +3770,12 @@ export const db = {
   }> {
     const [
       siteSettings,
+      siteSettingsDraft,
       themeConfig,
       cardMotion,
+      cardMotionDraft,
       brandAssets,
+      brandAssetsDraft,
       servicePillars,
       services,
       caseStudies,
@@ -3621,9 +3790,12 @@ export const db = {
       auditLogs,
     ] = await Promise.all([
       this.getSiteSettings(),
+      this.getSiteSettingsDraft(),
       this.getThemeConfig(),
       this.getCardMotion(),
+      this.getCardMotionDraft(),
       this.getBrandAssets(),
+      this.getBrandAssetsDraft(),
       this.getServicePillars(),
       this.listServices(false),
       this.listCaseStudies(false),
@@ -3693,9 +3865,12 @@ export const db = {
       users: rawUsers,
       auditLogs,
       siteSettings,
+      siteSettingsDraft,
       themeConfig,
       cardMotion,
+      cardMotionDraft,
       brandAssets,
+      brandAssetsDraft,
       servicePillars,
       services,
       caseStudies,
@@ -3846,6 +4021,20 @@ export const db = {
         }
 
         const data = row.snapshot;
+        const restoredMotion = data.cardMotion
+          ? {
+              ...normalizeCardMotion(data.cardMotion),
+              revision: randomBytes(16).toString("hex"),
+            }
+          : null;
+        const motionDraftSource =
+          data.cardMotionDraft ?? data.cardMotion;
+        const restoredMotionDraft = motionDraftSource
+          ? {
+              ...normalizeCardMotion(motionDraftSource),
+              revision: randomBytes(16).toString("hex"),
+            }
+          : null;
         invalidatePgKvBundle();
         invalidatePgPublicCatalog();
         // 2. Restore inside a single atomic PostgreSQL transaction (merges safely without dropping active admins or leads)
@@ -3855,16 +4044,21 @@ export const db = {
             INSERT INTO kv_configs (key, payload, updated_at)
             VALUES
               ('site_settings', ${tx.json(data.siteSettings as unknown as postgres.JSONValue)}, NOW()),
+              ('site_settings_draft', ${tx.json((data.siteSettingsDraft ?? data.siteSettings) as unknown as postgres.JSONValue)}, NOW()),
               ('theme_config', ${tx.json(data.themeConfig as unknown as postgres.JSONValue)}, NOW()),
               ('brand_assets', ${tx.json(data.brandAssets as unknown as postgres.JSONValue)}, NOW()),
+              ('brand_assets_draft', ${tx.json((data.brandAssetsDraft ?? data.brandAssets) as unknown as postgres.JSONValue)}, NOW()),
               ('service_pillars', ${tx.json(data.servicePillars as unknown as postgres.JSONValue)}, NOW())
             ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
           `;
-          // Legacy snapshots lack this key; keep the current motion config in that case.
-          if (data.cardMotion) {
-            const restoredMotion = { ...normalizeCardMotion(data.cardMotion), revision: randomBytes(16).toString("hex") };
+          if (restoredMotion) {
             await tx`INSERT INTO kv_configs (key, payload, updated_at)
               VALUES ('card_motion', ${tx.json(restoredMotion as unknown as postgres.JSONValue)}, NOW())
+              ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`;
+          }
+          if (restoredMotionDraft) {
+            await tx`INSERT INTO kv_configs (key, payload, updated_at)
+              VALUES ('card_motion_draft', ${tx.json(restoredMotionDraft as unknown as postgres.JSONValue)}, NOW())
               ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`;
           }
 
@@ -4020,9 +4214,21 @@ export const db = {
 
         const nextSnap: OmniFlowDatabaseSnapshot = {
           ...target.snapshot,
+          schemaVersion: CURRENT_SEED_VERSION,
+          siteSettingsDraft:
+            target.snapshot.siteSettingsDraft ?? target.snapshot.siteSettings,
           cardMotion: target.snapshot.cardMotion
             ? { ...normalizeCardMotion(target.snapshot.cardMotion), revision: randomBytes(16).toString("hex") }
             : snap.cardMotion,
+          cardMotionDraft: target.snapshot.cardMotionDraft ?? (
+            target.snapshot.cardMotion
+              ? { ...normalizeCardMotion(target.snapshot.cardMotion), revision: randomBytes(16).toString("hex") }
+              : snap.cardMotionDraft
+          ),
+          brandAssetsDraft:
+            target.snapshot.brandAssetsDraft ??
+            target.snapshot.brandAssets ??
+            snap.brandAssetsDraft,
           users: mergedUsers,
           leads: mergedLeads,
           auditLogs: snap.auditLogs,

@@ -11,6 +11,7 @@ const schema = z.object({
   contactEmail: z.string().trim().max(140).refine(validOwnerEmail, "Enter a valid public contact email."),
   priceFrom: z.string().trim().min(1).max(90).refine(v => !/[<>\u0000-\u001f\u007f]/.test(v) && !/\{\{[^}]*\}\}/.test(v), "Enter a real price and currency, not a placeholder."),
   founderPhotoUrl: z.string().trim().max(2048).refine(validOwnerPhoto, "Use an uploaded image path or HTTPS image URL."),
+  publish: z.boolean().optional(),
 }).strict();
 
 export async function PUT(request: Request) {
@@ -22,10 +23,23 @@ export async function PUT(request: Request) {
   if (!body.ok) return NextResponse.json({ error: body.error }, { status: body.status });
   const parsed = schema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid owner values." }, { status: 400 });
-  const ownerValues = { ...parsed.data, contactEmail: parsed.data.contactEmail.toLowerCase() };
-  const updated = await db.saveSiteSettings({ ...auth.settings, ownerValues });
-  revalidateAllPublicContent();
-  await db.recordAuditLog({ actorId: auth.user.id, actorEmail: auth.user.email, actorRole: auth.user.role, action: "settings.owner_values_updated", entityType: "settings", summary: "Updated public owner launch information.", ipAddress: extractClientIp(request.headers) });
+  const { publish: shouldPublish } = parsed.data;
+  const ownerValues = {
+    contactEmail: parsed.data.contactEmail.toLowerCase(),
+    priceFrom: parsed.data.priceFrom,
+    founderPhotoUrl: parsed.data.founderPhotoUrl,
+  };
+  const draft = await db.getSiteSettingsDraft();
+  const next = { ...draft, ownerValues };
+  const publish = shouldPublish !== false;
+  const updated = publish
+    ? await db.saveSiteSettings(next)
+    : await db.saveSiteSettingsDraft(next);
+  if (publish) {
+    await db.saveSiteSettingsDraft(updated);
+    revalidateAllPublicContent();
+  }
+  await db.recordAuditLog({ actorId: auth.user.id, actorEmail: auth.user.email, actorRole: auth.user.role, action: publish ? "settings.owner_values_updated" : "settings.owner_values_draft_saved", entityType: "settings", summary: `${publish ? "Published" : "Saved draft for"} public owner launch information.`, ipAddress: extractClientIp(request.headers) });
   const team = await db.listTeamMembers(true);
-  return NextResponse.json({ ok: true, missing: resolveOwnerValues(updated, team).missing }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ ok: true, published: publish, missing: resolveOwnerValues(updated, team).missing }, { headers: { "Cache-Control": "no-store" } });
 }

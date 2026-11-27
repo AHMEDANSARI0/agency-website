@@ -8,6 +8,7 @@ import type { BrandAssetConfig } from "@/types/brand";
 import type { SiteSettings } from "@/types/content";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { useTheme } from "@/features/themes/ThemeProvider";
+import { resolveNavbarStyleSettings } from "@/features/admin/navbar-style-defaults";
 
 interface NavbarProps { brand: BrandAssetConfig; settings: SiteSettings }
 
@@ -25,8 +26,22 @@ export function Navbar({ brand, settings }: NavbarProps) {
   const { resolvedMode, setMode } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [previewSettings, setPreviewSettings] =
+    useState<Partial<SiteSettings> | null>(null);
   const headerRef = useRef<HTMLElement>(null);
 
+  useEffect(() => {
+    const onPreviewUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<SiteSettings>>).detail;
+      if (detail && typeof detail === "object") setPreviewSettings(detail);
+    };
+    window.addEventListener("omniflow:ve-navbar-update", onPreviewUpdate);
+    return () =>
+      window.removeEventListener("omniflow:ve-navbar-update", onPreviewUpdate);
+  }, []);
+
+  const liveSettings = previewSettings ? { ...settings, ...previewSettings } : settings;
+  const configuredNavigation = previewSettings?.navigation ?? settings.navigation;
   useEffect(() => { setMobileOpen(false); setOpenMenu(null); }, [pathname]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -43,13 +58,91 @@ export function Navbar({ brand, settings }: NavbarProps) {
   }, []);
 
   // Top-level links remain completely controlled by Admin Settings > Navigation.
-  const configuredLinks = settings.navigation.filter((item) =>
+  const configuredLinks = configuredNavigation.filter((item) =>
     item.isVisible && item.href.trim() !== "/" && item.href.trim() !== "/work" &&
-    item.href.trim() !== settings.primaryCtaHref.split("?")[0]
+    item.href.trim() !== liveSettings.primaryCtaHref.split("?")[0]
   ).sort((a, b) => a.order - b.order);
   const visibleLinks = configuredLinks.length ? configuredLinks : DEFAULT_FALLBACK_LINKS;
-  const primaryCtaHref = settings.primaryCtaHref?.trim() || "/contact?intent=call";
-  const primaryCtaLabel = settings.primaryCtaLabel?.trim() || "Book a Free Review";
+  const primaryCtaHref = liveSettings.primaryCtaHref?.trim() || "/contact?intent=call";
+  const primaryCtaLabel = liveSettings.primaryCtaLabel?.trim() || "Book a Free Review";
+  const navbarStyle = resolveNavbarStyleSettings(liveSettings.navbarStyle);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--of-home-nav-height", `${navbarStyle.barHeight}px`);
+    root.style.setProperty("--of-home-nav-top", `${navbarStyle.topOffset}px`);
+    return () => {
+      root.style.removeProperty("--of-home-nav-height");
+      root.style.removeProperty("--of-home-nav-top");
+    };
+  }, [navbarStyle.barHeight, navbarStyle.topOffset]);
+
+  const navbarCssVariables = {
+    top: `${navbarStyle.topOffset}px`,
+    width: `calc(100% - ${navbarStyle.sideInset * 2}px)`,
+    maxWidth: `${navbarStyle.maxWidth}px`,
+    "--nav-bar-height": `${navbarStyle.barHeight}px`,
+    "--nav-bar-padding-x": `${navbarStyle.barPaddingX}px`,
+    "--nav-bar-radius": `${navbarStyle.barRadius}px`,
+    "--nav-border-width": `${navbarStyle.borderWidth}px`,
+    "--nav-blur": `${navbarStyle.backdropBlur}px`,
+    "--nav-bar-shadow-blur": `${navbarStyle.barShadowBlur}px`,
+    "--nav-bar-shadow-opacity": `${navbarStyle.barShadowOpacity}%`,
+    "--nav-group-gap": `${navbarStyle.groupGap}px`,
+    "--nav-gap": `${navbarStyle.navGap}px`,
+    "--nav-link-font-size": `${navbarStyle.linkFontSize}px`,
+    "--nav-link-font-weight": navbarStyle.linkFontWeight,
+    "--nav-link-padding-x": `${navbarStyle.linkPaddingX}px`,
+    "--nav-link-padding-y": `${navbarStyle.linkPaddingY}px`,
+    "--nav-link-radius": `${navbarStyle.linkRadius}px`,
+    "--nav-button-font-size": `${navbarStyle.buttonFontSize}px`,
+    "--nav-button-font-weight": navbarStyle.buttonFontWeight,
+    "--nav-button-padding-x": `${navbarStyle.buttonPaddingX}px`,
+    "--nav-button-padding-y": `${navbarStyle.buttonPaddingY}px`,
+    "--nav-button-radius": `${navbarStyle.buttonRadius}px`,
+    "--nav-button-icon-gap": `${navbarStyle.buttonIconGap}px`,
+    "--nav-control-size": `${navbarStyle.controlSize}px`,
+    "--nav-dropdown-width": `${navbarStyle.dropdownWidth}px`,
+    "--nav-dropdown-radius": `${navbarStyle.dropdownRadius}px`,
+    "--nav-dropdown-padding": `${navbarStyle.dropdownPadding}px`,
+    "--nav-mobile-padding": `${navbarStyle.mobileDrawerPadding}px`,
+    "--nav-hover-lift": `-${navbarStyle.hoverLift}px`,
+    "--nav-transition-duration": `${navbarStyle.transitionDuration}ms`,
+    "--nav-shadow-opacity": `${navbarStyle.shadowOpacity}%`,
+    "--nav-accent-start": navbarStyle.accentStart,
+    "--nav-accent-end": navbarStyle.accentEnd,
+    "--nav-dark-background": navbarStyle.darkBackground,
+    "--nav-dark-background-opacity": `${navbarStyle.darkBackgroundOpacity}%`,
+    "--nav-dark-panel": navbarStyle.darkPanel,
+    "--nav-dark-text": navbarStyle.darkText,
+    "--nav-dark-muted-text": navbarStyle.darkMutedText,
+    "--nav-dark-border": navbarStyle.darkBorder,
+    "--nav-dark-border-opacity": `${navbarStyle.darkBorderOpacity}%`,
+    "--nav-dark-hover-background": navbarStyle.darkHoverBackground,
+    "--nav-dark-hover-text": navbarStyle.darkHoverText,
+    "--nav-dark-button-background": navbarStyle.darkButtonBackground,
+    "--nav-dark-button-background-opacity": `${navbarStyle.darkButtonBackgroundOpacity}%`,
+    "--nav-dark-button-text": navbarStyle.darkButtonText,
+    "--nav-dark-button-border": navbarStyle.darkButtonBorder,
+    "--nav-dark-button-border-opacity": `${navbarStyle.darkButtonBorderOpacity}%`,
+    "--nav-dark-button-hover-background": navbarStyle.darkButtonHoverBackground,
+    "--nav-dark-button-hover-text": navbarStyle.darkButtonHoverText,
+    "--nav-light-background": navbarStyle.lightBackground,
+    "--nav-light-background-opacity": `${navbarStyle.lightBackgroundOpacity}%`,
+    "--nav-light-panel": navbarStyle.lightPanel,
+    "--nav-light-text": navbarStyle.lightText,
+    "--nav-light-muted-text": navbarStyle.lightMutedText,
+    "--nav-light-border": navbarStyle.lightBorder,
+    "--nav-light-border-opacity": `${navbarStyle.lightBorderOpacity}%`,
+    "--nav-light-hover-background": navbarStyle.lightHoverBackground,
+    "--nav-light-hover-text": navbarStyle.lightHoverText,
+    "--nav-light-button-background": navbarStyle.lightButtonBackground,
+    "--nav-light-button-background-opacity": `${navbarStyle.lightButtonBackgroundOpacity}%`,
+    "--nav-light-button-text": navbarStyle.lightButtonText,
+    "--nav-light-button-border": navbarStyle.lightButtonBorder,
+    "--nav-light-button-border-opacity": `${navbarStyle.lightButtonBorderOpacity}%`,
+    "--nav-light-button-hover-background": navbarStyle.lightButtonHoverBackground,
+    "--nav-light-button-hover-text": navbarStyle.lightButtonHoverText,
+  } as React.CSSProperties;
   const isLinkActive = (href: string) => {
     const clean = href.split("?")[0]?.split("#")[0] || "/";
     return clean === "/" ? pathname === "/" : pathname === clean || pathname.startsWith(`${clean}/`);
@@ -58,16 +151,16 @@ export function Navbar({ brand, settings }: NavbarProps) {
   // hardcoded destinations. Only show a chevron when a group has visible items.
   const getChildren = (href: string) => {
     const base = href.split(/[?#]/)[0]?.replace(/\/$/, "");
-    const entries = base === "/services" ? settings.footerLinks.services : base === "/about" ? settings.footerLinks.company : [];
+    const entries = base === "/services" ? liveSettings.footerLinks.services : base === "/about" ? liveSettings.footerLinks.company : [];
     return [...entries].filter((entry) => entry.isVisible && entry.href.trim() && entry.href !== href)
       .sort((a, b) => a.order - b.order);
   };
 
   return (
-    <header ref={headerRef} className={`of-floating-header ${pathname === "/" ? "of-floating-header-home" : ""} sticky top-3 z-40 mx-auto w-[calc(100%-2rem)] max-w-[1400px] sm:w-[calc(100%-3rem)]`}>
+    <header ref={headerRef} data-ve-global-element="header" style={navbarCssVariables} className={`of-floating-header ${pathname === "/" ? "of-floating-header-home" : ""} sticky z-40 mx-auto`}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-xs focus:font-semibold focus:text-primary-foreground">Skip to content</a>
-      <div className="of-floating-bar flex min-h-[62px] items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
-        <div className="shrink-0"><BrandMark brand={brand} size="sm" tone="auto" /></div>
+      <div className="of-floating-bar flex items-center justify-between">
+        <div className="shrink-0"><BrandMark brand={brand} size={navbarStyle.brandMarkSize} tone="auto" /></div>
         <nav aria-label="Primary navigation" className="hidden min-w-0 items-center justify-center gap-0.5 xl:flex">
           {visibleLinks.map((item) => {
             const children = getChildren(item.href);
