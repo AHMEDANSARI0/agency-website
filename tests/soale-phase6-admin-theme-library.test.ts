@@ -42,6 +42,11 @@ function makeAdminHeaders(token: string) {
 describe("Soale Redesign Phase 6 — Extended Theme Library, Inter Typography Controls & Pricing Studio", () => {
   let adminToken = "";
 
+  it("defaults navbar top spacing to zero while preserving legacy stored settings", () => {
+    expect(resolveNavbarStyleSettings().topOffset).toBe(0);
+    expect(resolveNavbarStyleSettings({ topOffset: 20 }).topOffset).toBe(20);
+  });
+
   it("1. supports Duplicate, Rename, Version Restore, and Delete on custom presets while strictly protecting Built-in & Archived Original presets", async () => {
     const admin = await db.createUser({
       email: "phase6.admin@omniflow.example",

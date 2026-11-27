@@ -1,7 +1,7 @@
 import type { NavbarStyleSettings } from "@/types/content";
 
 export const DEFAULT_NAVBAR_STYLE_SETTINGS: NavbarStyleSettings = {
-  topOffset: 12,
+  topOffset: 0,
   sideInset: 24,
   maxWidth: 1400,
   barHeight: 56,

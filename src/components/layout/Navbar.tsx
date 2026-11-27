@@ -69,15 +69,13 @@ export function Navbar({ brand, settings }: NavbarProps) {
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--of-home-nav-height", `${navbarStyle.barHeight}px`);
-    root.style.setProperty("--of-home-nav-top", `${navbarStyle.topOffset}px`);
     return () => {
       root.style.removeProperty("--of-home-nav-height");
-      root.style.removeProperty("--of-home-nav-top");
     };
-  }, [navbarStyle.barHeight, navbarStyle.topOffset]);
+  }, [navbarStyle.barHeight]);
 
   const navbarCssVariables = {
-    top: `${navbarStyle.topOffset}px`,
+    top: "0px",
     width: `calc(100% - ${navbarStyle.sideInset * 2}px)`,
     maxWidth: `${navbarStyle.maxWidth}px`,
     "--nav-bar-height": `${navbarStyle.barHeight}px`,

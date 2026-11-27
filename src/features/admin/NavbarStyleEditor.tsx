@@ -29,7 +29,6 @@ interface ColorFieldConfig {
 }
 
 const layoutFields: NumberFieldConfig[] = [
-  { key: "topOffset", label: "Top spacing", min: 0, max: 100, unit: "px" },
   { key: "sideInset", label: "Side spacing", min: 0, max: 100, unit: "px" },
   { key: "maxWidth", label: "Maximum width", min: 400, max: 2400, unit: "px" },
   { key: "barHeight", label: "Navbar height", min: 40, max: 160, unit: "px" },
