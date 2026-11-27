@@ -57,7 +57,7 @@ describe("Phase 4 — Homepage Restructuring (17 -> 9 Sections) & Reference Dark
     expect(heroSrc).toContain("Needs approval");
     expect(heroSrc).toContain("WhatsApp alert");
 
-    // Repeat-session <= 300ms entrance optimization
+    // Repeat sessions retain the same visible, restrained entrance motion.
     expect(heroSrc).toContain("of_hero_seen");
     expect(heroSrc).toContain("data-hero-repeat");
 
@@ -69,6 +69,8 @@ describe("Phase 4 — Homepage Restructuring (17 -> 9 Sections) & Reference Dark
     expect(cssSrc).toContain(".of-hero-grid");
     expect(cssSrc).toContain(".of-hero-gradient-text");
     expect(cssSrc).toContain('[data-hero-repeat="true"]');
+    expect(cssSrc).toContain("transition-duration: 500ms !important");
+    expect(cssSrc).toContain("calc(min(var(--d, 0), 3) * 55ms) !important");
   });
 
   it("2. renders the 'Works with your stack' inline-SVG bar for HubSpot, Slack, Notion, Stripe, WhatsApp & Google Workspace", () => {

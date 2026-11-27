@@ -270,6 +270,7 @@ export function InteractiveGlobeCanvas({
     let lastPointerX = 0;
     let lastPointerY = 0;
     let rafId = 0;
+    let isInViewport = true;
     let lastTs = performance.now();
 
     const onPointerDown = (e: PointerEvent) => {
@@ -319,8 +320,8 @@ export function InteractiveGlobeCanvas({
     };
 
     const renderFrame = (now: number) => {
-      const isHidden =
-        document.documentElement.getAttribute("data-tab-hidden") === "true";
+      rafId = 0;
+      const isHidden = document.hidden;
       const dt = Math.min(0.05, Math.max(0.001, (now - lastTs) / 1000));
       lastTs = now;
 
@@ -643,16 +644,42 @@ export function InteractiveGlobeCanvas({
         drawOrbitalRingHalf(true);
       }
 
-      if (!prefersReduced) {
+      if (!prefersReduced && !isHidden && isInViewport) {
         rafId = window.requestAnimationFrame(renderFrame);
       }
     };
 
-    rafId = window.requestAnimationFrame(renderFrame);
+    const stopAnimation = () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = 0;
+    };
+    const startAnimation = () => {
+      if (!rafId && !document.hidden && isInViewport) {
+        rafId = window.requestAnimationFrame(renderFrame);
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) stopAnimation();
+      else startAnimation();
+    };
+    const visibilityObserver =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(([entry]) => {
+            isInViewport = entry.isIntersecting;
+            if (isInViewport) startAnimation();
+            else stopAnimation();
+          }, { rootMargin: "160px" })
+        : null;
+
+    visibilityObserver?.observe(canvas);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    startAnimation();
 
     return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
+      stopAnimation();
       ro?.disconnect();
+      visibilityObserver?.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       canvas.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);

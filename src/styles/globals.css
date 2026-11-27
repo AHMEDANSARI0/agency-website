@@ -84,10 +84,10 @@
   --of-ease-swing: cubic-bezier(0.65, 0, 0.35, 1);
   --of-dur-quick: 200ms;
   --of-dur-base: 420ms;
-  --of-dur-reveal: 480ms;
+  --of-dur-reveal: 540ms;
   --of-dur-slow: 560ms;
-  --of-reveal-distance: 14px;
-  --of-stagger-step: 60ms;
+  --of-reveal-distance: 18px;
+  --of-stagger-step: 70ms;
 }
 
 [data-theme="dark"],
@@ -479,8 +479,8 @@ html.lenis body {
 }
 
 [data-hero-repeat="true"] [data-reveal] {
-  transition-duration: 240ms !important;
-  transition-delay: calc(min(var(--d, 0), 2) * 25ms) !important;
+  transition-duration: 500ms !important;
+  transition-delay: calc(min(var(--d, 0), 3) * 55ms) !important;
 }
 
 /* Masked Perspective Architectural Horizon Grid */
@@ -510,7 +510,7 @@ html[data-tab-hidden="true"] *,
 /* Single Progressive-Enhancement Scroll Reveal Primitive ([data-reveal]):
  * - SSR / No-JS / prefers-reduced-motion renders 100% visible immediately.
  * - Pre-paint <head> script sets html[data-motion="ready"] before first paint.
- * - Unified tokens: 480ms (350-600ms), cubic-bezier(0.22, 1, 0.36, 1), <= 16px offset, 60ms stagger (max 4 items: 0..3).
+ * - Unified tokens: 540ms, cubic-bezier(0.22, 1, 0.36, 1), <= 18px offset, 70ms stagger (max 4 items: 0..3).
  */
 html[data-motion="ready"] [data-reveal]:not(.in) {
   opacity: 0;
@@ -519,12 +519,12 @@ html[data-motion="ready"] [data-reveal]:not(.in) {
 
 html[data-motion="ready"] [data-reveal="left"]:not(.in) {
   opacity: 0;
-  transform: translate3d(-14px, 0, 0);
+  transform: translate3d(-18px, 0, 0);
 }
 
 html[data-motion="ready"] [data-reveal="right"]:not(.in) {
   opacity: 0;
-  transform: translate3d(14px, 0, 0);
+  transform: translate3d(18px, 0, 0);
 }
 
 html[data-motion="ready"] [data-reveal="fade"]:not(.in) {
@@ -544,9 +544,9 @@ html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
 }
 
 [data-reveal] {
-  transition: opacity var(--of-dur-reveal, 480ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform var(--of-dur-reveal, 480ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-  transition-delay: calc(min(var(--d, 0), 3) * var(--of-stagger-step, 60ms));
+  transition: opacity var(--of-dur-reveal, 540ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--of-dur-reveal, 540ms) var(--of-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  transition-delay: calc(min(var(--d, 0), 3) * var(--of-stagger-step, 70ms));
 }
 
 [data-reveal].in {
@@ -1352,12 +1352,12 @@ html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
 /* Public-card motion: applied only after JavaScript observes offscreen cards. */
 @media (prefers-reduced-motion: no-preference) {
   [data-card-motion="waiting"], [data-card-motion="done"] {
-    transition: opacity var(--card-motion-duration, 420ms) cubic-bezier(.22,1,.36,1), transform var(--card-motion-duration, 420ms) cubic-bezier(.22,1,.36,1);
+    transition: opacity var(--card-motion-duration, 500ms) cubic-bezier(.22,1,.36,1), transform var(--card-motion-duration, 500ms) cubic-bezier(.22,1,.36,1);
   }
   [data-card-motion="waiting"] { opacity: 0; }
-  [data-card-motion="waiting"][data-card-effect="fade-up"] { transform: translate3d(0, 14px, 0); }
-  [data-card-motion="waiting"][data-card-effect="from-left"] { transform: translate3d(-16px, 0, 0); }
-  [data-card-motion="waiting"][data-card-effect="from-right"] { transform: translate3d(16px, 0, 0); }
+  [data-card-motion="waiting"][data-card-effect="fade-up"] { transform: translate3d(0, 18px, 0); }
+  [data-card-motion="waiting"][data-card-effect="from-left"] { transform: translate3d(-18px, 0, 0); }
+  [data-card-motion="waiting"][data-card-effect="from-right"] { transform: translate3d(18px, 0, 0); }
   [data-card-motion="waiting"][data-card-effect="pop"] { transform: scale(.96); }
   [data-card-motion="done"] { opacity: 1; transform: none; }
   [data-card-motion="waiting"]:focus-within { opacity: 1; transform: none; }

@@ -27,7 +27,7 @@ interface LenisLike {
  * 1. Single `[data-reveal]` scroll-reveal primitive (`<= 16px` offset, `480ms`,
  *    `cubic-bezier(0.22, 1, 0.36, 1)`, `60ms` stagger capped at max 4 items: `0..3`).
  *    Zero `.soale-card` self-reveal, zero pointer spotlight listeners, zero media parallax.
- * 2. Desktop fine-pointer Lenis (`lerp: 0.1`, idle-loaded via `requestIdleCallback`),
+ * 2. Desktop fine-pointer Lenis (`lerp: 0.2`, idle-loaded via `requestIdleCallback`),
  *    with route-change scroll reset, smooth `#hash` `scrollTo`, and `data-lenis-prevent`.
  * 3. Automatic tab-hidden (`html[data-tab-hidden="true"]`) and offscreen
  *    (`[data-offscreen="true"]`) animation pausing.
@@ -180,7 +180,7 @@ export function MotionRuntime() {
         .then(({ default: Lenis }) => {
           if (cancelled) return;
           const instance = new Lenis({
-            lerp: 0.1,
+            lerp: 0.2,
             smoothWheel: true,
             syncTouch: false,
             prevent: (node: HTMLElement) =>

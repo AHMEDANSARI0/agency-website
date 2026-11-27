@@ -17,16 +17,16 @@ describe("Phase 3 — Motion System (Smooth, Fast, Disciplined)", () => {
     expect(headMatch![1]).toContain('d.dataset.motion="ready"');
   });
 
-  it("2. enforces single [data-reveal] primitive, removes .soale-card self-reveal, and applies unified motion tokens (350-600ms, cubic-bezier(0.22, 1, 0.36, 1), <= 16px, max 4 stagger)", () => {
+  it("2. enforces single [data-reveal] primitive, removes .soale-card self-reveal, and applies unified motion tokens (350-600ms, cubic-bezier(0.22, 1, 0.36, 1), <= 18px, max 4 stagger)", () => {
     const css = fs.readFileSync(
       path.join(ROOT, "src/styles/globals.css"),
       "utf8"
     );
     expect(css).toContain("--of-ease-out: cubic-bezier(0.22, 1, 0.36, 1)");
-    expect(css).toContain("--of-dur-reveal: 480ms");
-    expect(css).toContain("--of-reveal-distance: 14px");
-    expect(css).toContain("--of-stagger-step: 60ms");
-    expect(css).toContain("calc(min(var(--d, 0), 3) * var(--of-stagger-step, 60ms))");
+    expect(css).toContain("--of-dur-reveal: 540ms");
+    expect(css).toContain("--of-reveal-distance: 18px");
+    expect(css).toContain("--of-stagger-step: 70ms");
+    expect(css).toContain("calc(min(var(--d, 0), 3) * var(--of-stagger-step, 70ms))");
 
     expect(css).not.toContain(".soale-card:not(.soale-in)");
     expect(css).not.toContain(".soale-card.soale-in");
@@ -35,12 +35,12 @@ describe("Phase 3 — Motion System (Smooth, Fast, Disciplined)", () => {
     expect(css).not.toContain(".animate-marquee-reverse");
   });
 
-  it("3. configures desktop Lenis (lerp 0.1, route scroll reset, smooth #hash scrollTo, and data-lenis-prevent)", () => {
+  it("3. configures desktop Lenis (lerp 0.2, route scroll reset, smooth #hash scrollTo, and data-lenis-prevent)", () => {
     const runtime = fs.readFileSync(
       path.join(ROOT, "src/components/animations/MotionRuntime.tsx"),
       "utf8"
     );
-    expect(runtime).toContain("lerp: 0.1");
+    expect(runtime).toContain("lerp: 0.2");
     expect(runtime).toContain("scrollTo(0, { immediate: true })");
     expect(runtime).toContain("scrollTo(targetEl");
     expect(runtime).toContain("[data-lenis-prevent]");

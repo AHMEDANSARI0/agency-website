@@ -19,7 +19,7 @@ export interface CardMotionConfig {
 export const DEFAULT_CARD_MOTION: CardMotionConfig = {
   enabled: true,
   defaultEffect: "fade-up",
-  durationMs: 420,
+  durationMs: 500,
   overrides: {},
   revision: "",
 };
@@ -48,6 +48,11 @@ export function normalizeCardMotion(raw: unknown): CardMotionConfig {
     !revision &&
     x.durationMs === 550 &&
     Object.keys(overrides).length === 0;
+  const legacyFadeUpDefault =
+    x.defaultEffect === "fade-up" &&
+    !revision &&
+    x.durationMs === 420 &&
+    Object.keys(overrides).length === 0;
 
   return {
     enabled: typeof x.enabled === "boolean" ? x.enabled : true,
@@ -57,12 +62,14 @@ export function normalizeCardMotion(raw: unknown): CardMotionConfig {
         ? x.defaultEffect
         : DEFAULT_CARD_MOTION.defaultEffect,
     durationMs:
-      typeof x.durationMs === "number" &&
-      Number.isInteger(x.durationMs) &&
-      x.durationMs >= 200 &&
-      x.durationMs <= 1200
-        ? x.durationMs
-        : DEFAULT_CARD_MOTION.durationMs,
+      legacyDefault || legacyFadeUpDefault
+        ? DEFAULT_CARD_MOTION.durationMs
+        : typeof x.durationMs === "number" &&
+            Number.isInteger(x.durationMs) &&
+            x.durationMs >= 200 &&
+            x.durationMs <= 1200
+          ? x.durationMs
+          : DEFAULT_CARD_MOTION.durationMs,
     overrides,
     revision,
   };
