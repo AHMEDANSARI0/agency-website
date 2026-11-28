@@ -6,6 +6,8 @@ import path from "node:path";
 import { SoaleFaqAccordion } from "@/components/sections/soale/SoaleFaqAccordion";
 import { LazySoaleFaqAccordion, LazySoalePricingSection, LazySoaleProcessSection } from "@/components/sections/LazyClientIslands";
 import { SoaleWorkShowcase } from "@/components/sections/soale/SoaleWorkShowcase";
+import { FooterLinkGroup } from "@/components/layout/FooterLinkGroup";
+import { SoaleArrowButton } from "@/components/ui/soale/SoaleArrowButton";
 import { DEFAULT_PRICING_CONFIG } from "@/features/pricing/default-pricing";
 import type { FaqItem } from "@/types/content";
 
@@ -48,5 +50,42 @@ describe("homepage progressive accessibility", () => {
     for (const file of ["MotionRuntime.tsx", "ScrollCardChoreography.tsx", "InteractiveGlobeCanvas.tsx"]) {
       expect(src(`src/components/animations/${file}`)).toContain("motionPreferenceVersion");
     }
+  });
+  it("uses native required-field validation and button semantics for contact intent", () => {
+    const form = src("src/components/sections/ContactForm.tsx");
+    expect(form).not.toContain("noValidate");
+    expect(form).toContain('role="group"');
+    expect(form).not.toContain('role="tablist"');
+    expect(form).toContain("aria-pressed={enquiryMode ===");
+  });
+  it("keeps footer groups collapsed on mobile and scales CTA controls without reducing touch targets", () => {
+    const footerGroup = renderToStaticMarkup(
+      React.createElement(FooterLinkGroup, {
+        id: "footer-services",
+        title: "Services",
+        children: React.createElement(
+          "ul",
+          null,
+          React.createElement("li", null, "Automation")
+        ),
+      })
+    );
+    expect(footerGroup).toContain('aria-expanded="false"');
+    expect(footerGroup).toContain('aria-controls="footer-services"');
+    expect(footerGroup).toContain('class="hidden lg:mt-4 lg:block"');
+
+    const cta = renderToStaticMarkup(
+      React.createElement(SoaleArrowButton, {
+        href: "/contact",
+        children: "Book a free review",
+      })
+    );
+    expect(cta).toContain("soale-arrow-btn-md");
+    expect(src("src/styles/globals.css")).toContain(
+      ".soale-arrow-btn-md .soale-arrow-box"
+    );
+    expect(src("src/components/ui/soale/SoaleArrowButton.tsx")).toContain(
+      "!h-11 !w-11"
+    );
   });
 });

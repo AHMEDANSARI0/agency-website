@@ -24,7 +24,7 @@ OmniFlow is a production-hardened Next.js 15 agency website, interactive workflo
    - Atomic initial Super Admin setup (`pg_advisory_xact_lock` + mutex) and atomic single-use SHA-256 recovery token consumption preventing concurrent `TOCTOU` replay attacks.
    - Persistent serverless cold-start safe `Idempotency-Key` lead deduplication (`lead_idempotency_keys`), incremental `ReadableStream` chunk payload size guards (`16 KB` auth / `24 KB` leads -> `413`), hardened CSRF (`Origin: null`, cross-origin `Referer`, `Sec-Fetch-Site`, multi-proxy `X-Forwarded-Host`), and indexed `O(log N)` PostgreSQL point lookups.
 5. **End-to-End Verification & Production Handover (`transformation-phase-5`):**
-   - Edge Web Crypto HMAC session gate on protected `/admin` routes (`307 -> /admin/login` with `Cache-Control: no-store`), 21 automated Vitest suites (`106` tests), non-destructive 4-migration SQL chain (`0001`–`0004`), and `npm run preflight` CLI audit.
+   - Edge Web Crypto HMAC session gate on protected `/admin` routes (`307 -> /admin/login` with `Cache-Control: no-store`), progressive admin login lockouts (5 failures → 15 minutes, then doubling after each further 5-failure block), 21 automated Vitest suites (`106` tests), and `npm run preflight` CLI audit.
 
 ---
 
@@ -43,4 +43,6 @@ npm run dev
 - **Admin Console:** `http://localhost:3000/admin/login` (or `/admin/setup` when `users` table is empty)
 - **Health & Readiness Probe:** `http://localhost:3000/api/health`
 
-See **[`DEPLOYMENT_AND_HANDOVER.md`](./DEPLOYMENT_AND_HANDOVER.md)** for complete Supabase SQL migrations (`0001`–`0004`), Storage bucket setup, Vercel environment variables, Resend DNS authentication, and custom domain launch instructions.
+See **[`DEPLOYMENT_AND_HANDOVER.md`](./DEPLOYMENT_AND_HANDOVER.md)** for complete Supabase SQL migrations (`0001`–`0006`), Storage bucket setup, Vercel environment variables, Resend DNS authentication, and custom domain launch instructions.
+
+Apply the new `20261128104913_0006_admin_login_lockouts.sql` migration before deploying this login update. Configure `OMNIFLOW_TRUSTED_CLIENT_IP_HEADER` only for a proxy header that your hosting provider overwrites (supported values: `x-real-ip` or `cf-connecting-ip`); without a trusted client IP, login lockouts fall back to the submitted account to avoid locking out every admin behind an unknown shared address.

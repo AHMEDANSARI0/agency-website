@@ -4,7 +4,7 @@ import { isPlaceholderEnvValue, isProductionEnvironment } from "@/lib/env";
 
 export { SESSION_COOKIE_NAME, getSessionCookieOptions } from "./session-cookie";
 
-function getSigningSecret(): string {
+export function getSigningSecret(): string {
   const envSecret =
     process.env.AUTH_SECRET?.trim() ||
     process.env.SESSION_SECRET?.trim() ||

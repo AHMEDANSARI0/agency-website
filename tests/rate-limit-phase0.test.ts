@@ -29,6 +29,7 @@ describe("production distributed rate limiter", () => {
   });
   it("returns generic 503 for protected public request flows when storage is unavailable", async () => {
     vi.stubEnv("OMNIFLOW_STRICT_PRODUCTION", "true");
+    vi.stubEnv("AUTH_SECRET", "test-auth-secret-that-is-long-enough-123456");
     vi.spyOn(db, "checkDistributedRateLimitBucket").mockResolvedValue(null);
     const cases = [
       [leads, request("/api/leads", {})],

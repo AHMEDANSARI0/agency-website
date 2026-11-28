@@ -93,15 +93,18 @@ describe("Phase 4 — Homepage Restructuring (17 -> 9 Sections) & Reference Dark
     expect(stackBarSrc).toContain("<svg");
   });
 
-  it("3. streamlines Home to 6 focused sections, 4-phase process, {{PRICE_FROM}} pricing (zero Coming Soon), and {{FOUNDER_PHOTO_URL}} slot", () => {
+  it("3. streamlines Home to 9 focused sections, 4-phase process, {{PRICE_FROM}} pricing (zero Coming Soon), and {{FOUNDER_PHOTO_URL}} slot", () => {
     expect(CURRENT_SEED_VERSION).toBeGreaterThanOrEqual(14);
-    expect(DEFAULT_HOME_SECTIONS).toHaveLength(6);
+    expect(DEFAULT_HOME_SECTIONS).toHaveLength(9);
     expect(DEFAULT_HOME_SECTIONS.map((s) => s.type)).toEqual([
       "hero",
+      "trust_strip",
+      "problems_outcomes",
       "flagship_systems",
       "interactive_demos_preview",
       "case_studies_highlight",
       "how_it_works",
+      "faq_section",
       "cta_banner",
     ]);
 
@@ -200,7 +203,7 @@ describe("Phase 4 — Homepage Restructuring (17 -> 9 Sections) & Reference Dark
     const upgradedSettings = await db.getSiteSettings();
     const preservedLeads = await db.listLeads();
 
-    expect(upgradedHome?.sections).toHaveLength(6);
+    expect(upgradedHome?.sections).toHaveLength(9);
     expect(upgradedSettings.primaryCtaLabel).toBe("Book a free workflow review");
     expect(upgradedSettings.secondaryCtaLabel).toBe("See live demo");
     expect(upgradedSettings.pricingConfig?.comingSoonMode).toBe(false);

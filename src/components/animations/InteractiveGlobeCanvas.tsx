@@ -239,6 +239,14 @@ export function InteractiveGlobeCanvas({
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isThemeMotionSuppressed = () => {
+      const scaleRaw = window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue("--of-motion-scale")
+        .trim();
+      return scaleRaw !== "" && Number(scaleRaw) <= 0;
+    };
+    let motionSuppressed = prefersReduced || isThemeMotionSuppressed();
 
     let width = 0;
     let height = 0;
@@ -338,7 +346,7 @@ export function InteractiveGlobeCanvas({
           ? [Math.round(r2 * 0.88), Math.round(g2 * 0.52), Math.round(b2 * 0.35)]
           : [r2, g2, b2];
 
-        if (!isDragging && !prefersReduced) {
+        if (!isDragging && !motionSuppressed) {
           yaw += dt * 0.24 * rotationSpeed + velYaw;
           pitch = Math.max(-0.65, Math.min(0.75, pitch + velPitch));
           velYaw *= 0.92;
@@ -644,7 +652,7 @@ export function InteractiveGlobeCanvas({
         drawOrbitalRingHalf(true);
       }
 
-      if (!prefersReduced && !isHidden && isInViewport) {
+      if (!motionSuppressed && !isHidden && isInViewport) {
         rafId = window.requestAnimationFrame(renderFrame);
       }
     };
@@ -658,6 +666,27 @@ export function InteractiveGlobeCanvas({
         rafId = window.requestAnimationFrame(renderFrame);
       }
     };
+    const syncMotionPreference = () => {
+      const nextMotionSuppressed =
+        prefersReduced || isThemeMotionSuppressed();
+      if (nextMotionSuppressed === motionSuppressed) return;
+      motionSuppressed = nextMotionSuppressed;
+      if (motionSuppressed) stopAnimation();
+      else {
+        lastTs = performance.now();
+        startAnimation();
+      }
+    };
+    const motionObserver = new MutationObserver(syncMotionPreference);
+    motionObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+    motionObserver.observe(document.head, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
     const onVisibilityChange = () => {
       if (document.hidden) stopAnimation();
       else startAnimation();
@@ -679,6 +708,7 @@ export function InteractiveGlobeCanvas({
       stopAnimation();
       ro?.disconnect();
       visibilityObserver?.disconnect();
+      motionObserver.disconnect();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       canvas.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);

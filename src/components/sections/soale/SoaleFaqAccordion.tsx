@@ -33,8 +33,12 @@ export function SoaleFaqAccordion({
           system ownership, and how workflow reviews work.
         </p>
 
-        <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
-          <SoaleArrowButton href="/contact?intent=call" variant="secondary">
+        <div className="mt-7 flex flex-wrap items-center gap-2 sm:mt-8 sm:gap-3">
+          <SoaleArrowButton
+            href="/contact?intent=call"
+            variant="secondary"
+            size="sm"
+          >
             Ask a question
           </SoaleArrowButton>
           <SoaleArrowButton href="/faq" variant="outline" size="sm">

@@ -141,7 +141,7 @@ export async function PageConversionBanner({
             <div
               data-card-motion-id="shared-conversion-banner"
               data-scroll-card=""
-              className="soale-horizon-card rounded-[26px] px-5 py-12 text-center sm:px-12 sm:py-18"
+              className="soale-horizon-card rounded-[26px] px-4 py-9 text-center sm:px-12 sm:py-18"
             >
               <div className="relative z-10 mx-auto max-w-3xl">
                 <SoaleEyebrow className="mb-5">{eyebrow}</SoaleEyebrow>
@@ -160,7 +160,7 @@ export async function PageConversionBanner({
                   {resolvedDescription}
                 </p>
 
-                <div className="mt-8 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:flex-wrap sm:gap-4">
+                <div className="mt-6 flex flex-col items-center justify-center gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-4">
                   <SoaleArrowButton
                     href={resolvedPrimaryHref}
                     variant="secondary"

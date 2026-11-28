@@ -41,6 +41,13 @@ describe("admin cookie policy", () => {
     vi.spyOn(rate, "checkDistributedRateLimit").mockResolvedValue({ allowed: true, remaining: 4, retryAfterSeconds: 0 });
     vi.spyOn(db, "countUsers").mockResolvedValue(1);
     vi.spyOn(db, "findUserByEmail").mockResolvedValue(user);
+    vi.spyOn(db, "getAdminLoginLockoutState").mockResolvedValue({
+      failedAttempts: 0,
+      lockoutCount: 0,
+      locked: false,
+      retryAfterSeconds: 0,
+    });
+    vi.spyOn(db, "clearAdminLoginFailures").mockResolvedValue(true);
     vi.spyOn(db, "recordUserLogin").mockResolvedValue(undefined as never);
     vi.spyOn(db, "recordAuditLog").mockResolvedValue(undefined as never);
     vi.spyOn(db, "revokeSessionsForVersion").mockResolvedValue(user);

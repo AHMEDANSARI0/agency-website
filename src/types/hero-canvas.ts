@@ -18,6 +18,7 @@ export interface HeroCanvasConfig {
   particleDensity: GlobeParticleDensity;
   primaryGlowColor: string;
   secondaryGlowColor: string;
+  glowIntensity: number;
   showOrbitalRing: boolean;
   showSignalArcs: boolean;
   interactiveDrag: boolean;
@@ -42,6 +43,7 @@ export const DEFAULT_HERO_CANVAS_CONFIG: HeroCanvasConfig = {
   particleDensity: "balanced",
   primaryGlowColor: "#A855F7",
   secondaryGlowColor: "#FB923C",
+  glowIntensity: 0.72,
   showOrbitalRing: true,
   showSignalArcs: true,
   interactiveDrag: true,
@@ -70,6 +72,7 @@ export const HERO_CANVAS_PRESETS: HeroCanvasPreset[] = [
       layoutAlign: "centered",
       primaryGlowColor: "#A855F7",
       secondaryGlowColor: "#FB923C",
+      glowIntensity: DEFAULT_HERO_CANVAS_CONFIG.glowIntensity,
       showCommandCenter: false,
     },
   },
@@ -89,6 +92,7 @@ export const HERO_CANVAS_PRESETS: HeroCanvasPreset[] = [
       particleDensity: "dense",
       primaryGlowColor: "#A855F7",
       secondaryGlowColor: "#FB923C",
+      glowIntensity: DEFAULT_HERO_CANVAS_CONFIG.glowIntensity,
       showOrbitalRing: true,
       showSignalArcs: true,
       interactiveDrag: true,
@@ -112,6 +116,7 @@ export const HERO_CANVAS_PRESETS: HeroCanvasPreset[] = [
       particleDensity: "dense",
       primaryGlowColor: "#9333EA",
       secondaryGlowColor: "#E879F9",
+      glowIntensity: DEFAULT_HERO_CANVAS_CONFIG.glowIntensity,
       showOrbitalRing: false,
       showSignalArcs: true,
       interactiveDrag: true,
@@ -135,6 +140,7 @@ export const HERO_CANVAS_PRESETS: HeroCanvasPreset[] = [
       particleDensity: "balanced",
       primaryGlowColor: "#C026D3",
       secondaryGlowColor: "#FB923C",
+      glowIntensity: DEFAULT_HERO_CANVAS_CONFIG.glowIntensity,
       showOrbitalRing: true,
       showSignalArcs: true,
       interactiveDrag: true,
@@ -208,6 +214,12 @@ export function normalizeHeroCanvasConfig(raw: unknown): HeroCanvasConfig {
     secondaryGlowColor: sanitizeHexColor(
       obj.secondaryGlowColor,
       DEFAULT_HERO_CANVAS_CONFIG.secondaryGlowColor
+    ),
+    glowIntensity: clampNum(
+      obj.glowIntensity,
+      0,
+      1,
+      DEFAULT_HERO_CANVAS_CONFIG.glowIntensity
     ),
     showOrbitalRing:
       typeof obj.showOrbitalRing === "boolean" ? obj.showOrbitalRing : true,

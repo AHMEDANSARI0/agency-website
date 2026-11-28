@@ -26,15 +26,18 @@ import { DEFAULT_NAVBAR_STYLE_SETTINGS } from "@/features/admin/navbar-style-def
 import { isProductionEnvironment } from "@/lib/env";
 import { hashPassword, validatePasswordStrength } from "@/lib/security/password";
 
-export const CURRENT_SEED_VERSION = 17;
+export const CURRENT_SEED_VERSION = 18;
 
 export const DEFAULT_HOME_SECTIONS: PageSectionBlock[] = [
   { id: "sec-hero", type: "hero", title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
-  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 2, config: {} },
-  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 3, config: {} },
-  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 4, config: {} },
-  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 5, config: {} },
-  { id: "sec-cta", type: "cta_banner", title: "Start with one bottleneck. Leave with a clear, written automation plan.", isVisible: true, order: 6, config: {} },
+  { id: "sec-trust", type: "trust_strip", title: "Trusted tools, connected into one workflow", isVisible: true, order: 2, config: {} },
+  { id: "sec-outcomes", type: "problems_outcomes", title: "Replace repetitive work with measurable outcomes", isVisible: true, order: 3, config: {} },
+  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 4, config: {} },
+  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 5, config: {} },
+  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 6, config: {} },
+  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 7, config: {} },
+  { id: "sec-faq", type: "faq_section", title: "Frequently Asked Questions", isVisible: true, order: 8, config: {} },
+  { id: "sec-cta", type: "cta_banner", title: "Start with one bottleneck. Leave with a clear, written automation plan.", isVisible: true, order: 9, config: {} },
 ];
 
 export interface StoredDatabaseBackup extends DatabaseBackupSummary {
@@ -182,9 +185,9 @@ export function createInitialSeedSnapshot(): OmniFlowDatabaseSnapshot {
       { id: "nav-solutions", label: "Solutions", href: "/solutions", isVisible: true, order: 2 },
       { id: "nav-cases", label: "Case Studies", href: "/case-studies", isVisible: true, order: 3 },
       { id: "nav-pricing", label: "Pricing", href: "/pricing", isVisible: true, order: 4 },
-      { id: "nav-how", label: "How It Works", href: "/how-it-works", isVisible: true, order: 5 },
+      { id: "nav-how", label: "How It Works", href: "/how-it-works", isVisible: false, order: 7 },
       { id: "nav-about", label: "About", href: "/about", isVisible: true, order: 6 },
-      { id: "nav-demos", label: "Live Demos", href: "/demos", isVisible: false, order: 7 },
+      { id: "nav-demos", label: "Live Demos", href: "/demos", isVisible: true, order: 5 },
       { id: "nav-blog", label: "Insights", href: "/blog", isVisible: false, order: 8 },
     ],
     footerLinks: {

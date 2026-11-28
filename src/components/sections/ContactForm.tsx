@@ -408,19 +408,17 @@ export function ContactForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      noValidate
       className="soale-card p-6 sm:p-9"
     >
       {/* Intent Mode Selector: Book Discovery Call vs. Quick Written Enquiry */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Choose how you would like to connect"
         className="grid grid-cols-1 gap-2 rounded-xl border border-line bg-surface-muted p-1.5 sm:grid-cols-2"
       >
         <button
           type="button"
-          role="tab"
-          aria-selected={enquiryMode === "discovery_call"}
+          aria-pressed={enquiryMode === "discovery_call"}
           onClick={() => setEnquiryMode("discovery_call")}
           className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
             enquiryMode === "discovery_call"
@@ -434,8 +432,7 @@ export function ContactForm({
 
         <button
           type="button"
-          role="tab"
-          aria-selected={enquiryMode === "workflow_enquiry"}
+          aria-pressed={enquiryMode === "workflow_enquiry"}
           onClick={() => setEnquiryMode("workflow_enquiry")}
           className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
             enquiryMode === "workflow_enquiry"

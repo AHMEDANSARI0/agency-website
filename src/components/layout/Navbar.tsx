@@ -17,7 +17,7 @@ const DEFAULT_FALLBACK_LINKS = [
   { id: "nav-solutions", label: "Solutions", href: "/solutions" },
   { id: "nav-cases", label: "Case Studies", href: "/case-studies" },
   { id: "nav-pricing", label: "Pricing", href: "/pricing" },
-  { id: "nav-how", label: "How It Works", href: "/how-it-works" },
+  { id: "nav-demos", label: "Live Demos", href: "/demos" },
   { id: "nav-about", label: "About", href: "/about" },
 ];
 
@@ -156,7 +156,6 @@ export function Navbar({ brand, settings }: NavbarProps) {
 
   return (
     <header ref={headerRef} data-ve-global-element="header" style={navbarCssVariables} className={`of-floating-header ${pathname === "/" ? "of-floating-header-home" : ""} sticky z-40 mx-auto`}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-xs focus:font-semibold focus:text-primary-foreground">Skip to content</a>
       <div className="of-floating-bar flex items-center justify-between">
         <div className="shrink-0"><BrandMark brand={brand} size={navbarStyle.brandMarkSize} tone="auto" /></div>
         <nav aria-label="Primary navigation" className="hidden min-w-0 items-center justify-center gap-0.5 xl:flex">

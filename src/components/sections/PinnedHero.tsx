@@ -331,6 +331,11 @@ export function PinnedHero({
       aria-label="OmniFlow AI workflow automation hero"
       data-hero-repeat={repeatVisit ? "true" : "false"}
       data-hero-visual={canvasCfg.visualMode}
+      style={
+        {
+          "--of-hero-glow-intensity": canvasCfg.glowIntensity,
+        } as React.CSSProperties
+      }
       className="of-hero-shell relative overflow-hidden pb-14 pt-20 sm:pb-20 sm:pt-24 lg:pb-24 lg:pt-28"
     >
       {/* Soale Orbital Halo Light Ring + Corner Ambient Orbs + Starfield (Dark & Light Mode) */}
@@ -425,8 +430,8 @@ export function PinnedHero({
           <div
             className={
               isSplitLeft && showQuantumGlobe
-                ? "text-left lg:col-span-6"
-                : "mx-auto max-w-3xl text-center"
+                ? "text-left lg:col-span-7"
+                : "mx-auto max-w-5xl text-center"
             }
           >
             {/* Dual-Mode Soale Star Pill Eyebrow */}
@@ -460,9 +465,9 @@ export function PinnedHero({
             <h1
               data-reveal=""
               style={{ "--d": 1 } as React.CSSProperties}
-              className={`mt-6 font-display font-bold leading-[1.07] tracking-[-0.036em] text-ink-heading sm:mt-7 ${
+              className={`mt-6 text-balance font-display font-bold leading-[1.07] tracking-[-0.036em] text-ink-heading sm:mt-7 ${
                 isSplitLeft && showQuantumGlobe
-                  ? "text-[2.15rem] sm:text-[3.1rem] lg:text-[3.75rem]"
+                  ? "text-[2.15rem] sm:text-[3.1rem] lg:text-[3.6rem]"
                   : "text-[2.2rem] sm:text-[3.45rem] lg:text-[4.4rem]"
               }`}
             >
@@ -505,7 +510,7 @@ export function PinnedHero({
               </SoaleArrowButton>
               <Link
                 href={effectiveSecondaryHref}
-                className="inline-flex min-h-[45px] items-center justify-center rounded-[17px] border border-line-strong bg-surface-glass px-6 py-3 text-[0.92rem] font-medium text-ink-heading backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="inline-flex min-h-[45px] items-center justify-center rounded-[17px] border border-line-strong bg-surface-glass px-4 py-2.5 text-[0.84rem] font-medium text-ink-heading backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:px-6 sm:py-3 sm:text-[0.92rem]"
               >
                 {effectiveSecondaryText}
               </Link>
@@ -538,7 +543,7 @@ export function PinnedHero({
           {isSplitLeft && showQuantumGlobe && (
             <div
               onPointerDown={handleCanvasDragStart}
-              className={`relative h-[340px] w-full sm:h-[430px] lg:col-span-6 lg:h-[510px] ${
+              className={`relative h-[340px] w-full sm:h-[430px] lg:col-span-5 lg:h-[510px] ${
                 effectiveDragMode
                   ? "cursor-move rounded-3xl ring-2 ring-dashed ring-primary/70"
                   : ""

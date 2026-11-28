@@ -56,6 +56,7 @@ const REQUIRED_FILES = [
   "supabase/migrations/0003_crm_and_operations.sql",
   "supabase/migrations/0004_security_and_performance.sql",
   "supabase/migrations/0005_rate_limit_fixed_window.sql",
+  "supabase/migrations/20261128104913_0006_admin_login_lockouts.sql",
 ];
 
 const REQUIRED_PUBLIC_ASSETS = [
@@ -180,6 +181,7 @@ for (const sqlRel of [
   "supabase/migrations/0002_production_upgrade.sql",
   "supabase/migrations/0003_crm_and_operations.sql",
   "supabase/migrations/0004_security_and_performance.sql",
+  "supabase/migrations/20261128104913_0006_admin_login_lockouts.sql",
 ]) {
   const fullPath = path.join(rootDir, sqlRel);
   if (fs.existsSync(fullPath)) {

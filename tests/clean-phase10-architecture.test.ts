@@ -20,7 +20,7 @@ import sitemap from "@/app/sitemap";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
 
-describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Admin-Driven Nav & Real Inner-Page Studio", () => {
+describe("Phase 10 — Theme-Harmonized 3D Globe, Recommended 9-Section Home, Admin-Driven Nav & Real Inner-Page Studio", () => {
   let tempDir = "";
 
   beforeEach(() => {
@@ -61,6 +61,7 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
     expect(DEFAULT_HERO_CANVAS_CONFIG.showCommandCenter).toBe(false);
     expect(DEFAULT_HERO_CANVAS_CONFIG.primaryGlowColor).toBe("#A855F7");
     expect(DEFAULT_HERO_CANVAS_CONFIG.secondaryGlowColor).toBe("#FB923C");
+    expect(DEFAULT_HERO_CANVAS_CONFIG.glowIntensity).toBe(0.72);
 
     const normalized = normalizeHeroCanvasConfig(undefined);
     expect(normalized).toEqual(DEFAULT_HERO_CANVAS_CONFIG);
@@ -81,15 +82,18 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
     expect(globeSrc).not.toContain("framer-motion");
   });
 
-  it("2. enforces streamlined 6-section Homepage flow and migrates legacy snapshots to v17", async () => {
-    expect(CURRENT_SEED_VERSION).toBe(17);
-    expect(DEFAULT_HOME_SECTIONS).toHaveLength(6);
+  it("2. enforces the recommended 9-section Homepage flow and migrates legacy snapshots to v18", async () => {
+    expect(CURRENT_SEED_VERSION).toBe(18);
+    expect(DEFAULT_HOME_SECTIONS).toHaveLength(9);
     expect(DEFAULT_HOME_SECTIONS.map((s) => s.type)).toEqual([
       "hero",
+      "trust_strip",
+      "problems_outcomes",
       "flagship_systems",
       "interactive_demos_preview",
       "case_studies_highlight",
       "how_it_works",
+      "faq_section",
       "cta_banner",
     ]);
 
@@ -133,7 +137,7 @@ describe("Phase 10 — Theme-Harmonized 3D Globe, Streamlined 6-Section Home, Ad
 
     process.env.OMNIFLOW_LOCAL_DB_PATH = legacy9Path;
     const upgradedHome = await db.getPageBySlug("home");
-    expect(upgradedHome?.sections).toHaveLength(6);
+    expect(upgradedHome?.sections).toHaveLength(9);
     expect((await db.getSiteSettings()).navbarStyle?.topOffset).toBe(12);
     expect((await db.getSiteSettingsDraft()).navbarStyle?.topOffset).toBe(12);
     expect(await db.getCardMotionDraft()).toEqual(await db.getCardMotion());

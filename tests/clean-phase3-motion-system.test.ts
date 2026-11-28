@@ -33,6 +33,7 @@ describe("Phase 3 — Motion System (Smooth, Fast, Disciplined)", () => {
     expect(css).not.toContain(".lightup");
     expect(css).not.toContain("[data-parallax]");
     expect(css).not.toContain(".animate-marquee-reverse");
+    expect(css).toContain('html:not([data-motion="ready"]) .animate-marquee');
   });
 
   it("3. configures desktop Lenis (lerp 0.2, route scroll reset, smooth #hash scrollTo, and data-lenis-prevent)", () => {

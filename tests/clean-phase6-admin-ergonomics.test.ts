@@ -95,16 +95,21 @@ describe("Phase 6 — Admin CMS, Theme Studio, Pricing & {{PLACEHOLDER}} Ergonom
     expect(themeClientSrc).toContain("OMNIFLOW_DARK_PURPLE_AI_PRESET_ID");
   });
 
-  it("4. keeps PageBuilderClient CLEAN_HOME_9_SECTIONS in 1:1 parity with DEFAULT_HOME_SECTIONS and exposes Core 01..06 + Restore Default 6-Section Home", () => {
+  it("4. keeps PageBuilderClient CLEAN_HOME_9_SECTIONS in 1:1 parity with DEFAULT_HOME_SECTIONS and exposes Core 01..09 + Restore Default 9-Section Home", () => {
     expect(CLEAN_HOME_9_SECTIONS).toEqual(DEFAULT_HOME_SECTIONS);
 
-    const firstSixTypes = SECTION_CATALOG.slice(0, 6).map((c) => c.type);
-    expect(firstSixTypes).toEqual(DEFAULT_HOME_SECTIONS.map((s) => s.type));
+    const firstNineTypes = SECTION_CATALOG.slice(0, 9).map((c) => c.type);
+    expect(firstNineTypes).toEqual(DEFAULT_HOME_SECTIONS.map((s) => s.type));
 
     const builderSrc = fs.readFileSync(
       path.join(process.cwd(), "src/features/admin/PageBuilderClient.tsx"),
       "utf8"
     );
-    expect(builderSrc).toContain("Restore Default 6-Section Home");
+    expect(builderSrc).toContain("Restore Default 9-Section Home");
+    expect(
+      fs.readFileSync(path.join(process.cwd(), "src/styles/globals.css"), "utf8")
+    ).toContain(
+      '#of-home-sections-root [data-of-theme-spacing="true"] > section'
+    );
   });
 });

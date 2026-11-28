@@ -549,7 +549,7 @@ export default async function AdminDashboardPage() {
                 {pages.length}
               </p>
               <p className="mt-0.5 text-[11px] text-primary">
-                16-section homepage active →
+                Homepage layout in Page Builder →
               </p>
             </Link>
 

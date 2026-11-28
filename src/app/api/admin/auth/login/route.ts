@@ -1,15 +1,23 @@
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db, toSafeUser } from "@/lib/database";
 import { DatabaseUnavailableError } from "@/lib/env";
 import {
   createSessionToken,
+  getSigningSecret,
   getSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
 import { verifyAdminWriteOrigin } from "@/lib/security/admin-origin";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
-import { checkDistributedRateLimit, extractClientIp } from "@/lib/security/rate-limit";
+import {
+  clearAdminLoginFailures,
+  extractClientIp,
+  getAdminLoginLockout,
+  recordAdminLoginFailure,
+} from "@/lib/security/rate-limit";
+import { formatAdminLoginRetryTime } from "@/lib/security/admin-login-lockout";
 import { readBoundedJsonBody } from "@/lib/security/request-guards";
 
 const DUMMY_PASSWORD_HASH = hashPassword("DummyConstantTimeFallback_2026!");
@@ -20,6 +28,22 @@ const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid staff email address.").max(160),
   password: z.string().min(1, "Password is required.").max(256),
 });
+
+function tooManyAttemptsResponse(retryAfterSeconds: number) {
+  const retryTime = formatAdminLoginRetryTime(retryAfterSeconds);
+  return NextResponse.json(
+    {
+      error: `Too many failed sign-in attempts. Try again in about ${retryTime}.`,
+    },
+    {
+      status: 429,
+      headers: {
+        ...NO_STORE_HEADERS,
+        "Retry-After": String(retryAfterSeconds),
+      },
+    }
+  );
+}
 
 export async function POST(request: Request) {
   if (!verifyAdminWriteOrigin(request)) {
@@ -48,28 +72,28 @@ export async function POST(request: Request) {
   }
 
   const emailNormalized = parsed.data.email.toLowerCase();
-  const rate = await checkDistributedRateLimit(
-    `admin_login:${ip}:${emailNormalized}`,
-    6,
-    15 * 60 * 1000
-  );
-  if (rate.unavailable) {
+  let deviceKey: string;
+  try {
+    const identity = ip === "unknown"
+      ? `account:${emailNormalized}`
+      : `ip:${ip}`;
+    deviceKey = createHmac("sha256", getSigningSecret())
+      .update(`admin-login-lockout\0${identity}`)
+      .digest("hex");
+  } catch {
     return NextResponse.json(
-      { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { error: "Authentication service is temporarily unavailable.", code: "AUTH_UNAVAILABLE" },
       { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
     );
   }
-  if (!rate.allowed) {
+  const lockout = await getAdminLoginLockout(deviceKey);
+  if (lockout.unavailable) {
     return NextResponse.json(
-      {
-        error: `Too many sign-in attempts. Please wait ${rate.retryAfterSeconds} seconds before trying again.`,
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(rate.retryAfterSeconds) },
-      }
+      { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+      { status: 503, headers: { ...NO_STORE_HEADERS, "Retry-After": "60" } }
     );
   }
+  if (lockout.locked) return tooManyAttemptsResponse(lockout.retryAfterSeconds);
 
   try {
     const userCount = await db.countUsers();
@@ -89,22 +113,41 @@ export async function POST(request: Request) {
     const passwordValid = verifyPassword(parsed.data.password, candidateHash);
 
     if (!user || !passwordValid || !user.isActive) {
+      const failure = await recordAdminLoginFailure(deviceKey);
+      if (failure.unavailable) {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+          { status: 503, headers: { ...NO_STORE_HEADERS, "Retry-After": "60" } }
+        );
+      }
+
       await db.recordAuditLog({
         actorId: user?.id || "anonymous",
         actorEmail: emailNormalized,
         actorRole: user?.role || "AUTHOR",
-        action: "auth.login_failed",
+        action: failure.locked ? "auth.login_locked" : "auth.login_failed",
         entityType: "auth",
         summary:
-          user && !user.isActive
-            ? `Blocked sign-in attempt for deactivated account (${emailNormalized}).`
-            : `Failed sign-in attempt for ${emailNormalized}.`,
+          failure.locked
+            ? "Repeated failed sign-in attempts triggered an admin login lockout."
+            : user && !user.isActive
+              ? `Blocked sign-in attempt for deactivated account (${emailNormalized}).`
+              : `Failed sign-in attempt for ${emailNormalized}.`,
         ipAddress: ip,
       });
 
+      if (failure.locked) return tooManyAttemptsResponse(failure.retryAfterSeconds);
       return NextResponse.json(
         { error: "Invalid email or password, or this account is inactive." },
-        { status: 401 }
+        { status: 401, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const clearedFailures = await clearAdminLoginFailures(deviceKey);
+    if (clearedFailures.unavailable) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+        { status: 503, headers: { ...NO_STORE_HEADERS, "Retry-After": "60" } }
       );
     }
 

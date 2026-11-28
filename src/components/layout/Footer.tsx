@@ -6,6 +6,7 @@ import type { SiteSettings } from "@/types/content";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { Container } from "@/components/ui/Container";
 import { SoaleArrowButton } from "@/components/ui/soale";
+import { FooterLinkGroup } from "@/components/layout/FooterLinkGroup";
 import { CookiePreferencesButton } from "@/components/analytics/CookiePreferencesButton";
 import { hasConfiguredContactEmail } from "@/lib/placeholders";
 
@@ -55,7 +56,7 @@ export function Footer({ brand, settings }: FooterProps) {
       </div>
 
       <Container className="py-10 sm:py-12">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-12 lg:items-start">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 sm:gap-y-9 lg:grid-cols-12 lg:items-start">
           <div data-reveal="" className="lg:col-span-4 lg:pr-6">
             <BrandMark brand={brand} tone="auto" />
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--of-color-body)]">
@@ -86,88 +87,92 @@ export function Footer({ brand, settings }: FooterProps) {
             </div>
           </div>
 
-          <div data-reveal="" className="lg:col-span-2 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-              Core Systems
-            </h2>
-            <ul className="mt-4 space-y-2.5 text-sm leading-5">
-              {settings.footerLinks.services
-                .filter((i) => i.isVisible)
-                .map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-            </ul>
+          <div
+            data-reveal=""
+            className="lg:col-span-2 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6"
+          >
+            <FooterLinkGroup id="footer-core-systems" title="Core Systems">
+              <ul className="space-y-2.5 text-sm leading-5">
+                {settings.footerLinks.services
+                  .filter((i) => i.isVisible)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </FooterLinkGroup>
           </div>
 
-          <div data-reveal="" className="lg:col-span-3 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6">
-            <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-              Solutions &amp; Lab
-            </h2>
-            <ul className="mt-4 space-y-2.5 text-sm leading-5">
-              <li>
-                <Link
-                  href="/solutions"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Industry Playbooks
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/how-it-works"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Delivery Methodology
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pricing"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Scopes &amp; Pricing
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/demos"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Interactive Demos Hub
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/demos?tab=savings-calculator"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Savings Calculator
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/demos?tab=readiness-assessment"
-                  className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
-                >
-                  Readiness Assessment
-                </Link>
-              </li>
-            </ul>
+          <div
+            data-reveal=""
+            className="lg:col-span-3 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6"
+          >
+            <FooterLinkGroup
+              id="footer-solutions"
+              title="Solutions & Lab"
+            >
+              <ul className="space-y-2.5 text-sm leading-5">
+                <li>
+                  <Link
+                    href="/solutions"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Industry Playbooks
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/how-it-works"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Delivery Methodology
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/pricing"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Scopes &amp; Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/demos"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Interactive Demos Hub
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/demos?tab=savings-calculator"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Savings Calculator
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/demos?tab=readiness-assessment"
+                    className="text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)]"
+                  >
+                    Readiness Assessment
+                  </Link>
+                </li>
+              </ul>
+            </FooterLinkGroup>
           </div>
 
-          <div data-reveal="" className="grid gap-8 border-t border-[var(--of-color-border)] pt-8 sm:col-span-2 sm:grid-cols-2 lg:col-span-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-            <div>
-              <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-                Company &amp; proof
-              </h2>
-              <ul className="mt-4 space-y-2.5 text-sm leading-5">
+          <div data-reveal="" className="grid gap-3 border-t border-[var(--of-color-border)] pt-4 sm:col-span-2 sm:grid-cols-2 sm:gap-8 sm:pt-8 lg:col-span-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <FooterLinkGroup id="footer-company" title="Company & proof">
+              <ul className="space-y-2.5 text-sm leading-5">
                 {settings.footerLinks.company
                   .filter((i) => i.isVisible)
                   .map((item) => (
@@ -181,13 +186,14 @@ export function Footer({ brand, settings }: FooterProps) {
                     </li>
                   ))}
               </ul>
-            </div>
+            </FooterLinkGroup>
 
-            <div>
-              <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
-                Governance
-              </h2>
-              <ul className="mt-4 space-y-2.5 text-sm leading-5">
+            <FooterLinkGroup
+              id="footer-governance"
+              title="Governance"
+              className="sm:border-l sm:border-[var(--of-color-border)] sm:pl-6"
+            >
+              <ul className="space-y-2.5 text-sm leading-5">
                 {settings.footerLinks.legal
                   .filter((i) => i.isVisible)
                   .map((item) => (
@@ -212,7 +218,7 @@ export function Footer({ brand, settings }: FooterProps) {
                   </a>
                 </li>
               </ul>
-            </div>
+            </FooterLinkGroup>
           </div>
         </div>
 

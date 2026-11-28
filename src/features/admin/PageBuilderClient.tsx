@@ -62,58 +62,61 @@ export const SECTION_CATALOG: {
     coreOrder: 1,
   },
   {
+    type: "trust_strip",
+    label: "Trusted Tools & Integrations",
+    description: "A concise, standalone strip of compatible platform wordmarks.",
+    coreOrder: 2,
+  },
+  {
+    type: "problems_outcomes",
+    label: "Business Outcomes & Before / After",
+    description: "Show the operational bottleneck and the improved workflow.",
+    coreOrder: 3,
+  },
+  {
     type: "flagship_systems",
     label: "Stack Bar + Three Flagship Automation Systems",
     description:
       "Inline SVG stack strip paired with top 3 workflow tracks and service links.",
-    coreOrder: 2,
+    coreOrder: 4,
   },
   {
     type: "interactive_demos_preview",
     label: "Interactive Lead Scorer & Workflow Lab",
     description: "Focused live interactive sandbox preview on the homepage.",
-    coreOrder: 3,
+    coreOrder: 5,
   },
   {
     type: "case_studies_highlight",
     label: "Verified Blueprints & Founder Accountability",
     description:
       "Explicitly badged reference architectures / prototypes + Founder engineering note.",
-    coreOrder: 4,
+    coreOrder: 6,
   },
   {
     type: "how_it_works",
     label: "Four-Phase Delivery & Scope Clarity",
     description:
       "Audit -> Guardrail Build -> Stress Test -> Handover + transparent starting scope.",
-    coreOrder: 5,
+    coreOrder: 7,
+  },
+  {
+    type: "faq_section",
+    label: "Buyer FAQ Accordion",
+    description: "Answer common buyer questions before the final conversion step.",
+    coreOrder: 8,
   },
   {
     type: "cta_banner",
     label: "Executive Conversion Banner",
     description:
       "High-conviction conversion card with workflow review CTA and buyer FAQ link.",
-    coreOrder: 6,
-  },
-  {
-    type: "trust_strip",
-    label: "Standalone Stack Logo Bar (Optional)",
-    description: "6 crisp inline SVG integration wordmarks.",
-  },
-  {
-    type: "problems_outcomes",
-    label: "Outcomes + Before / After Compare (Optional)",
-    description: "Operational bottlenecks paired with Before/After toggle.",
+    coreOrder: 9,
   },
   {
     type: "roi_framing",
     label: "Full Pricing Tier Grid (Optional)",
     description: "Expanded starting tiers wired to Admin Settings -> Pricing.",
-  },
-  {
-    type: "faq_section",
-    label: "Buyer FAQ Accordion (Optional)",
-    description: "Top 5 plain-English buyer questions.",
   },
   {
     type: "services_overview",
@@ -159,11 +162,14 @@ export const SECTION_CATALOG: {
 
 export const CLEAN_HOME_9_SECTIONS: PageSectionBlock[] = [
   { id: "sec-hero", type: "hero", title: "Automate the work. Accelerate the business.", isVisible: true, order: 1, config: {} },
-  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 2, config: {} },
-  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 3, config: {} },
-  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 4, config: {} },
-  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 5, config: {} },
-  { id: "sec-cta", type: "cta_banner", title: "Start with one bottleneck. Leave with a clear, written automation plan.", isVisible: true, order: 6, config: {} },
+  { id: "sec-trust", type: "trust_strip", title: "Trusted tools, connected into one workflow", isVisible: true, order: 2, config: {} },
+  { id: "sec-outcomes", type: "problems_outcomes", title: "Replace repetitive work with measurable outcomes", isVisible: true, order: 3, config: {} },
+  { id: "sec-flagship", type: "flagship_systems", title: "Three Flagship Automation Services", isVisible: true, order: 4, config: {} },
+  { id: "sec-demos-preview", type: "interactive_demos_preview", title: "Interactive Lead Scorer Preview", isVisible: true, order: 5, config: {} },
+  { id: "sec-cases", type: "case_studies_highlight", title: "Workflow Blueprints & Founder Accountability", isVisible: true, order: 6, config: {} },
+  { id: "sec-how", type: "how_it_works", title: "Four-Phase Delivery Process", isVisible: true, order: 7, config: {} },
+  { id: "sec-faq", type: "faq_section", title: "Frequently Asked Questions", isVisible: true, order: 8, config: {} },
+  { id: "sec-cta", type: "cta_banner", title: "Start with one bottleneck. Leave with a clear, written automation plan.", isVisible: true, order: 9, config: {} },
 ];
 
 const INNER_PAGE_SUPPORTED_TYPES: PageSectionType[] = [
@@ -656,7 +662,7 @@ export function PageBuilderClient({
     setFeedback({
       type: "success",
       message:
-        "Restored streamlined 6-section Futuristic Homepage flow. Click 'Publish Live' to apply publicly.",
+        "Restored the recommended 9-section homepage flow. Click 'Publish Live' to apply publicly.",
     });
   };
 
@@ -791,7 +797,7 @@ export function PageBuilderClient({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/15"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                Restore Default 6-Section Home
+                Restore Default 9-Section Home
               </button>
             )}
           </div>

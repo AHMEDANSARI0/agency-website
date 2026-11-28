@@ -2,7 +2,7 @@
 
 import { useReducedMotionChange } from "@/components/animations/useReducedMotionChange";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 interface NavigatorConnectionLike {
@@ -50,8 +50,26 @@ function isMotionSuppressedByThemeOrOs(): boolean {
 export function MotionRuntime() {
   const motionPreferenceVersion = useReducedMotionChange();
   const pathname = usePathname();
+  const [themeMotionRevision, setThemeMotionRevision] = useState(0);
   const lenisRef = useRef<LenisLike | null>(null);
   const prevPathnameRef = useRef<string>(pathname);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const observer = new MutationObserver(() => {
+      setThemeMotionRevision((revision) => revision + 1);
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+    observer.observe(document.head, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -202,7 +220,7 @@ export function MotionRuntime() {
       lenisRef.current?.destroy();
       lenisRef.current = null;
     };
-  }, [motionPreferenceVersion]);
+  }, [motionPreferenceVersion, themeMotionRevision]);
 
   // Reset Lenis & window scroll cleanly on route changes (when not navigating to a #hash)
   useEffect(() => {

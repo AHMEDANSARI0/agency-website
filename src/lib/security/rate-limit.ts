@@ -1,17 +1,165 @@
 import { isIP } from "node:net";
 import { db } from "@/lib/database";
+import {
+  ADMIN_LOGIN_FAILURE_WINDOW_MS,
+  ADMIN_LOGIN_MAX_FAILURES,
+  getAdminLoginLockoutDurationMs,
+} from "@/lib/security/admin-login-lockout";
 
 interface RateWindow {
   timestamps: number[];
 }
 
+interface AdminLoginLockout {
+  failedAttempts: number;
+  lockoutCount: number;
+  lockedUntil: number | null;
+  updatedAt: number;
+}
+
 const buckets = new Map<string, RateWindow>();
+const localAdminLoginLockouts = new Map<string, AdminLoginLockout>();
 
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   retryAfterSeconds: number;
   unavailable?: boolean;
+}
+
+export interface AdminLoginLockoutResult {
+  failedAttempts: number;
+  lockoutCount: number;
+  locked: boolean;
+  retryAfterSeconds: number;
+  unavailable?: boolean;
+}
+
+function isStrictProduction(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.OMNIFLOW_STRICT_PRODUCTION === "true"
+  );
+}
+
+function localLoginLockoutStatus(
+  state: AdminLoginLockout | undefined,
+  nowMs = Date.now()
+): AdminLoginLockoutResult {
+  if (!state) {
+    return { failedAttempts: 0, lockoutCount: 0, locked: false, retryAfterSeconds: 0 };
+  }
+  const locked = state.lockedUntil !== null && state.lockedUntil > nowMs;
+  return {
+    failedAttempts: state.failedAttempts,
+    lockoutCount: state.lockoutCount,
+    locked,
+    retryAfterSeconds:
+      state.lockedUntil !== null && state.lockedUntil > nowMs
+        ? Math.max(1, Math.ceil((state.lockedUntil - nowMs) / 1000))
+        : 0,
+  };
+}
+
+export async function getAdminLoginLockout(
+  deviceKey: string
+): Promise<AdminLoginLockoutResult> {
+  try {
+    const distributed = await db.getAdminLoginLockoutState(deviceKey);
+    if (distributed) return distributed;
+  } catch {
+    // Fall through to the same fail-closed behavior used for unavailable rate-limit storage.
+  }
+
+  if (isStrictProduction()) {
+    return {
+      failedAttempts: 0,
+      lockoutCount: 0,
+      locked: true,
+      retryAfterSeconds: 60,
+      unavailable: true,
+    };
+  }
+  return localLoginLockoutStatus(localAdminLoginLockouts.get(deviceKey));
+}
+
+export async function recordAdminLoginFailure(
+  deviceKey: string
+): Promise<AdminLoginLockoutResult> {
+  try {
+    const distributed = await db.recordAdminLoginFailure(deviceKey);
+    if (distributed) return distributed;
+  } catch {
+    // Fall through to the same fail-closed behavior used for unavailable rate-limit storage.
+  }
+
+  if (isStrictProduction()) {
+    return {
+      failedAttempts: 0,
+      lockoutCount: 0,
+      locked: true,
+      retryAfterSeconds: 60,
+      unavailable: true,
+    };
+  }
+
+  const now = Date.now();
+  const state = localAdminLoginLockouts.get(deviceKey) ?? {
+    failedAttempts: 0,
+    lockoutCount: 0,
+    lockedUntil: null,
+    updatedAt: now,
+  };
+  if (state.lockedUntil !== null && state.lockedUntil > now) {
+    return localLoginLockoutStatus(state, now);
+  }
+  if (now - state.updatedAt >= ADMIN_LOGIN_FAILURE_WINDOW_MS) {
+    state.failedAttempts = 0;
+  }
+
+  state.failedAttempts += 1;
+  state.updatedAt = now;
+  if (state.failedAttempts >= ADMIN_LOGIN_MAX_FAILURES) {
+    state.failedAttempts = 0;
+    state.lockoutCount += 1;
+    state.lockedUntil = now + getAdminLoginLockoutDurationMs(state.lockoutCount - 1);
+  } else {
+    state.lockedUntil = null;
+  }
+  localAdminLoginLockouts.set(deviceKey, state);
+
+  if (localAdminLoginLockouts.size > 5000) {
+    for (const [key, value] of localAdminLoginLockouts) {
+      if (
+        now - value.updatedAt >= 90 * 24 * 60 * 60 * 1000 &&
+        (value.lockedUntil === null || value.lockedUntil <= now)
+      ) {
+        localAdminLoginLockouts.delete(key);
+      }
+    }
+  }
+
+  return localLoginLockoutStatus(state, now);
+}
+
+export async function clearAdminLoginFailures(
+  deviceKey: string
+): Promise<{ ok: boolean; unavailable?: boolean }> {
+  try {
+    const cleared = await db.clearAdminLoginFailures(deviceKey);
+    if (cleared !== null) return { ok: true };
+  } catch {
+    // Fall through to the same fail-closed behavior used for unavailable rate-limit storage.
+  }
+
+  if (isStrictProduction()) return { ok: false, unavailable: true };
+  const state = localAdminLoginLockouts.get(deviceKey);
+  if (state) {
+    state.failedAttempts = 0;
+    state.lockedUntil = null;
+    state.updatedAt = Date.now();
+  }
+  return { ok: true };
 }
 
 export function checkRateLimit(

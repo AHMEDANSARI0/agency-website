@@ -90,6 +90,7 @@ describe("Phase 9 — 3D Interactive Globe Studio, Shopify Live Customizer & Eve
       particleDensity: "dense",
       primaryGlowColor: "#4db1c0",
       secondaryGlowColor: "not-a-hex",
+      glowIntensity: 1.8,
     });
 
     expect(clamped.visualMode).toBe("quantum_sphere");
@@ -102,6 +103,7 @@ describe("Phase 9 — 3D Interactive Globe Studio, Shopify Live Customizer & Eve
     expect(clamped.secondaryGlowColor).toBe(
       DEFAULT_HERO_CANVAS_CONFIG.secondaryGlowColor
     );
+    expect(clamped.glowIntensity).toBe(1);
 
     // Persist 3D Globe configuration onto Home page via Admin API
     const headers = await buildSuperAdminHeaders();

@@ -209,10 +209,10 @@ const CANONICAL_HOME_TYPES: PageSectionType[] = [
   "problems_outcomes",
   "flagship_systems",
   "interactive_demos_preview",
-  "how_it_works",
   "case_studies_highlight",
-  "roi_framing",
+  "how_it_works",
   "faq_section",
+  "cta_banner",
 ];
 
 function normalizeHomeSections(
@@ -1090,6 +1090,7 @@ export default async function HomePage() {
             key={section.id}
             data-ve-section-id={section.id}
             data-ve-section-type={section.type}
+            data-of-theme-spacing={section.type === "hero" ? undefined : "true"}
           >
             {rendered}
           </div>

@@ -96,14 +96,22 @@ const REQUIRED_POSTGRES_TABLES = [
   "redirects",
   "schema_migrations",
   "rate_limits",
+  "admin_login_lockouts",
   "database_backups",
 ] as const;
-
 const REQUIRED_MIGRATIONS = [
   "0001_omniflow_schema", "0002_production_upgrade", "0003_crm_and_operations",
   "0004_security_and_performance", "0005_rate_limit_fixed_window",
+  "0006_admin_login_lockouts",
 ] as const;
 const REQUIRED_RATE_LIMIT_COLUMNS = ["bucket_key", "count", "window_start", "expires_at"] as const;
+const REQUIRED_ADMIN_LOGIN_LOCKOUT_COLUMNS = [
+  "device_key",
+  "failed_attempts",
+  "lockout_count",
+  "locked_until",
+  "updated_at",
+] as const;
 
 const REQUIRED_USER_COLUMNS = [
   "must_change_password",
@@ -3640,6 +3648,8 @@ export const db = {
               "0002_production_upgrade",
               "0003_crm_and_operations",
               "0004_security_and_performance",
+              "0005_rate_limit_fixed_window",
+              "0006_admin_login_lockouts",
             ],
         missingTables: strictProd ? [...REQUIRED_POSTGRES_TABLES] : [],
         missingColumns: strictProd ? [...REQUIRED_USER_COLUMNS] : [],
@@ -3687,6 +3697,15 @@ export const db = {
           const presentRateColumns = new Set(rateColumns.map((r) => r.column_name));
           const missingRateColumns = REQUIRED_RATE_LIMIT_COLUMNS.filter((c) => !presentRateColumns.has(c));
 
+          const loginLockoutColumns = await sql<{ column_name: string }[]>`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'admin_login_lockouts'
+          `;
+          const presentLoginLockoutColumns = new Set(loginLockoutColumns.map((r) => r.column_name));
+          const missingLoginLockoutColumns = REQUIRED_ADMIN_LOGIN_LOCKOUT_COLUMNS.filter(
+            (c) => !presentLoginLockoutColumns.has(c)
+          );
+
           let appliedMigrations: string[] = [];
           if (presentTables.has("schema_migrations")) {
             const migRows = await sql<{ version: string }[]>`
@@ -3709,7 +3728,8 @@ export const db = {
 
           const missingMigrations = REQUIRED_MIGRATIONS.filter((version) => !appliedMigrations.includes(version));
           const schemaReady = missingTables.length === 0 && missingColumns.length === 0 &&
-            missingRateColumns.length === 0 && missingMigrations.length === 0;
+            missingRateColumns.length === 0 && missingLoginLockoutColumns.length === 0 &&
+            missingMigrations.length === 0;
 
           return {
             driver: "supabase_postgres" as const,
@@ -3717,7 +3737,11 @@ export const db = {
             schemaReady,
             appliedMigrations,
             missingTables,
-            missingColumns: [...missingColumns.map((c) => `users.${c}`), ...missingRateColumns.map((c) => `rate_limits.${c}`)],
+            missingColumns: [
+              ...missingColumns.map((c) => `users.${c}`),
+              ...missingRateColumns.map((c) => `rate_limits.${c}`),
+              ...missingLoginLockoutColumns.map((c) => `admin_login_lockouts.${c}`),
+            ],
             missingMigrations: [...missingMigrations],
             latencyMs: Date.now() - startMs,
             backupCount,
@@ -3732,6 +3756,7 @@ export const db = {
                   ...missingTables,
                   ...missingColumns.map((c) => `users.${c}`),
                   ...missingRateColumns.map((c) => `rate_limits.${c}`),
+                  ...missingLoginLockoutColumns.map((c) => `admin_login_lockouts.${c}`),
                   ...missingMigrations.map((v) => `migration:${v}`),
                 ].join(", ")}).`,
           };
@@ -4304,6 +4329,183 @@ export const db = {
         remaining: Math.max(0, maxRequests - count),
         retryAfterSeconds: 0,
       };
+    } catch {
+      return null;
+    }
+  },
+
+  async getAdminLoginLockoutState(
+    deviceKey: string
+  ): Promise<{
+    failedAttempts: number;
+    lockoutCount: number;
+    locked: boolean;
+    retryAfterSeconds: number;
+  } | null> {
+    if (
+      !process.env.DATABASE_URL?.trim() ||
+      Boolean(process.env.OMNIFLOW_LOCAL_DB_PATH) ||
+      Date.now() < postgresFallbackUntil
+    ) {
+      return null;
+    }
+
+    try {
+      const sql = getPostgresClient();
+      if (!sql) return null;
+      const now = new Date();
+      const rows = await sql<
+        Array<{
+          failed_attempts: number;
+          lockout_count: number;
+          locked_until: Date | string | null;
+        }>
+      >`
+        SELECT failed_attempts, lockout_count, locked_until
+        FROM public.admin_login_lockouts
+        WHERE device_key = ${deviceKey}
+      `;
+      const row = rows[0];
+      if (!row) {
+        return { failedAttempts: 0, lockoutCount: 0, locked: false, retryAfterSeconds: 0 };
+      }
+
+      const lockedUntilMs = row.locked_until
+        ? new Date(row.locked_until).getTime()
+        : 0;
+      const locked = lockedUntilMs > now.getTime();
+      return {
+        failedAttempts: Number(row.failed_attempts),
+        lockoutCount: Number(row.lockout_count),
+        locked,
+        retryAfterSeconds: locked
+          ? Math.max(1, Math.ceil((lockedUntilMs - now.getTime()) / 1000))
+          : 0,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async recordAdminLoginFailure(
+    deviceKey: string
+  ): Promise<{
+    failedAttempts: number;
+    lockoutCount: number;
+    locked: boolean;
+    retryAfterSeconds: number;
+  } | null> {
+    if (
+      !process.env.DATABASE_URL?.trim() ||
+      Boolean(process.env.OMNIFLOW_LOCAL_DB_PATH) ||
+      Date.now() < postgresFallbackUntil
+    ) {
+      return null;
+    }
+
+    try {
+      const sql = getPostgresClient();
+      if (!sql) return null;
+      const now = new Date();
+      const failureWindowStart = new Date(now.getTime() - 15 * 60 * 1000);
+      const rows = await sql<
+        Array<{
+          failed_attempts: number;
+          lockout_count: number;
+          locked_until: Date | string | null;
+        }>
+      >`
+        INSERT INTO public.admin_login_lockouts
+          (device_key, failed_attempts, lockout_count, locked_until, updated_at)
+        VALUES (${deviceKey}, 1, 0, NULL, ${now.toISOString()})
+        ON CONFLICT (device_key) DO UPDATE
+        SET
+          failed_attempts = CASE
+            WHEN admin_login_lockouts.locked_until > ${now.toISOString()}
+              THEN admin_login_lockouts.failed_attempts
+            WHEN admin_login_lockouts.updated_at <= ${failureWindowStart.toISOString()}
+              THEN 1
+            WHEN admin_login_lockouts.failed_attempts >= 4
+              THEN 0
+            ELSE admin_login_lockouts.failed_attempts + 1
+          END,
+          lockout_count = CASE
+            WHEN admin_login_lockouts.locked_until > ${now.toISOString()}
+              OR admin_login_lockouts.updated_at <= ${failureWindowStart.toISOString()}
+              THEN admin_login_lockouts.lockout_count
+            WHEN admin_login_lockouts.failed_attempts >= 4
+              THEN admin_login_lockouts.lockout_count + 1
+            ELSE admin_login_lockouts.lockout_count
+          END,
+          locked_until = CASE
+            WHEN admin_login_lockouts.locked_until > ${now.toISOString()}
+              THEN admin_login_lockouts.locked_until
+            WHEN admin_login_lockouts.updated_at > ${failureWindowStart.toISOString()}
+              AND admin_login_lockouts.failed_attempts >= 4
+              THEN ${now.toISOString()}::timestamptz +
+                make_interval(mins => LEAST(
+                  15::double precision * power(
+                    2::double precision,
+                    admin_login_lockouts.lockout_count
+                  ),
+                  131400000000::double precision
+                ))
+            ELSE NULL
+          END,
+          updated_at = CASE
+            WHEN admin_login_lockouts.locked_until > ${now.toISOString()}
+              THEN admin_login_lockouts.updated_at
+            ELSE ${now.toISOString()}
+          END
+        RETURNING failed_attempts, lockout_count, locked_until
+      `;
+      const row = rows[0];
+      if (!row) return null;
+
+      const lockedUntilMs = row.locked_until
+        ? new Date(row.locked_until).getTime()
+        : 0;
+      const locked = lockedUntilMs > now.getTime();
+
+      if (Math.random() < 0.02) {
+        sql`
+          DELETE FROM public.admin_login_lockouts
+          WHERE updated_at < NOW() - INTERVAL '90 days'
+            AND (locked_until IS NULL OR locked_until <= NOW())
+        `.catch(() => undefined);
+      }
+
+      return {
+        failedAttempts: Number(row.failed_attempts),
+        lockoutCount: Number(row.lockout_count),
+        locked,
+        retryAfterSeconds: locked
+          ? Math.max(1, Math.ceil((lockedUntilMs - now.getTime()) / 1000))
+          : 0,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async clearAdminLoginFailures(deviceKey: string): Promise<boolean | null> {
+    if (
+      !process.env.DATABASE_URL?.trim() ||
+      Boolean(process.env.OMNIFLOW_LOCAL_DB_PATH) ||
+      Date.now() < postgresFallbackUntil
+    ) {
+      return null;
+    }
+
+    try {
+      const sql = getPostgresClient();
+      if (!sql) return null;
+      await sql`
+        UPDATE public.admin_login_lockouts
+        SET failed_attempts = 0, locked_until = NULL, updated_at = NOW()
+        WHERE device_key = ${deviceKey}
+      `;
+      return true;
     } catch {
       return null;
     }

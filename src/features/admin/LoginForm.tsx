@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight, Lock, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, Lock } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
@@ -53,7 +53,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div
           role="alert"
@@ -69,7 +69,7 @@ export function LoginForm() {
           htmlFor="admin-email"
           className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-muted"
         >
-          Staff Email Address
+          Email address
         </label>
         <input
           id="admin-email"
@@ -118,20 +118,9 @@ export function LoginForm() {
         className="inline-flex w-full items-center justify-center gap-2 rounded-control bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Lock className="h-4 w-4" />
-        <span>{submitting ? "Verifying session..." : "Sign In to Admin Console"}</span>
+        <span>{submitting ? "Signing in..." : "Sign in"}</span>
         {!submitting && <ArrowRight className="h-4 w-4" />}
       </button>
-
-      <div className="flex items-start gap-2 rounded-control border border-line bg-surface-muted/70 p-3 text-xs text-ink-muted">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <div>
-          <p className="font-medium text-ink-heading">Invitation-Only Staff Access</p>
-          <p className="mt-0.5">
-            Public registration is permanently disabled. Accounts are provisioned exclusively by
-            Super Admins with server-enforced role policies, revocable sessions, and audit logging.
-          </p>
-        </div>
-      </div>
     </form>
   );
 }

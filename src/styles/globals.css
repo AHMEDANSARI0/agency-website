@@ -422,6 +422,7 @@ html.lenis body {
 
 /* Reference Dark Purple AI Hero Glow, Perspective Grid & Gradient Headline */
 .of-hero-glow {
+  opacity: var(--of-hero-glow-intensity, 1);
   background: radial-gradient(
       54% 48% at 50% 6%,
       rgba(147, 51, 234, 0.30) 0%,
@@ -433,6 +434,10 @@ html.lenis body {
       rgba(126, 34, 206, 0.22) 0%,
       transparent 72%
     );
+}
+
+#of-home-sections-root [data-of-theme-spacing="true"] > section {
+  padding-block: var(--of-section-py) !important;
 }
 
 [data-theme="light"] .of-hero-glow {
@@ -624,6 +629,12 @@ html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
   animation-play-state: paused;
 }
 
+html:not([data-motion="ready"]) .animate-signal-flow,
+html:not([data-motion="ready"]) .animate-marquee,
+html:not([data-motion="ready"]) .soale-gradient-circle {
+  animation: none !important;
+}
+
 /* ==========================================================================
    Soale-Inspired Design System Primitives (GPU-Composited, Theme-Aware)
    ========================================================================== */
@@ -665,6 +676,18 @@ html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
     background-color 0.28s var(--of-ease-balance),
     border-color 0.28s var(--of-ease-balance),
     color 0.28s var(--of-ease-balance);
+}
+
+@media (max-width: 639px) {
+  .soale-arrow-btn-md .soale-arrow-label {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.84rem;
+  }
+
+  .soale-arrow-btn-md .soale-arrow-box {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
 }
 
 .soale-arrow-icon-primary,

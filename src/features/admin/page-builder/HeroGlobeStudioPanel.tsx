@@ -344,6 +344,29 @@ export function HeroGlobeStudioPanel({
           </label>
         </div>
 
+        <label className="block rounded-lg border border-line-subtle bg-surface-card px-3 py-2 text-xs">
+          <span className="flex items-center justify-between text-ink-body">
+            <span>Hero background glow</span>
+            <span className="font-mono text-primary">
+              {Math.round(heroCanvasConfig.glowIntensity * 100)}%
+            </span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={heroCanvasConfig.glowIntensity}
+            aria-label="Hero background glow intensity"
+            onChange={(e) =>
+              onUpdateHeroCanvas({
+                glowIntensity: Number.parseFloat(e.target.value),
+              })
+            }
+            className="mt-1 w-full accent-primary"
+          />
+        </label>
+
         <div className="space-y-2 pt-1">
           {(
             [

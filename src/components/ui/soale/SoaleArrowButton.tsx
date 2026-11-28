@@ -71,7 +71,9 @@ export function SoaleArrowButton(props: SoaleArrowButtonProps) {
     size === "sm"
       ? "!px-4 !py-2.5 !text-[0.84rem]"
       : "px-6 py-3.5 text-[0.94rem]";
-  const sizeBoxClass = size === "sm" ? "!h-10 !w-10" : "h-[45px] w-[45px]";
+  const sizeBoxClass = size === "sm" ? "!h-11 !w-11" : "h-[45px] w-[45px]";
+  const responsiveSizeClass =
+    size === "md" ? "soale-arrow-btn-md" : "soale-arrow-btn-sm";
 
   const inner = (
     <>
@@ -98,7 +100,7 @@ export function SoaleArrowButton(props: SoaleArrowButtonProps) {
         href={props.href}
         onClick={props.onClick}
         aria-label={ariaLabel}
-        className={`group soale-arrow-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)] ${className}`}
+        className={`group soale-arrow-btn ${responsiveSizeClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)] ${className}`}
       >
         {inner}
       </Link>
@@ -111,7 +113,7 @@ export function SoaleArrowButton(props: SoaleArrowButtonProps) {
       disabled={props.disabled}
       onClick={props.onClick}
       aria-label={ariaLabel}
-      className={`group soale-arrow-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)] disabled:pointer-events-none disabled:opacity-55 ${className}`}
+      className={`group soale-arrow-btn ${responsiveSizeClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--of-ring-focus)] disabled:pointer-events-none disabled:opacity-55 ${className}`}
     >
       {inner}
     </button>
