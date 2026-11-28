@@ -32,7 +32,7 @@ export function CookiePreferencesButton({
     <button
       type="button"
       onClick={openPreferences}
-      className="text-left text-slate-300 transition-colors hover:text-white"
+      className="text-left text-[var(--of-color-body)] transition-colors hover:text-[var(--of-color-heading)] hover:underline"
     >
       Cookie Preferences
     </button>

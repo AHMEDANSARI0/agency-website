@@ -54,9 +54,9 @@ export function Footer({ brand, settings }: FooterProps) {
         </Container>
       </div>
 
-      <Container className="py-12 sm:py-14">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-12">
-          <div data-reveal="" className="lg:col-span-4">
+      <Container className="py-10 sm:py-12">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-12 lg:items-start">
+          <div data-reveal="" className="lg:col-span-4 lg:pr-6">
             <BrandMark brand={brand} tone="auto" />
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--of-color-body)]">
               {settings.positioning} — {settings.tagline}
@@ -86,11 +86,11 @@ export function Footer({ brand, settings }: FooterProps) {
             </div>
           </div>
 
-          <div data-reveal="" className="lg:col-span-2">
+          <div data-reveal="" className="lg:col-span-2 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6">
             <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Core Systems
             </h2>
-            <ul className="mt-4 space-y-2.5 text-sm">
+            <ul className="mt-4 space-y-2.5 text-sm leading-5">
               {settings.footerLinks.services
                 .filter((i) => i.isVisible)
                 .map((item) => (
@@ -106,11 +106,11 @@ export function Footer({ brand, settings }: FooterProps) {
             </ul>
           </div>
 
-          <div data-reveal="" className="lg:col-span-3">
+          <div data-reveal="" className="lg:col-span-3 lg:border-l lg:border-[var(--of-color-border)] lg:pl-6">
             <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
               Solutions &amp; Lab
             </h2>
-            <ul className="mt-4 space-y-2.5 text-sm">
+            <ul className="mt-4 space-y-2.5 text-sm leading-5">
               <li>
                 <Link
                   href="/solutions"
@@ -162,12 +162,12 @@ export function Footer({ brand, settings }: FooterProps) {
             </ul>
           </div>
 
-          <div data-reveal="" className="grid gap-8 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
+          <div data-reveal="" className="grid gap-8 border-t border-[var(--of-color-border)] pt-8 sm:col-span-2 sm:grid-cols-2 lg:col-span-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <div>
               <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
                 Company &amp; proof
               </h2>
-              <ul className="mt-4 space-y-2.5 text-sm">
+              <ul className="mt-4 space-y-2.5 text-sm leading-5">
                 {settings.footerLinks.company
                   .filter((i) => i.isVisible)
                   .map((item) => (
@@ -187,7 +187,7 @@ export function Footer({ brand, settings }: FooterProps) {
               <h2 className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[var(--of-color-muted)]">
                 Governance
               </h2>
-              <ul className="mt-4 space-y-2.5 text-sm">
+              <ul className="mt-4 space-y-2.5 text-sm leading-5">
                 {settings.footerLinks.legal
                   .filter((i) => i.isVisible)
                   .map((item) => (

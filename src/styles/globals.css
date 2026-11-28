@@ -1257,18 +1257,21 @@ html[data-motion="ready"] [data-reveal]:not(.in):focus-within {
 
 /* Let the home hero flow behind the floating bar instead of starting at its
    bottom edge. Preserve the hero content's existing vertical placement. */
-.of-floating-header-home { margin-bottom: calc(0px - var(--nav-bar-height)); }
+.of-floating-header-home {
+  margin-top: 0;
+  margin-bottom: calc(-1 * var(--nav-bar-height));
+}
 #of-home-sections-root .of-hero-shell {
-  padding-top: calc(var(--of-home-nav-height, 56px) + 1.5rem);
+  padding-top: calc(var(--of-home-nav-height, 56px) + 1rem);
 }
 @media (min-width: 640px) {
   #of-home-sections-root .of-hero-shell {
-    padding-top: calc(var(--of-home-nav-height, 56px) + 1.75rem);
+    padding-top: calc(var(--of-home-nav-height, 56px) + 1.25rem);
   }
 }
 @media (min-width: 1024px) {
   #of-home-sections-root .of-hero-shell {
-    padding-top: calc(var(--of-home-nav-height, 56px) + 2rem);
+    padding-top: calc(var(--of-home-nav-height, 56px) + 1.5rem);
   }
 }
 
